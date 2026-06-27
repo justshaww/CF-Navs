@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+.claude/
+sun-panel/
+docs/screenshots/
+docs/development/

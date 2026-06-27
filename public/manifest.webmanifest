@@ -1,0 +1,19 @@
+{
+  "name": "CF-Navs 导航面板",
+  "short_name": "CF-Navs",
+  "description": "部署在 Cloudflare Workers 上的轻量个人导航面板",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,437 @@
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte'
+  import SearchBox from '../components/SearchBox.svelte'
+  import Sidebar from '../components/Sidebar.svelte'
+  import CategorySection from '../components/CategorySection.svelte'
+  import type { Bookmark, PublicSettings, Category } from '../../shared/types'
+
+  type AsyncVoid<T = void> = T | Promise<T>
+
+  export let categories: Category[] = []
+  export let bookmarks: Bookmark[] = []
+  export let settings: PublicSettings | null = null
+  export let title = ''
+  export let isAuthenticated = false
+  export let authLoading = false
+  export let onOpenCreateBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
+  export let onSwitchToAdmin: (() => AsyncVoid) | undefined = undefined
+  export let onLogout: (() => AsyncVoid) | undefined = undefined
+  export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
+
+  let categoryBookmarks = new Map<number, Bookmark[]>()
+  let activeId = ''
+  let isScrolling = false
+
+  $: sortedCategories = [...categories].sort((a, b) => a.sort - b.sort)
+  $: sortedBookmarks = [...bookmarks].sort((a, b) => a.sort - b.sort)
+
+  $: {
+    const nextCategoryBookmarks = new Map<number, Bookmark[]>()
+
+    for (const bookmark of sortedBookmarks) {
+      const list = nextCategoryBookmarks.get(bookmark.category_id) ?? []
+      list.push(bookmark)
+      nextCategoryBookmarks.set(bookmark.category_id, list)
+    }
+
+    categoryBookmarks = nextCategoryBookmarks
+  }
+
+  $: sections = sortedCategories.map((category) => ({
+    id: `category-${category.id}`,
+    title: category.title,
+    count: categoryBookmarks.get(category.id)?.length ?? 0,
+  }))
+
+  $: totalBookmarks = sortedBookmarks.length
+  $: pageTitle = title || settings?.site_title || '导航首页'
+  $: pageDescription =
+    totalBookmarks > 0
+      ? `已整理 ${sortedCategories.length} 个分类，收录 ${totalBookmarks} 个站点。`
+      : '一个简洁的公开导航首页。'
+
+  $: if (!sections.some((section) => section.id === activeId)) {
+    activeId = sections[0]?.id ?? ''
+  }
+
+  function handleMainScroll() {
+    if (isScrolling) return
+
+    const sectionElements = Array.from(document.querySelectorAll<HTMLElement>('[data-section-id]'))
+    const threshold = 140
+    let nextActiveId = sectionElements[0]?.dataset.sectionId ?? ''
+
+    for (const sectionElement of sectionElements) {
+      if (sectionElement.getBoundingClientRect().top <= threshold) {
+        nextActiveId = sectionElement.dataset.sectionId ?? nextActiveId
+      }
+    }
+
+    activeId = nextActiveId
+  }
+
+  onMount(() => {
+    window.addEventListener('scroll', handleMainScroll)
+  })
+
+  onDestroy(() => {
+    window.removeEventListener('scroll', handleMainScroll)
+  })
+
+  function handleNavigate(id: string | number) {
+    const targetElement = document.querySelector<HTMLElement>(`[data-section-id="${id}"]`)
+
+    if (!targetElement) {
+      activeId = String(id)
+      return
+    }
+
+    const targetRect = targetElement.getBoundingClientRect()
+    const windowHeight = window.innerHeight
+    const documentHeight = document.documentElement.scrollHeight
+    const currentScroll = window.scrollY
+    const desiredTopDistance = 80
+    let targetScroll = currentScroll + targetRect.top - desiredTopDistance
+    const maxScroll = documentHeight - windowHeight
+
+    if (targetScroll > maxScroll) {
+      targetScroll = maxScroll
+    }
+
+    const finalScroll = Math.max(0, targetScroll)
+
+    isScrolling = true
+    activeId = String(id)
+
+    window.scrollTo({
+      top: finalScroll,
+      behavior: 'smooth',
+    })
+
+    setTimeout(() => {
+      isScrolling = false
+    }, 600)
+  }
+</script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDescription} />
+</svelte:head>
+
+<div class="home-shell">
+  <header class="site-header">
+    <h1 class="site-title">{pageTitle}</h1>
+    <div class="header-actions">
+      {#if isAuthenticated}
+        <button
+          type="button"
+          class="icon-button"
+          on:click={() => onSwitchToAdmin?.()}
+          title="管理后台"
+          aria-label="管理后台"
+        >
+          ⚙️
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          on:click={() => onLogout?.()}
+          disabled={authLoading}
+          title="退出登录"
+          aria-label="退出登录"
+        >
+          🚪
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="icon-button"
+          on:click={() => onOpenLogin?.()}
+          title="管理员登录"
+          aria-label="管理员登录"
+        >
+          🔑
+        </button>
+      {/if}
+    </div>
+  </header>
+
+  <section class="search-card">
+    <SearchBox searchEngine={settings?.search_engine ?? null} />
+  </section>
+
+  <Sidebar items={sections} {activeId} onNavigate={handleNavigate} />
+
+  <div class="content-layout">
+    <main class="content-panel">
+      <div class="content-summary">
+        <div>
+          <p class="summary-label">当前内容</p>
+          <h2>共 {sortedCategories.length} 个分类，{totalBookmarks} 个站点</h2>
+        </div>
+        <p class="summary-text">通过目录快速定位分类，在分类标题旁可直接新增链接。</p>
+      </div>
+
+      {#if sortedCategories.length > 0}
+        <div class="section-list">
+          {#each sortedCategories as category (category.id)}
+            <div data-section-id={`category-${category.id}`}>
+              <CategorySection
+                category={category}
+                bookmarks={categoryBookmarks.get(category.id) ?? []}
+                canAddBookmark={isAuthenticated}
+                cardWidth={settings?.card_size?.width ?? 200}
+                cardHeight={settings?.card_size?.height ?? 0}
+                cardStyle={settings?.card_style ?? 'info'}
+                cardIconSize={settings?.card_icon_size ?? 70}
+                cardShowDescription={settings?.card_show_description ?? true}
+                onAddBookmark={onOpenCreateBookmark}
+              />
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <section class="empty-panel">
+          <h2>暂无公开内容</h2>
+          <p>当前还没有可展示的分类或书签，请稍后再来查看。</p>
+        </section>
+      {/if}
+    </main>
+  </div>
+</div>
+
+<style>
+  .home-shell {
+    position: relative;
+    min-height: 100vh;
+    padding: 1.5rem;
+    color: #0f172a;
+    isolation: isolate;
+  }
+
+  .home-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background: var(--home-background, transparent);
+    filter: blur(var(--home-background-blur, 0px));
+    transform: scale(1.06);
+  }
+
+  .home-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--home-background-mask-color, #000000);
+    opacity: var(--home-background-mask, 0.3);
+  }
+
+  :global([data-theme='dark']) .home-shell {
+    color: #e5eefb;
+  }
+
+  :global([data-theme='dark']) .home-shell::after {
+    background: var(--home-background-mask-color, #000000);
+    opacity: var(--home-background-mask, 0.3);
+  }
+
+  .site-header {
+    position: fixed;
+    top: 1.5rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    z-index: 40;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    background: rgb(71 85 105 / 13%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+  }
+
+  .site-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: inherit;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .icon-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(12px);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .icon-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(37, 99, 235, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  :global([data-theme='dark']) .icon-button {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(148, 163, 184, 0.32);
+  }
+
+  :global([data-theme='dark']) .icon-button:hover:not(:disabled) {
+    background: rgba(15, 23, 42, 0.85);
+  }
+
+  .search-card {
+    max-width: 680px;
+    margin: 5rem auto 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.68);
+    backdrop-filter: blur(18px);
+  }
+
+  .content-panel,
+  .empty-panel {
+    border-radius: 1.5rem;
+    border: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  :global([data-theme='dark']) .search-card,
+  :global([data-theme='dark']) .content-panel,
+  :global([data-theme='dark']) .empty-panel {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  :global([data-theme='dark']) .summary-label,
+  :global([data-theme='dark']) .summary-text,
+  :global([data-theme='dark']) .empty-panel p {
+    color: rgba(203, 213, 225, 0.92);
+  }
+
+  .content-layout {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .content-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 0;
+  }
+
+  .content-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-end;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  }
+
+  .summary-label,
+  .content-summary h2,
+  .summary-text {
+    margin: 0;
+  }
+
+  .summary-label {
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(100, 116, 139, 0.9);
+  }
+
+  .content-summary h2 {
+    margin-top: 0.3rem;
+    font-size: 1.18rem;
+  }
+
+  .summary-text {
+    max-width: 22rem;
+    color: rgba(71, 85, 105, 0.92);
+    line-height: 1.65;
+    text-align: right;
+  }
+
+  .section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  .empty-panel {
+    padding: 2rem;
+  }
+
+  .empty-panel h2,
+  .empty-panel p {
+    margin: 0;
+  }
+
+  .empty-panel p {
+    margin-top: 0.75rem;
+    color: rgba(71, 85, 105, 0.92);
+  }
+
+  @media (max-width: 720px) {
+    .home-shell {
+      padding: 1rem;
+    }
+
+    .site-header {
+      top: 1rem;
+      left: 1rem;
+      right: 1rem;
+    }
+
+    .site-title {
+      font-size: 1.1rem;
+    }
+
+    .icon-button {
+      width: 2.2rem;
+      height: 2.2rem;
+      font-size: 1rem;
+    }
+
+    .search-card {
+      margin-top: 4rem;
+      border-radius: 1.2rem;
+    }
+  }
+
+  :global(body.dark-theme) .site-header {
+    background: rgba(30, 34, 39, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+</style>

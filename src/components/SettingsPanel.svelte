@@ -1,0 +1,952 @@
+<script lang="ts">
+  import type {
+    BackgroundSetting,
+    SearchEngine,
+    SearchEngineSetting,
+    Settings,
+    ThemeMode,
+  } from '../../shared/types'
+
+  type SettingsPanelValue = Pick<
+    Settings,
+    | 'site_title'
+    | 'public_mode'
+    | 'theme'
+    | 'image_host_url'
+    | 'background'
+    | 'search_engine'
+    | 'card_size'
+    | 'card_style'
+    | 'card_icon_size'
+    | 'card_show_description'
+    | 'card_background_color'
+    | 'card_background_opacity'
+  >
+  type AsyncVoid<T = void> = T | Promise<T>
+
+  const themeOptions: Array<{ value: ThemeMode; label: string; hint: string }> = [
+    { value: 'auto', label: '跟随系统', hint: '根据设备当前主题自动切换。' },
+    { value: 'light', label: '浅色', hint: '始终使用浅色主题。' },
+    { value: 'dark', label: '深色', hint: '始终使用深色主题。' },
+  ]
+
+  const backgroundTypeOptions: Array<{ value: BackgroundSetting['type']; label: string; hint: string }> = [
+    { value: 'color', label: '纯色', hint: '填写 #hex 或 CSS 颜色值，例如 #0f172a。' },
+    { value: 'gradient', label: '渐变', hint: '填写完整 CSS 渐变，例如 linear-gradient(135deg,#1e3a8a,#0f172a)。' },
+    { value: 'image', label: '图片', hint: '填写图片外链 URL（可使用图床直链）。' },
+  ]
+
+  const defaultBackground: BackgroundSetting = { type: 'color', value: '#0f172a', blur: 0, mask: 0.3, maskColor: '#000000' }
+  const defaultSearchEngine: SearchEngineSetting = {
+    current: 'Google',
+    engines: [
+      { name: 'Google', icon: '', url_template: 'https://www.google.com/search?q={q}' },
+      { name: 'Bing', icon: '', url_template: 'https://www.bing.com/search?q={q}' },
+    ],
+  }
+
+  const emptyForm: SettingsPanelValue = {
+    site_title: '',
+    public_mode: true,
+    theme: 'auto',
+    image_host_url: '',
+    background: { ...defaultBackground },
+    search_engine: { current: defaultSearchEngine.current, engines: defaultSearchEngine.engines.map((e) => ({ ...e })) },
+    card_size: { width: 200, height: 0 }, // Sun-Panel 标准值
+    card_style: 'info',
+    card_icon_size: 70,
+    card_show_description: true,
+    card_background_color: '#ffffff',
+    card_background_opacity: 0.9,
+  }
+
+  export let value: Partial<SettingsPanelValue> | null = null
+  export let loading = false
+  export let saving = false
+  export let error = ''
+  export let onSubmit: ((payload: SettingsPanelValue) => AsyncVoid) | undefined = undefined
+
+  let form: SettingsPanelValue = cloneForm(emptyForm)
+  let initialForm: SettingsPanelValue = cloneForm(emptyForm)
+  let formKey = ''
+
+  function cloneForm(source: SettingsPanelValue): SettingsPanelValue {
+    return {
+      site_title: source.site_title,
+      public_mode: source.public_mode,
+      theme: source.theme,
+      image_host_url: source.image_host_url,
+      background: { ...source.background },
+      search_engine: {
+        current: source.search_engine.current,
+        engines: source.search_engine.engines.map((engine) => ({ ...engine })),
+      },
+      card_size: { ...source.card_size },
+      card_style: source.card_style,
+      card_icon_size: source.card_icon_size,
+      card_show_description: source.card_show_description,
+      card_background_color: source.card_background_color,
+      card_background_opacity: source.card_background_opacity,
+    }
+  }
+
+  function createFormState(source: Partial<SettingsPanelValue> | null | undefined): SettingsPanelValue {
+    const background = source?.background
+    const searchEngine = source?.search_engine
+    const cardSize = source?.card_size
+    return {
+      site_title: source?.site_title ?? '',
+      public_mode: source?.public_mode ?? true,
+      theme: source?.theme ?? 'auto',
+      image_host_url: source?.image_host_url ?? '',
+      background: {
+        type: background?.type ?? defaultBackground.type,
+        value: background?.value ?? defaultBackground.value,
+        blur: typeof background?.blur === 'number' ? background.blur : defaultBackground.blur,
+        mask: typeof background?.mask === 'number' ? background.mask : defaultBackground.mask,
+        maskColor: background?.maskColor ?? defaultBackground.maskColor,
+      },
+      search_engine: {
+        current: searchEngine?.current ?? defaultSearchEngine.current,
+        engines:
+          searchEngine?.engines && searchEngine.engines.length > 0
+            ? searchEngine.engines.map((engine) => ({
+                name: engine.name ?? '',
+                icon: engine.icon ?? '',
+                url_template: engine.url_template ?? '',
+              }))
+            : defaultSearchEngine.engines.map((engine) => ({ ...engine })),
+      },
+      card_size: {
+        width: typeof cardSize?.width === 'number' ? cardSize.width : 200,
+        height: typeof cardSize?.height === 'number' ? cardSize.height : 0,
+      },
+      card_style: source?.card_style ?? 'info',
+      card_icon_size: typeof source?.card_icon_size === 'number' ? source.card_icon_size : 70,
+      card_show_description: source?.card_show_description ?? true,
+      card_background_color: source?.card_background_color ?? '#ffffff',
+      card_background_opacity: typeof source?.card_background_opacity === 'number' ? source.card_background_opacity : 0.9,
+    }
+  }
+
+  function normalizeEngines(engines: SearchEngine[]): SearchEngine[] {
+    return engines.map((engine) => ({
+      name: engine.name.trim(),
+      icon: engine.icon.trim(),
+      url_template: engine.url_template.trim(),
+    }))
+  }
+
+  function normalizeForm(source: SettingsPanelValue): SettingsPanelValue {
+    const engines = normalizeEngines(source.search_engine.engines)
+    const current = engines.some((engine) => engine.name === source.search_engine.current)
+      ? source.search_engine.current
+      : engines[0]?.name ?? ''
+    return {
+      site_title: source.site_title.trim(),
+      public_mode: source.public_mode,
+      theme: source.theme,
+      image_host_url: source.image_host_url.trim(),
+      background: {
+        type: source.background.type,
+        value: source.background.value.trim(),
+        blur: clampNumber(source.background.blur, 0, 40),
+        mask: clampNumber(source.background.mask, 0, 1),
+        maskColor: source.background.maskColor?.trim() || '#000000',
+      },
+      search_engine: { current, engines },
+      card_size: {
+        width: clampNumber(source.card_size.width, 100, 400),
+        height: clampNumber(source.card_size.height, 50, 300),
+      },
+      card_style: source.card_style === 'icon' ? 'icon' : 'info',
+      card_icon_size: clampNumber(source.card_icon_size, 40, 100),
+      card_show_description: source.card_show_description,
+      card_background_color: source.card_background_color?.trim() || '#ffffff',
+      card_background_opacity: clampNumber(source.card_background_opacity, 0, 1),
+    }
+  }
+
+  function clampNumber(input: number, min: number, max: number): number {
+    if (!Number.isFinite(input)) return min
+    return Math.min(max, Math.max(min, input))
+  }
+
+  $: nextKey = JSON.stringify({ value, loading })
+  $: if (nextKey !== formKey) {
+    formKey = nextKey
+    initialForm = createFormState(value)
+    form = cloneForm(initialForm)
+  }
+
+  $: normalizedForm = normalizeForm(form)
+  $: normalizedInitialForm = normalizeForm(initialForm)
+  $: isDirty = JSON.stringify(normalizedForm) !== JSON.stringify(normalizedInitialForm)
+  $: hasTitle = normalizedForm.site_title.length > 0
+  $: enginesValid =
+    normalizedForm.search_engine.engines.length > 0 &&
+    normalizedForm.search_engine.engines.every(
+      (engine) => engine.name.length > 0 && engine.url_template.includes('{q}'),
+    )
+  $: backgroundValid = normalizedForm.background.value.length > 0
+  $: cardSizeValid =
+    Number.isFinite(normalizedForm.card_size.width) &&
+    normalizedForm.card_size.width >= 100 &&
+    normalizedForm.card_size.width <= 400 &&
+    Number.isFinite(normalizedForm.card_size.height) &&
+    normalizedForm.card_size.height >= 50 &&
+    normalizedForm.card_size.height <= 300
+  $: canSave =
+    Boolean(onSubmit) && !loading && !saving && hasTitle && enginesValid && backgroundValid && cardSizeValid && isDirty
+  $: currentThemeHint = themeOptions.find((option) => option.value === form.theme)?.hint ?? ''
+  $: currentBackgroundHint =
+    backgroundTypeOptions.find((option) => option.value === form.background.type)?.hint ?? ''
+  $: uploadHost = form.image_host_url.trim()
+
+  function addEngine() {
+    form.search_engine.engines = [
+      ...form.search_engine.engines,
+      { name: '', icon: '', url_template: 'https://example.com/search?q={q}' },
+    ]
+  }
+
+  function removeEngine(index: number) {
+    const removed = form.search_engine.engines[index]
+    const next = form.search_engine.engines.filter((_, i) => i !== index)
+    form.search_engine.engines = next
+    if (removed && removed.name === form.search_engine.current) {
+      form.search_engine.current = next[0]?.name ?? ''
+    }
+  }
+
+  function openUpload() {
+    if (!uploadHost) return
+    const base = uploadHost.endsWith('/') ? uploadHost.slice(0, -1) : uploadHost
+    window.open(`${base}/upload`, '_blank', 'noopener,noreferrer')
+  }
+
+  async function handleSubmit() {
+    if (!canSave) {
+      return
+    }
+
+    await onSubmit?.(normalizedForm)
+  }
+</script>
+
+<section class="settings-panel" aria-busy={loading || saving}>
+  <div class="panel-header">
+    <div>
+      <p class="panel-eyebrow">设置</p>
+      <h2>站点设置</h2>
+      <p class="panel-desc">维护站点标题、公开访问、主题、背景与搜索引擎。</p>
+    </div>
+  </div>
+
+  {#if error}
+    <div class="error-banner" role="alert">
+      <strong>保存失败</strong>
+      <p>{error}</p>
+    </div>
+  {/if}
+
+  {#if loading}
+    <div class="status-card">
+      <p class="status-title">设置加载中...</p>
+      <p class="status-desc">请稍候，正在准备当前配置。</p>
+    </div>
+  {:else}
+    <form class="settings-form" on:submit|preventDefault={handleSubmit}>
+      <!-- 基础 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>基础</legend>
+        <div class="form-grid">
+          <label class="field full-width">
+            <span>站点标题</span>
+            <input
+              bind:value={form.site_title}
+              type="text"
+              placeholder="例如：CF-Navs 导航站"
+              maxlength="80"
+              required
+            />
+            <small>将显示在页面标题与管理界面中。</small>
+          </label>
+
+          <label class="field">
+            <span>主题模式</span>
+            <select bind:value={form.theme}>
+              {#each themeOptions as option}
+                <option value={option.value}>{option.label}</option>
+              {/each}
+            </select>
+            <small>{currentThemeHint}</small>
+          </label>
+
+          <label class="field">
+            <span>图床地址</span>
+            <input bind:value={form.image_host_url} type="url" placeholder="https://img.example.com" />
+            <small>可留空。用于背景/图标的“打开图床上传”跳转。</small>
+          </label>
+
+          <label class="toggle-field full-width">
+            <div class="toggle-copy">
+              <span>公开模式</span>
+              <p>开启后，未登录用户也可以访问首页内容。</p>
+            </div>
+            <input bind:checked={form.public_mode} type="checkbox" />
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 背景 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>背景</legend>
+        <div class="form-grid">
+          <label class="field">
+            <span>背景类型</span>
+            <select bind:value={form.background.type}>
+              {#each backgroundTypeOptions as option}
+                <option value={option.value}>{option.label}</option>
+              {/each}
+            </select>
+            <small>{currentBackgroundHint}</small>
+          </label>
+
+          <label class="field">
+            <span>背景值</span>
+            <div class="inline-input">
+              <input
+                bind:value={form.background.value}
+                type="text"
+                placeholder={form.background.type === 'image'
+                  ? 'https://img.example.com/bg.png'
+                  : form.background.type === 'gradient'
+                    ? 'linear-gradient(135deg,#1e3a8a,#0f172a)'
+                    : '#0f172a'}
+              />
+              {#if form.background.type === 'image' && uploadHost}
+                <button type="button" class="ghost-button" on:click={openUpload}>打开图床上传 ↗</button>
+              {/if}
+            </div>
+            {#if !backgroundValid}
+              <small class="warn">请填写背景值。</small>
+            {/if}
+          </label>
+
+          <label class="field">
+            <span>模糊度 <em>{form.background.blur}px</em></span>
+            <input bind:value={form.background.blur} type="range" min="0" max="40" step="1" />
+            <small>对图片/渐变背景应用模糊，0 表示不模糊。</small>
+          </label>
+
+          <label class="field">
+            <span>遮罩透明度 <em>{form.background.mask.toFixed(2)}</em></span>
+            <input bind:value={form.background.mask} type="range" min="0" max="1" step="0.05" />
+            <small>叠加在背景上的遮罩，数值越大背景越淡。</small>
+          </label>
+
+          <label class="field">
+            <span>遮罩颜色</span>
+            <div class="color-picker-row">
+              <input
+                bind:value={form.background.maskColor}
+                type="text"
+                placeholder="#000000"
+                maxlength="30"
+              />
+              <span class="color-swatch" style="background: {form.background.maskColor};" title="当前遮罩颜色预览"></span>
+            </div>
+            <small>遮挡背景的蒙层色值，例如 <code>#000000</code>（黑色默认）或 <code>rgba(0,0,0,0.5)</code>。</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 卡片尺寸 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>卡片尺寸</legend>
+        <div class="form-grid">
+          <label class="field">
+            <span>最小宽度 (px)</span>
+            <input bind:value={form.card_size.width} type="number" min="100" max="400" step="10" />
+            <small>书签卡片最小宽度，建议 180-280。</small>
+          </label>
+          <label class="field">
+            <span>最小高度 (px)</span>
+            <input bind:value={form.card_size.height} type="number" min="50" max="300" step="10" />
+            <small>书签卡片最小高度，建议 100-150。</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 卡片背景 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>卡片背景</legend>
+        <div class="form-grid">
+          <label class="field">
+            <span>卡片颜色</span>
+            <div class="color-picker-row">
+              <input
+                bind:value={form.card_background_color}
+                type="text"
+                placeholder="#ffffff"
+                maxlength="30"
+              />
+              <span class="color-swatch" style="background: {form.card_background_color};" title="当前卡片颜色预览"></span>
+            </div>
+            <small>书签卡片背景色，例如 <code>#ffffff</code>（白色默认）。</small>
+          </label>
+
+          <label class="field">
+            <span>卡片透明度 <em>{form.card_background_opacity.toFixed(2)}</em></span>
+            <input bind:value={form.card_background_opacity} type="range" min="0" max="1" step="0.05" />
+            <small>数值越大越不透明，1 为完全不透明。</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 卡片风格 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>卡片风格</legend>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" bind:group={form.card_style} value="info" />
+            <div class="radio-content">
+              <strong>详情风格</strong>
+              <p>显示图标、标题和描述，适合信息丰富的书签</p>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" bind:group={form.card_style} value="icon" />
+            <div class="radio-content">
+              <strong>极简风格</strong>
+              <p>仅显示图标和标题，紧凑布局节省空间</p>
+            </div>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 图标尺寸 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>图标尺寸</legend>
+        <label class="field">
+          <span>图标大小 (px)</span>
+          <input bind:value={form.card_icon_size} type="number" min="40" max="100" step="5" />
+          <small>推荐：70px（Sun-Panel 默认值）</small>
+        </label>
+      </fieldset>
+
+      <!-- 详情风格选项 -->
+      {#if form.card_style === 'info'}
+        <fieldset class="group" disabled={saving}>
+          <legend>详情风格选项</legend>
+          <label class="checkbox-field">
+            <input type="checkbox" bind:checked={form.card_show_description} />
+            <span>显示书签描述</span>
+          </label>
+          <small>关闭后仅显示标题，节省空间</small>
+        </fieldset>
+      {/if}
+
+      <!-- 搜索引擎 -->
+      <fieldset class="group" disabled={saving}>
+        <legend>搜索引擎</legend>
+
+        <label class="field">
+          <span>默认引擎</span>
+          <select bind:value={form.search_engine.current} disabled={form.search_engine.engines.length === 0}>
+            {#if form.search_engine.engines.length === 0}
+              <option value="">无可用引擎</option>
+            {:else}
+              {#each form.search_engine.engines as engine (engine)}
+                {#if engine.name.trim()}
+                  <option value={engine.name}>{engine.name}</option>
+                {/if}
+              {/each}
+            {/if}
+          </select>
+          <small>首页搜索框默认选中的引擎。</small>
+        </label>
+
+        <div class="engine-list">
+          {#each form.search_engine.engines as engine, index (index)}
+            <div class="engine-row">
+              <label class="engine-cell">
+                <span>名称</span>
+                <input bind:value={engine.name} type="text" placeholder="Google" />
+              </label>
+              <label class="engine-cell">
+                <span>图标 URL</span>
+                <input bind:value={engine.icon} type="text" placeholder="可留空" />
+              </label>
+              <label class="engine-cell grow">
+                <span>查询模板（含 {'{q}'}）</span>
+                <input
+                  bind:value={engine.url_template}
+                  type="text"
+                  placeholder="https://www.google.com/search?q={'{q}'}"
+                />
+              </label>
+              <button
+                type="button"
+                class="danger-button"
+                on:click={() => removeEngine(index)}
+                disabled={form.search_engine.engines.length <= 1}
+                aria-label="删除引擎"
+              >
+                删除
+              </button>
+            </div>
+          {/each}
+        </div>
+
+        <button type="button" class="ghost-button add-engine" on:click={addEngine}>+ 新增搜索引擎</button>
+
+        {#if !enginesValid}
+          <small class="warn">每个引擎都需填写名称，且查询模板必须包含 {'{q}'} 占位符。</small>
+        {/if}
+      </fieldset>
+
+      <div class="form-footer">
+        <p class="helper-text">
+          {#if saving}
+            正在保存设置，请稍候...
+          {:else if !hasTitle}
+            请先填写站点标题。
+          {:else if !backgroundValid}
+            请完善背景设置。
+          {:else if !enginesValid}
+            请完善搜索引擎配置。
+          {:else if isDirty}
+            检测到未保存的更改。
+          {:else}
+            当前配置已是最新状态。
+          {/if}
+        </p>
+      </div>
+
+      <button type="submit" class="floating-save-btn" disabled={!canSave}>
+        {#if saving}
+          保存中...
+        {:else}
+          保存设置
+        {/if}
+      </button>
+    </form>
+  {/if}
+</section>
+
+<style>
+  .settings-panel {
+    display: grid;
+    gap: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+    padding: 24px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .panel-eyebrow {
+    margin: 0 0 8px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 22px;
+    color: #0f172a;
+  }
+
+  .panel-desc,
+  .status-desc,
+  .toggle-copy p,
+  .helper-text,
+  small {
+    color: #64748b;
+    line-height: 1.55;
+  }
+
+  .panel-desc {
+    margin-top: 10px;
+  }
+
+  small.warn {
+    color: #b45309;
+  }
+
+  .error-banner,
+  .status-card,
+  .toggle-field {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .error-banner {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    display: grid;
+    gap: 6px;
+    color: #991b1b;
+  }
+
+  .error-banner strong {
+    font-size: 14px;
+  }
+
+  .status-card {
+    border: 1px solid #dbeafe;
+    background: #f8fbff;
+    display: grid;
+    gap: 6px;
+  }
+
+  .status-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .settings-form {
+    display: grid;
+    gap: 20px;
+    padding-bottom: 88px; /* 给浮动保存按钮留空间 */
+  }
+
+  .group {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .group legend {
+    padding: 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .field,
+  .toggle-field,
+  .engine-cell {
+    display: grid;
+    gap: 8px;
+  }
+
+  .field.full-width,
+  .toggle-field.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .field span,
+  .toggle-copy span,
+  .engine-cell span {
+    color: #334155;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .field span em {
+    font-style: normal;
+    color: #2563eb;
+    font-weight: 600;
+  }
+
+  input:not([type='radio']):not([type='checkbox']),
+  select {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #0f172a;
+    background: #ffffff;
+    font-family: inherit;
+  }
+
+  input[type='range'] {
+    padding: 0;
+    accent-color: #2563eb;
+  }
+
+  input:focus,
+  select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .inline-input {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .inline-input input {
+    flex: 1 1 auto;
+  }
+
+  .color-picker-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .color-picker-row input {
+    flex: 1;
+  }
+
+  .color-swatch {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    cursor: default;
+  }
+
+  .toggle-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+
+  .toggle-copy {
+    display: grid;
+    gap: 6px;
+  }
+
+  .toggle-field input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #2563eb;
+  }
+
+  .engine-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .engine-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    gap: 10px;
+    align-items: end;
+    border: 1px solid #eef2f7;
+    border-radius: 14px;
+    padding: 12px;
+    background: #f9fafb;
+  }
+
+  .engine-cell.grow {
+    min-width: 0;
+  }
+
+  .add-engine {
+    justify-self: start;
+  }
+
+  .form-footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 4px;
+  }
+
+  .helper-text {
+    font-size: 13px;
+  }
+
+  /* 浮动保存按钮 */
+  .floating-save-btn {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    z-index: 100;
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 14px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .floating-save-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(37, 99, 235, 0.45);
+  }
+
+  .floating-save-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .ghost-button,
+  .danger-button {
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.18s ease;
+    white-space: nowrap;
+  }
+
+  .ghost-button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .danger-button {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #dc2626;
+  }
+
+  .ghost-button:disabled,
+  .danger-button:disabled,
+  input:disabled,
+  select:disabled,
+  fieldset:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  fieldset:disabled {
+    opacity: 1;
+  }
+
+  @media (max-width: 720px) {
+    .settings-panel {
+      padding: 20px;
+    }
+
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .engine-row {
+      grid-template-columns: 1fr;
+    }
+
+    .toggle-field {
+      align-items: flex-start;
+    }
+
+    .settings-form {
+      padding-bottom: 78px;
+    }
+
+    .floating-save-btn {
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      font-size: 14px;
+    }
+  }
+
+  /* 单选按钮组 */
+  .radio-group {
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    flex-wrap: wrap; /* 允许换行 */
+  }
+
+  .radio-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.625rem; /* 从0.75rem减小到0.625rem */
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 0 1 auto; /* 不自动拉伸，根据内容决定宽度 */
+    max-width: 320px; /* 限制最大宽度 */
+    min-width: 240px; /* 设置最小宽度 */
+  }
+
+  .radio-option:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .radio-option input[type='radio'] {
+    margin-top: 0.25rem;
+    cursor: pointer;
+    flex-shrink: 0; /* 防止单选按钮缩小 */
+    width: auto; /* 使用自然宽度 */
+    height: 16px; /* 固定高度 */
+  }
+
+  .radio-content {
+    flex: 1;
+  }
+
+  .radio-content strong {
+    display: block;
+    margin-bottom: 0.2rem; /* 从0.25rem减小到0.2rem */
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 0.875rem; /* 从0.9rem减小到0.875rem */
+  }
+
+  .radio-content p {
+    margin: 0;
+    font-size: 0.75rem; /* 从0.8rem减小到0.75rem */
+    color: #64748b;
+    line-height: 1.3; /* 从1.4减小到1.3 */
+  }
+
+  /* 复选框字段 */
+  .checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+  }
+
+  .checkbox-field input[type='checkbox'] {
+    cursor: pointer;
+  }
+
+  .checkbox-field span {
+    font-weight: 500;
+  }
+
+</style>
