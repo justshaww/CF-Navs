@@ -16,6 +16,7 @@
 
   $: sectionId = `category-${category.id}`
   $: gridMinWidth = cardStyle === 'info' ? 200 : cardIconSize // Sun-Panel 标准值
+  $: mobileGridMinWidth = cardStyle === 'info' ? 150 : cardIconSize
 
   async function handleAddBookmark() {
     await onAddBookmark?.(category.id)
@@ -41,7 +42,7 @@
   </header>
 
   {#if bookmarks.length > 0}
-    <div class="bookmark-grid" style="--card-min-width: {gridMinWidth}px;">
+    <div class="bookmark-grid" style="--card-min-width: {gridMinWidth}px; --mobile-card-min-width: {mobileGridMinWidth}px;">
       {#each bookmarks as bookmark (bookmark.id)}
         <BookmarkCard
           {bookmark}
@@ -133,7 +134,7 @@
   /* 移动端响应式 */
   @media (max-width: 500px) {
     .bookmark-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(var(--mobile-card-min-width, 150px), 1fr));
       gap: 1rem;
     }
   }
