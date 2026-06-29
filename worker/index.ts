@@ -25,15 +25,15 @@ function withAssetCacheHeaders(request: Request, response: Response): Response {
   const contentType = headers.get('Content-Type') ?? ''
 
   if (response.ok) {
-    if (url.pathname.startsWith('/assets/')) {
-      headers.set('Cache-Control', IMMUTABLE_ASSET_CACHE)
-    } else if (
+    if (
       url.pathname === '/' ||
       url.pathname === '/index.html' ||
       url.pathname === '/sw.js' ||
       contentType.includes('text/html')
     ) {
       headers.set('Cache-Control', REVALIDATE_CACHE)
+    } else if (url.pathname.startsWith('/assets/')) {
+      headers.set('Cache-Control', IMMUTABLE_ASSET_CACHE)
     } else if (url.pathname === '/manifest.webmanifest' || url.pathname === '/icon.svg') {
       headers.set('Cache-Control', SHORT_STATIC_CACHE)
     }
