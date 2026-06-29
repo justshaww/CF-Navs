@@ -10,6 +10,7 @@ import {
 } from '../lib/db'
 import { invalidatePublicDataCache } from '../lib/cache'
 import { fail, ok } from '../lib/response'
+import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
@@ -60,6 +61,7 @@ categoriesRoutes.post('/', async (c) => {
       title: body.title.trim(),
       icon: body.icon ?? null,
     })
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(category))
   } catch {
@@ -82,6 +84,7 @@ categoriesRoutes.put('/:id', async (c) => {
       icon: body.icon ?? null,
     })
     if (!category) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(category))
   } catch {
@@ -96,6 +99,7 @@ categoriesRoutes.delete('/:id', async (c) => {
   try {
     const deleted = await deleteCategory(c.env.DB, id)
     if (!deleted) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(null))
   } catch {
@@ -112,6 +116,7 @@ categoriesRoutes.post('/sort', async (c) => {
 
   try {
     await sortCategories(c.env.DB, ids)
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(null))
   } catch {

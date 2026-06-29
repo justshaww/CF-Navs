@@ -4,6 +4,7 @@ import { ErrCode, type Settings, type SettingsUpdateReq } from '../../shared/typ
 import { invalidatePublicDataCache, invalidateSiteConfigCache } from '../lib/cache'
 import { getSettings, settingsFromPatchDefaults, updateSettings, writeSettingsPatch } from '../lib/db'
 import { fail, ok } from '../lib/response'
+import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
@@ -168,6 +169,7 @@ settingsRoutes.put('/', async (c) => {
     } else {
       settings = await updateSettings(c.env.DB, body)
     }
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     invalidateSiteConfigCache(c, c.req.url)
     return c.json(ok(settings))

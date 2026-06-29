@@ -12,6 +12,7 @@ import {
 import { invalidatePublicDataCache } from '../lib/cache'
 import { fetchCacheableIcon, iconBytesToDataUri, shouldPersistIconBlob } from '../lib/iconData'
 import { fail, ok } from '../lib/response'
+import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
@@ -96,6 +97,7 @@ bookmarksRoutes.post('/', async (c) => {
       waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
     }
 
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(bookmark))
   } catch {
@@ -140,6 +142,7 @@ bookmarksRoutes.put('/:id', async (c) => {
       waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
     }
 
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(bookmark))
   } catch {
@@ -154,6 +157,7 @@ bookmarksRoutes.delete('/:id', async (c) => {
   try {
     const deleted = await deleteBookmark(c.env.DB, id)
     if (!deleted) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark not found'))
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(null))
   } catch {
@@ -170,6 +174,7 @@ bookmarksRoutes.post('/sort', async (c) => {
 
   try {
     await sortBookmarks(c.env.DB, ids)
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(null))
   } catch {

@@ -4,6 +4,7 @@ import { ErrCode, type Bookmark, type Category, type ImportReq, type ImportResp 
 import { invalidatePublicDataCache, invalidateSiteConfigCache } from '../lib/cache'
 import { getSettings, importData } from '../lib/db'
 import { fail, ok } from '../lib/response'
+import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
@@ -96,6 +97,7 @@ dataRoutes.post('/import', async (c) => {
       bookmarks: result.importedBookmarks,
       settings,
     }
+    invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     invalidateSiteConfigCache(c, c.req.url)
     return c.json(ok<ImportResp>({ categories: result.categories, bookmarks: result.bookmarks, data }))
