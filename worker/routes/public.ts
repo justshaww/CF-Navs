@@ -53,14 +53,40 @@ publicRoutes.get('/config', async (c) => {
 
 publicRoutes.get('/public/data', async (c) => {
   const token = extractBearerToken(c.req.header('Authorization'))
+  let privateAccessAllowed = false
   if (!token) {
     const cached = await matchPublicDataCache(c.req.url)
     if (cached) return cached
   }
 
+  const siteConfig = await getSiteConfig(c.env.DB)
+  if (!siteConfig.public_mode) {
+    if (!token) {
+      const response = c.json({
+        ...fail(ErrCode.FORBIDDEN, 'forbidden'),
+        data: {
+          site_title: siteConfig.site_title,
+          public_mode: false,
+        },
+      }, 200, {
+        'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120',
+      })
+      cachePrivatePublicDataResponse(c, c.req.url, response)
+      return response
+    }
+
+    const session = await validateSession(c.env, token)
+    if (!session) {
+      return c.json(fail(ErrCode.FORBIDDEN, 'forbidden'))
+    }
+
+    c.set('username', session.username)
+    privateAccessAllowed = true
+  }
+
   const publicDataSource = await getPublicDataSource(c.env.DB)
   const publicSettings = publicDataSource.settings
-  if (!publicSettings.public_mode) {
+  if (!publicSettings.public_mode && !privateAccessAllowed) {
     if (!token) {
       const response = c.json({
         ...fail(ErrCode.FORBIDDEN, 'forbidden'),
@@ -81,6 +107,7 @@ publicRoutes.get('/public/data', async (c) => {
     }
 
     c.set('username', session.username)
+    privateAccessAllowed = true
   }
 
   const canUsePublicCache = publicSettings.public_mode && !token
