@@ -140,6 +140,12 @@ function cacheResponse(c: AppContext, request: Request, response: Response) {
   executionCtx?.waitUntil(edgeCache.put(request, response.clone()))
 }
 
+function cachedFallbackIconResponse(c: AppContext, request: Request, title: string, url: string): Response {
+  const response = fallbackIconResponse(title, url)
+  cacheResponse(c, request, response)
+  return response
+}
+
 function normalizeIconifyParam(value: string): string {
   return decodeURIComponent(value).replace(/\.svg$/i, '').trim().toLowerCase()
 }
@@ -192,7 +198,7 @@ iconRoutes.get('/iconify/:prefix/:name', async (c) => {
 
     const icon = await fetchIcon(iconUrl)
     if (!icon) {
-      return fallbackIconResponse(c.req.param('name').replace(/\.svg$/i, ''), iconUrl)
+      return cachedFallbackIconResponse(c, c.req.raw, c.req.param('name').replace(/\.svg$/i, ''), iconUrl)
     }
 
     const response = iconBytesToResponse(icon)
@@ -228,24 +234,24 @@ iconRoutes.get('/icon/:id', async (c) => {
     }
 
     if (!bookmark?.icon) {
-      return fallbackIconResponse(bookmark?.title ?? '', bookmark?.url ?? '')
+      return cachedFallbackIconResponse(c, c.req.raw, bookmark?.title ?? '', bookmark?.url ?? '')
     }
 
     if (bookmark.icon.startsWith('data:image/')) {
       await setIconBlob(c.env.DB, id, bookmark.icon)
       const response = dataUriToResponse(bookmark.icon)
-      if (!response) return fallbackIconResponse(bookmark.title, bookmark.url)
+      if (!response) return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
       cacheResponse(c, c.req.raw, response)
       return response
     }
 
     if (!/^https?:\/\//i.test(bookmark.icon)) {
-      return fallbackIconResponse(bookmark.title, bookmark.url)
+      return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
     }
 
     const fetchedIcon = await fetchIcon(bookmark.icon)
     if (!fetchedIcon) {
-      return fallbackIconResponse(bookmark.title, bookmark.url)
+      return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
     }
 
     if (isIconifyIconUrl(bookmark.icon)) {
@@ -278,23 +284,23 @@ iconRoutes.get('/category-icon/:id', async (c) => {
 
     const category = await getCategory(c.env.DB, id)
     if (!category?.icon) {
-      return fallbackIconResponse(category?.title ?? '', '')
+      return cachedFallbackIconResponse(c, c.req.raw, category?.title ?? '', '')
     }
 
     if (category.icon.startsWith('data:image/')) {
       const response = dataUriToResponse(category.icon)
-      if (!response) return fallbackIconResponse(category.title, '')
+      if (!response) return cachedFallbackIconResponse(c, c.req.raw, category.title, '')
       cacheResponse(c, c.req.raw, response)
       return response
     }
 
     if (!/^https?:\/\//i.test(category.icon)) {
-      return fallbackIconResponse(category.title, '')
+      return cachedFallbackIconResponse(c, c.req.raw, category.title, '')
     }
 
     const fetchedIcon = await fetchIcon(category.icon)
     if (!fetchedIcon) {
-      return fallbackIconResponse(category.title, category.icon)
+      return cachedFallbackIconResponse(c, c.req.raw, category.title, category.icon)
     }
 
     const response = iconBytesToResponse(fetchedIcon)
