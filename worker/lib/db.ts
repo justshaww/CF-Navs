@@ -236,46 +236,35 @@ export async function getBookmarkIconData(db: D1Database, id: number): Promise<B
   ))
 }
 
-export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Promise<Bookmark> {
+export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Promise<Bookmark | null> {
   const now = Date.now()
   const open_method: 1 | 2 | 3 = req.open_method === 2 ? 2 : req.open_method === 3 ? 3 : 1
-  // 新书签排到所属分类末尾
-  const maxRow = await db
-    .prepare('SELECT COALESCE(MAX(sort), -1) AS m FROM bookmarks WHERE category_id = ?')
-    .bind(req.category_id)
-    .first<{ m: number }>()
-  const sort = (maxRow?.m ?? -1) + 1
-  const res = await db
-    .prepare(
-      'INSERT INTO bookmarks (category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .bind(
-      req.category_id,
-      req.title,
-      req.url,
-      req.icon ?? null,
-      req.icon_source ?? null,
-      req.icon_background_color ?? null,
-      req.description ?? null,
-      open_method,
-      sort,
-      now,
-    )
-    .run()
-  const id = Number(res.meta.last_row_id)
-  return {
-    id,
-    category_id: req.category_id,
-    title: req.title,
-    url: req.url,
-    icon: req.icon ?? null,
-    icon_source: req.icon_source ?? null,
-    icon_background_color: req.icon_background_color ?? null,
-    description: req.description ?? null,
-    open_method,
-    sort,
-    created_at: now,
-  }
+  return await withSchemaRetry(db, async () => (
+    await db
+      .prepare(
+        `INSERT INTO bookmarks (
+           category_id, title, url, icon, icon_source, icon_background_color,
+           description, open_method, sort, created_at
+         )
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
+         WHERE EXISTS (SELECT 1 FROM categories WHERE id = ?)
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at`,
+      )
+      .bind(
+        req.category_id,
+        req.title,
+        req.url,
+        req.icon ?? null,
+        req.icon_source ?? null,
+        req.icon_background_color ?? null,
+        req.description ?? null,
+        open_method,
+        req.category_id,
+        now,
+        req.category_id,
+      )
+      .first<Bookmark>()
+  ))
 }
 
 export async function updateBookmark(
@@ -286,35 +275,38 @@ export async function updateBookmark(
   const nextIcon = req.icon ?? null
   const openMethod: 1 | 2 | 3 | null =
     req.open_method === 2 ? 2 : req.open_method === 3 ? 3 : req.open_method === 1 ? 1 : null
-  return await db
-    .prepare(
-      `UPDATE bookmarks
-       SET category_id = ?,
-           title = ?,
-           url = ?,
-           icon_blob = CASE WHEN (icon IS NULL AND ? IS NULL) OR icon = ? THEN icon_blob ELSE NULL END,
-           icon = ?,
-           icon_source = ?,
-           icon_background_color = ?,
-           description = ?,
-           open_method = COALESCE(?, open_method)
-       WHERE id = ?
-       RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at`,
-    )
-    .bind(
-      req.category_id,
-      req.title,
-      req.url,
-      nextIcon,
-      nextIcon,
-      nextIcon,
-      req.icon_source ?? null,
-      req.icon_background_color ?? null,
-      req.description ?? null,
-      openMethod,
-      id,
-    )
-    .first<Bookmark>()
+  return await withSchemaRetry(db, async () => (
+    await db
+      .prepare(
+        `UPDATE bookmarks
+         SET category_id = ?,
+             title = ?,
+             url = ?,
+             icon_blob = CASE WHEN (icon IS NULL AND ? IS NULL) OR icon = ? THEN icon_blob ELSE NULL END,
+             icon = ?,
+             icon_source = ?,
+             icon_background_color = ?,
+             description = ?,
+             open_method = COALESCE(?, open_method)
+         WHERE id = ? AND EXISTS (SELECT 1 FROM categories WHERE id = ?)
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at`,
+      )
+      .bind(
+        req.category_id,
+        req.title,
+        req.url,
+        nextIcon,
+        nextIcon,
+        nextIcon,
+        req.icon_source ?? null,
+        req.icon_background_color ?? null,
+        req.description ?? null,
+        openMethod,
+        id,
+        req.category_id,
+      )
+      .first<Bookmark>()
+  ))
 }
 
 export async function deleteBookmark(db: D1Database, id: number): Promise<boolean> {

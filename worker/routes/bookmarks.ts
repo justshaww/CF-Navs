@@ -4,8 +4,6 @@ import { ErrCode, type BookmarkUpsertReq, type SortReq } from '../../shared/type
 import {
   createBookmark,
   deleteBookmark,
-  ensureSchema,
-  getCategory,
   listBookmarks,
   setIconBlob,
   sortBookmarks,
@@ -85,7 +83,6 @@ bookmarksRoutes.get('/', async (c) => {
 })
 
 bookmarksRoutes.post('/', async (c) => {
-  await ensureSchema(c.env.DB)
   const body = await readJson<BookmarkUpsertReq>(c)
   if (
     !body ||
@@ -103,9 +100,6 @@ bookmarksRoutes.post('/', async (c) => {
   }
 
   try {
-    const category = await getCategory(c.env.DB, body.category_id)
-    if (!category) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
-
     const bookmark = await createBookmark(c.env.DB, {
       category_id: body.category_id,
       title: body.title.trim(),
@@ -116,6 +110,7 @@ bookmarksRoutes.post('/', async (c) => {
       description: body.description ?? null,
       open_method: body.open_method,
     })
+    if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
 
     // 异步缓存图标 blob（不阻塞响应）
     if (bookmark.icon && shouldCacheIconBlob(bookmark.icon, bookmark.icon_source)) {
@@ -130,7 +125,6 @@ bookmarksRoutes.post('/', async (c) => {
 })
 
 bookmarksRoutes.put('/:id', async (c) => {
-  await ensureSchema(c.env.DB)
   const id = parseId(c)
   if (id == null) return badRequest(c, 'invalid bookmark id')
 
@@ -151,9 +145,6 @@ bookmarksRoutes.put('/:id', async (c) => {
   }
 
   try {
-    const category = await getCategory(c.env.DB, body.category_id)
-    if (!category) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
-
     const bookmark = await updateBookmark(c.env.DB, id, {
       category_id: body.category_id,
       title: body.title.trim(),
@@ -164,7 +155,7 @@ bookmarksRoutes.put('/:id', async (c) => {
       description: body.description ?? null,
       open_method: body.open_method,
     })
-    if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark not found'))
+    if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark or category not found'))
 
     // 异步缓存图标 blob（不阻塞响应）
     if (bookmark.icon && shouldCacheIconBlob(bookmark.icon, bookmark.icon_source)) {
