@@ -8,8 +8,15 @@
 //  - 导航请求       网络优先，离线回退到缓存的 index.html
 //  - /assets/*等    缓存优先（构建产物带 hash，安全长期缓存）
 
-const CACHE = 'cf-navs-v6'
+const CACHE = 'cf-navs-v7'
 const APP_SHELL = ['/index.html', '/manifest.webmanifest', '/icon.svg']
+
+function cacheResponse(request, response) {
+  if (!response.ok) return
+
+  const copy = response.clone()
+  caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined)
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -88,8 +95,9 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('/index.html', copy)).catch(() => undefined)
+          if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+            cacheResponse('/index.html', response)
+          }
           return response
         })
         .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/'))),
@@ -105,8 +113,7 @@ self.addEventListener('fetch', (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            const copy = response.clone()
-            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined)
+            cacheResponse(request, response)
             return response
           }),
       ),

@@ -179,7 +179,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 首页主包、后台管理和书签编辑弹窗代码分割，后台功能按需加载
 - 首页启动优先使用匿名 `/api/public/data` 派生站点配置，公开关闭时复用 1005 响应中的轻量配置进入登录页，匿名 1005 会短时走 edge cache；即使本地有登录态，公开首页刷新也不预加载 `/api/admin/data`
 - 登录弹窗、后台管理和书签编辑弹窗独立分包；未登录访问管理入口或私有站点登录页时只下载轻量登录弹窗，登录成功后才下载后台管理分包
-- Worker 为非 HTML 的 `/assets/*` hash 构建产物设置一年 immutable 缓存，为 HTML 和 `sw.js` 设置 no-cache 重验证；Service Worker 预缓存 `/index.html` 做离线回退，避免安装阶段重复预缓存根路径
+- Worker 为非 HTML 的 `/assets/*` hash 构建产物设置一年 immutable 缓存，为 HTML 和 `sw.js` 设置 no-cache 重验证；Service Worker 预缓存 `/index.html` 做离线回退，避免安装阶段重复预缓存根路径，并且运行时只缓存成功静态资源和成功 HTML 导航响应，避免失败响应污染本地缓存
 - CSS 压缩
 - 图标代理响应由 Service Worker cache-first 读取，页面滚动、搜索筛选和设置保存后优先命中本地缓存；已保存的 Iconify 图标使用稳定 `/api/iconify/*` 代理，同一个图标在浏览器本地只缓存一份；首页书签和分类图标使用原生懒加载与异步解码，降低首屏图标并发请求
 - 首页搜索预计算书签索引，滚动高亮缓存分区 DOM 并用 `requestAnimationFrame` 节流
