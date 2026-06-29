@@ -451,43 +451,40 @@ export async function setSettingValue(db: D1Database, key: string, value: unknow
     .run()
 }
 
+function settingsPatchStatement(db: D1Database, patch: Partial<Settings>): D1PreparedStatement | null {
+  const placeholders: string[] = []
+  const params: unknown[] = []
+
+  for (const key of SETTINGS_KEYS) {
+    if (key in patch && patch[key] !== undefined) {
+      placeholders.push('(?, ?)')
+      params.push(key, JSON.stringify(patch[key]))
+    }
+  }
+
+  if (placeholders.length === 0) return null
+
+  return db
+    .prepare(
+      `INSERT INTO settings (key, value) VALUES ${placeholders.join(', ')}
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .bind(...params)
+}
+
 // 部分更新 Settings（只更新传入的 key），batch 提交后返回全量
 export async function updateSettings(
   db: D1Database,
   patch: Partial<Settings>,
 ): Promise<Settings> {
-  const stmts: D1PreparedStatement[] = []
-  for (const key of SETTINGS_KEYS) {
-    if (key in patch && patch[key] !== undefined) {
-      stmts.push(
-        db
-          .prepare(
-            'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-          )
-          .bind(key, JSON.stringify(patch[key])),
-      )
-    }
-  }
-  if (stmts.length > 0) await db.batch(stmts)
+  await settingsPatchStatement(db, patch)?.run()
   return await getSettings(db)
 }
 
 // ========== 数据导入（覆盖式：清空后重建，保留原始 id 以维持关联） ==========
 
 export async function writeSettingsPatch(db: D1Database, patch: Partial<Settings>): Promise<void> {
-  const stmts: D1PreparedStatement[] = []
-  for (const key of SETTINGS_KEYS) {
-    if (key in patch && patch[key] !== undefined) {
-      stmts.push(
-        db
-          .prepare(
-            'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-          )
-          .bind(key, JSON.stringify(patch[key])),
-      )
-    }
-  }
-  if (stmts.length > 0) await db.batch(stmts)
+  await settingsPatchStatement(db, patch)?.run()
 }
 
 export async function importData(
@@ -559,17 +556,8 @@ export async function importData(
 
   // 设置（仅写入受支持的 key，绝不触碰 admin_* 等内部 key）
   if (data.settings) {
-    for (const key of SETTINGS_KEYS) {
-      if (key in data.settings && data.settings[key] !== undefined) {
-        stmts.push(
-          db
-            .prepare(
-              'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-            )
-            .bind(key, JSON.stringify(data.settings[key])),
-        )
-      }
-    }
+    const settingsStmt = settingsPatchStatement(db, data.settings)
+    if (settingsStmt) stmts.push(settingsStmt)
   }
 
   await db.batch(stmts)
