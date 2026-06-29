@@ -125,6 +125,7 @@ function normalizeStoredAuthSession(value: unknown): StoredAuthSession | null {
   return {
     token: candidate.token,
     expires_at: candidate.expires_at,
+    username: typeof candidate.username === 'string' ? candidate.username : '',
   }
 }
 

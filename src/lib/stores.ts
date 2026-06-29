@@ -171,10 +171,9 @@ function createAuthStore() {
     try {
       const session = await api.auth.login({ username, password })
       setStoredAuthSession(session)
-      const me = await api.auth.me()
       set({
         session,
-        me,
+        me: { username: session.username },
         initialized: true,
         loading: false,
         error: null,

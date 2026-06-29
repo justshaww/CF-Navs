@@ -34,6 +34,7 @@
 | GET | `/api/me` | 无 | `{ username: string }` |
 
 管理员首次初始化使用 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD`。密码通过 WebCrypto PBKDF2 哈希后以 `salt:hash` 形式存入 `settings.admin_password`。
+`LoginResp` 包含 `token`、`expires_at` 和 `username`，前端登录成功后直接使用返回的 `username` 更新登录态，不再额外请求 `/api/me`。
 
 ## 后台聚合接口
 

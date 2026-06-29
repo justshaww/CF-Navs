@@ -64,7 +64,7 @@ authRoutes.post('/login', loginRateLimit, async (c) => {
     clearLoginFailures(c.env, ip),
   ])
 
-  const data: LoginResp = { token, expires_at }
+  const data: LoginResp = { token, expires_at, username: adminUsername }
   return c.json(ok(data))
 })
 

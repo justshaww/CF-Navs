@@ -129,6 +129,7 @@ export interface LoginReq {
 export interface LoginResp {
   token: string
   expires_at: number
+  username: string
 }
 
 // GET /api/public/data  （公开只读聚合）
