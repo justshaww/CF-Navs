@@ -5,13 +5,23 @@ import { getSettingValue, setSettingValue } from './db'
 const ADMIN_USERNAME_KEY = 'admin_username'
 const ADMIN_PASSWORD_KEY = 'admin_password'
 
-export async function ensureAdminBootstrap(env: Env): Promise<void> {
+export interface AdminCredentials {
+  username: string
+  passwordHash: string
+}
+
+export async function ensureAdminBootstrap(env: Env): Promise<AdminCredentials> {
   const [adminUsername, adminPassword] = await Promise.all([
     getSettingValue<string>(env.DB, ADMIN_USERNAME_KEY),
     getSettingValue<string>(env.DB, ADMIN_PASSWORD_KEY),
   ])
 
-  if (adminUsername && adminPassword) return
+  if (adminUsername && adminPassword) {
+    return {
+      username: adminUsername,
+      passwordHash: adminPassword,
+    }
+  }
 
   const initUsername = adminUsername ?? env.INIT_ADMIN_USER?.trim()
   const initPassword = env.INIT_ADMIN_PASSWORD?.trim()
@@ -20,6 +30,7 @@ export async function ensureAdminBootstrap(env: Env): Promise<void> {
     throw new Error('Missing INIT_ADMIN_USER or INIT_ADMIN_PASSWORD for admin bootstrap')
   }
 
+  let nextPasswordHash = adminPassword
   const writes: Promise<unknown>[] = []
 
   if (!adminUsername) {
@@ -27,12 +38,18 @@ export async function ensureAdminBootstrap(env: Env): Promise<void> {
   }
 
   if (!adminPassword) {
-    writes.push(
-      hashPassword(initPassword).then((hashedPassword) =>
-        setSettingValue(env.DB, ADMIN_PASSWORD_KEY, hashedPassword),
-      ),
-    )
+    nextPasswordHash = await hashPassword(initPassword)
+    writes.push(setSettingValue(env.DB, ADMIN_PASSWORD_KEY, nextPasswordHash))
   }
 
   await Promise.all(writes)
+
+  if (!nextPasswordHash) {
+    throw new Error('Missing admin password hash after bootstrap')
+  }
+
+  return {
+    username: initUsername,
+    passwordHash: nextPasswordHash,
+  }
 }

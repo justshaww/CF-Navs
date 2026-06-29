@@ -3,9 +3,8 @@ import type { LoginReq, LoginResp } from '../../shared/types'
 import { ErrCode } from '../../shared/types'
 import { authRequired, extractBearerToken, getSessionKey } from '../middleware/auth'
 import { clearLoginFailures, getClientIp, loginRateLimit, recordLoginFailure } from '../middleware/rateLimit'
-import { ensureAdminBootstrap } from '../lib/bootstrap'
+import { ensureAdminBootstrap, type AdminCredentials } from '../lib/bootstrap'
 import { generateToken, verifyPassword } from '../lib/crypto'
-import { getSettingValue } from '../lib/db'
 import { fail, ok } from '../lib/response'
 import type { HonoEnv, SessionValue } from '../types'
 
@@ -19,8 +18,9 @@ function getSessionTtlSeconds(raw: string | undefined): number {
 export const authRoutes = new Hono<HonoEnv>()
 
 authRoutes.post('/login', loginRateLimit, async (c) => {
+  let credentials: AdminCredentials
   try {
-    await ensureAdminBootstrap(c.env)
+    credentials = await ensureAdminBootstrap(c.env)
   } catch {
     return c.json(fail(ErrCode.SERVER_ERROR, 'admin bootstrap failed'))
   }
@@ -39,16 +39,7 @@ authRoutes.post('/login', loginRateLimit, async (c) => {
   }
 
   const ip = getClientIp(c)
-  const [adminUsername, adminPassword] = await Promise.all([
-    getSettingValue<string>(c.env.DB, 'admin_username'),
-    getSettingValue<string>(c.env.DB, 'admin_password'),
-  ])
-
-  if (!adminUsername || !adminPassword) {
-    return c.json(fail(ErrCode.SERVER_ERROR, 'admin is not initialized'))
-  }
-
-  const passwordOk = username === adminUsername && (await verifyPassword(password, adminPassword))
+  const passwordOk = username === credentials.username && (await verifyPassword(password, credentials.passwordHash))
   if (!passwordOk) {
     await recordLoginFailure(c.env, ip)
     return c.json(fail(ErrCode.UNAUTHORIZED, 'invalid credentials'))
@@ -57,14 +48,14 @@ authRoutes.post('/login', loginRateLimit, async (c) => {
   const ttlSeconds = getSessionTtlSeconds(c.env.SESSION_TTL)
   const expires_at = Date.now() + ttlSeconds * 1000
   const token = generateToken()
-  const session: SessionValue = { username: adminUsername, exp: expires_at }
+  const session: SessionValue = { username: credentials.username, exp: expires_at }
 
   await Promise.all([
     c.env.SESSION.put(getSessionKey(token), JSON.stringify(session), { expirationTtl: ttlSeconds }),
     clearLoginFailures(c.env, ip),
   ])
 
-  const data: LoginResp = { token, expires_at, username: adminUsername }
+  const data: LoginResp = { token, expires_at, username: credentials.username }
   return c.json(ok(data))
 })
 

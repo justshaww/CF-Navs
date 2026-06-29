@@ -184,6 +184,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 首页搜索预计算书签索引，滚动高亮缓存分区 DOM 并用 `requestAnimationFrame` 节流
 - 后台初始化使用 `/api/admin/data` 一次拉取分类、书签和完整设置，并从完整设置派生站点配置
 - 登录响应携带用户名；登录成功和已有登录态启动都无需先请求 `/api/me`
+- 登录 bootstrap 与密码校验复用同一次管理员账号 settings 读取
 - 后台 CRUD、排序和设置保存后使用接口返回值增量更新本地 store，避免额外拉取全量 `/api/public/data`
 
 ### 后端
