@@ -62,7 +62,14 @@
   <header class="section-header">
     <div class="section-title-wrap">
       {#if hasCategoryImageIcon}
-        <img class="section-icon" src={categoryIconUrl} alt="" on:error={handleCategoryIconError} />
+        <img
+          class="section-icon"
+          src={categoryIconUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          on:error={handleCategoryIconError}
+        />
       {:else if category.icon}
         <span class="section-icon section-icon-text">{category.icon}</span>
       {/if}

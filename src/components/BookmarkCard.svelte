@@ -155,7 +155,14 @@
         style="width: {infoIconSize}px; height: {infoIconSize}px; max-width: 100%; {bookmark.icon_background_color ? `background: ${bookmark.icon_background_color};` : ''}"
       >
         {#if hasRenderableIcon}
-          <img src={iconUrl} alt={bookmark.title} on:error={handleIconError} on:load={handleIconLoad} />
+          <img
+            src={iconUrl}
+            alt={bookmark.title}
+            loading="lazy"
+            decoding="async"
+            on:error={handleIconError}
+            on:load={handleIconLoad}
+          />
         {:else}
           <span class="icon-text">{iconText}</span>
         {/if}
@@ -184,7 +191,14 @@
     >
       <div class="bookmark-icon" style={bookmark.icon_background_color ? `background: ${bookmark.icon_background_color};` : ''}>
         {#if hasRenderableIcon}
-          <img src={iconUrl} alt={bookmark.title} on:error={handleIconError} on:load={handleIconLoad} />
+          <img
+            src={iconUrl}
+            alt={bookmark.title}
+            loading="lazy"
+            decoding="async"
+            on:error={handleIconError}
+            on:load={handleIconLoad}
+          />
         {:else}
           <span class="icon-text">{iconText}</span>
         {/if}
