@@ -34,7 +34,7 @@
 | GET | `/api/me` | 无 | `{ username: string }` |
 
 管理员首次初始化使用 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD`。密码通过 WebCrypto PBKDF2 哈希后以 `salt:hash` 形式存入 `settings.admin_password`。
-`LoginResp` 包含 `token`、`expires_at` 和 `username`，前端登录成功后直接使用返回的 `username` 更新登录态，不再额外请求 `/api/me`。登录接口会在 bootstrap 初始化时用一次 settings 查询同时读取管理员账号和密码，并复用该结果进行密码校验，避免重复读取账号/密码设置。已有登录态刷新页面时先从本地恢复 session，再由 `/api/admin/data` 完成 token 校验；只有显式刷新用户信息时才需要 `/api/me`。
+`LoginResp` 包含 `token`、`expires_at` 和 `username`，前端登录成功后直接使用返回的 `username` 更新登录态，不再额外请求 `/api/me`。登录接口会在 bootstrap 初始化时用一次 settings 查询同时读取管理员账号和密码，并复用该结果进行密码校验，避免重复读取账号/密码设置。已有登录态刷新公开首页时只从本地恢复 session，首页数据仍优先匿名请求 `/api/public/data`，不会预加载 `/api/admin/data` 或 `/api/me`；进入后台、创建/编辑书签等需要后台数据时，才由 `/api/admin/data` 完成 token 校验。只有显式刷新用户信息时才需要 `/api/me`。
 
 ## 后台聚合接口
 

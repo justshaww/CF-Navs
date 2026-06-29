@@ -334,6 +334,9 @@
               rootError = getErrorMessage(authError)
               return null
             }
+
+            authStore.setSession(null)
+            adminStore.reset()
           }
         }
 
@@ -519,6 +522,31 @@
     applyLoggedInData(await api.admin.getData())
   }
 
+  async function ensureLoggedInDataLoaded(): Promise<boolean> {
+    if (!isLoggedIn()) return false
+
+    const current = get(adminStore)
+    if (current.loaded && current.data.settings) {
+      return true
+    }
+
+    try {
+      await refreshLoggedInData()
+      return true
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        authStore.setSession(null)
+        adminStore.reset()
+        await refreshPublicData()
+        await handleOpenLogin()
+        return false
+      }
+
+      rootError = getErrorMessage(error)
+      return false
+    }
+  }
+
   async function initializeApp(): Promise<void> {
     booting = true
     rootError = ''
@@ -529,22 +557,8 @@
       rootError = getErrorMessage(error)
     }
 
-    if (isLoggedIn()) {
-      try {
-        await refreshLoggedInData()
-      } catch (error) {
-        if (isUnauthorizedError(error)) {
-          authStore.setSession(null)
-          adminStore.reset()
-          await refreshPublicData()
-        } else {
-          rootError = getErrorMessage(error)
-        }
-      }
-    } else {
-      adminStore.reset()
-      await refreshPublicData()
-    }
+    adminStore.reset()
+    await refreshPublicData()
 
     const nextView: AppView = get(configStore).data?.public_mode === false && !isLoggedIn() ? 'login' : 'home'
     if (nextView === 'login') {
@@ -645,6 +659,10 @@
       return
     }
 
+    if (!await ensureLoggedInDataLoaded()) {
+      return
+    }
+
     await ensureAdminComponent()
     currentView = 'admin'
   }
@@ -694,6 +712,9 @@
     }
 
     categoryError = ''
+    if (!await ensureLoggedInDataLoaded()) {
+      return
+    }
     await ensureAdminComponent()
     categoryModalMode = 'create'
     activeCategory = { title: '', icon: '' }
@@ -761,8 +782,11 @@
       return
     }
 
-    const fallbackCategoryId = categoryId ?? adminData.categories[0]?.id
     bookmarkError = ''
+    if (!await ensureLoggedInDataLoaded()) {
+      return
+    }
+    const fallbackCategoryId = categoryId ?? get(adminStore).data.categories[0]?.id
     await ensureBookmarkEditModalComponent()
     bookmarkModalMode = 'create'
     activeBookmark = {
@@ -789,6 +813,9 @@
     if (!current) return
 
     bookmarkError = ''
+    if (!await ensureLoggedInDataLoaded()) {
+      return
+    }
     await ensureBookmarkEditModalComponent()
     bookmarkModalMode = 'edit'
     activeBookmark = toBookmarkForm(current)
