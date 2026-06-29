@@ -10,6 +10,7 @@ import {
   updateBookmark,
 } from '../lib/db'
 import { invalidatePublicDataCache } from '../lib/cache'
+import { fetchCacheableIcon, iconBytesToDataUri, shouldPersistIconBlob } from '../lib/iconData'
 import { fail, ok } from '../lib/response'
 import type { HonoEnv } from '../types'
 
@@ -32,28 +33,6 @@ function badRequest(c: AppContext, msg: string) {
 function parseId(c: AppContext): number | null {
   const id = Number(c.req.param('id'))
   return Number.isInteger(id) && id > 0 ? id : null
-}
-
-function isIconifyIconUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    const parts = url.pathname.split('/').filter(Boolean)
-    if (parts.length < 2) return false
-    const prefix = decodeURIComponent(parts[0]).trim().toLowerCase()
-    const name = decodeURIComponent(parts[1]).trim().toLowerCase().replace(/\.svg$/i, '')
-    return (
-      url.protocol === 'https:' &&
-      (url.hostname === 'api.iconify.design' || url.hostname === 'icon-sets.iconify.design') &&
-      /^[a-z0-9-]+$/.test(prefix) &&
-      /^[a-z0-9-]+$/.test(name)
-    )
-  } catch {
-    return false
-  }
-}
-
-function shouldCacheIconBlob(iconUrl: string, iconSource: string | null | undefined): boolean {
-  return /^https?:\/\//i.test(iconUrl) && iconSource !== 'iconify' && !isIconifyIconUrl(iconUrl)
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -113,7 +92,7 @@ bookmarksRoutes.post('/', async (c) => {
     if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
 
     // Warm the icon blob after create without blocking the API response.
-    if (bookmark.icon && shouldCacheIconBlob(bookmark.icon, bookmark.icon_source)) {
+    if (bookmark.icon && shouldPersistIconBlob(bookmark.icon, bookmark.icon_source)) {
       waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
     }
 
@@ -157,6 +136,10 @@ bookmarksRoutes.put('/:id', async (c) => {
     })
     if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark or category not found'))
 
+    if (bookmark.icon && shouldPersistIconBlob(bookmark.icon, bookmark.icon_source)) {
+      waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
+    }
+
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(bookmark))
   } catch {
@@ -198,42 +181,15 @@ export default bookmarksRoutes
 
 // ========== 图标缓存辅助 ==========
 
-const CACHE_TIMEOUT_MS = 5000
-const MAX_BLOB_SIZE = 256_000 // 256KB
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return btoa(binary)
-}
-
 async function cacheIconBlob(c: AppContext, bookmarkId: number, iconUrl: string): Promise<void> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), CACHE_TIMEOUT_MS)
-
   try {
-    const resp = await fetch(iconUrl, {
-      signal: controller.signal,
-      headers: { Accept: 'image/*,application/octet-stream,*/*' },
-    })
+    const icon = await fetchCacheableIcon(iconUrl)
 
-    if (!resp.ok || !resp.body) return
+    if (!icon) return
 
     // 只缓存图片类型的响应
-    const ct = resp.headers.get('content-type') ?? ''
-    if (!ct.startsWith('image/') && !ct.startsWith('application/octet-stream')) return
-
-    const arrayBuf = await resp.arrayBuffer()
-    if (arrayBuf.byteLength === 0 || arrayBuf.byteLength > MAX_BLOB_SIZE) return
-
-    const b64 = bytesToBase64(new Uint8Array(arrayBuf))
-    const dataUri = `data:${ct.startsWith('image/') ? ct : 'image/png'};base64,${b64}`
-    await setIconBlob(c.env.DB, bookmarkId, dataUri)
+    await setIconBlob(c.env.DB, bookmarkId, iconBytesToDataUri(icon))
   } catch {
     // 缓存失败不阻塞主流程
-  } finally {
-    clearTimeout(timer)
   }
 }

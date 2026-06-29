@@ -1,20 +1,19 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { getBookmarkIconData, getCategory, setIconBlob } from '../lib/db'
+import {
+  dataUriToResponse,
+  fetchCacheableIcon,
+  iconBytesToDataUri,
+  iconBytesToResponse,
+  isIconifyIconUrl,
+} from '../lib/iconData'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
 
 export const iconRoutes = new Hono<HonoEnv>()
 
-interface FetchedIcon {
-  bytes: Uint8Array
-  contentType: string
-}
-
-const CACHE_TIMEOUT_MS = 5000
-const MAX_ICON_SIZE = 256_000
-const ICON_ACCEPT = 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.1'
 const SUCCESS_CACHE = 'public, max-age=604800, s-maxage=2592000, immutable'
 const FAILURE_CACHE = 'no-store'
 const FALLBACK_CACHE = 'public, max-age=300, s-maxage=300'
@@ -59,81 +58,6 @@ function fallbackIconResponse(title: string, url: string): Response {
   })
 }
 
-function dataUriToResponse(dataUri: string): Response | null {
-  const match = dataUri.match(/^data:([^;,]+);base64,(.+)$/)
-  if (!match) return null
-
-  const mime = match[1] || 'image/png'
-  const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0))
-  return new Response(bytes, {
-    status: 200,
-    headers: {
-      'Content-Type': mime,
-      'Content-Length': String(bytes.byteLength),
-      'Cache-Control': SUCCESS_CACHE,
-    },
-  })
-}
-
-function iconBytesToResponse(icon: FetchedIcon): Response {
-  const body = new ArrayBuffer(icon.bytes.byteLength)
-  new Uint8Array(body).set(icon.bytes)
-
-  return new Response(body, {
-    status: 200,
-    headers: {
-      'Content-Type': icon.contentType,
-      'Content-Length': String(icon.bytes.byteLength),
-      'Cache-Control': SUCCESS_CACHE,
-    },
-  })
-}
-
-function iconBytesToDataUri(icon: FetchedIcon): string {
-  let binary = ''
-  for (let i = 0; i < icon.bytes.length; i += 1) {
-    binary += String.fromCharCode(icon.bytes[i])
-  }
-
-  return `data:${icon.contentType};base64,${btoa(binary)}`
-}
-
-async function fetchIcon(iconUrl: string): Promise<FetchedIcon | null> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), CACHE_TIMEOUT_MS)
-
-  try {
-    const response = await fetch(iconUrl, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        Accept: ICON_ACCEPT,
-      },
-    })
-
-    if (!response.ok) return null
-
-    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() || 'image/png'
-    if (!contentType.startsWith('image/') && contentType !== 'application/octet-stream') {
-      return null
-    }
-
-    const buffer = await response.arrayBuffer()
-    if (buffer.byteLength === 0 || buffer.byteLength > MAX_ICON_SIZE) {
-      return null
-    }
-
-    return {
-      bytes: new Uint8Array(buffer),
-      contentType: contentType.startsWith('image/') ? contentType : 'image/png',
-    }
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
 function cacheResponse(c: AppContext, request: Request, response: Response) {
   const executionCtx = (c as unknown as { executionCtx?: ExecutionContext }).executionCtx
   const edgeCache = (caches as unknown as { default: Cache }).default
@@ -166,23 +90,6 @@ function iconifyUrlFromParams(prefixParam: string, nameParam: string): string | 
   return normalizeIconifyPair(prefix, name)
 }
 
-function isIconifyIconUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    const parts = url.pathname.split('/').filter(Boolean)
-    if (parts.length < 2) return false
-    const iconUrl = normalizeIconifyPair(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]))
-    if (!iconUrl) return false
-
-    return (
-      url.protocol === 'https:' &&
-      (url.hostname === 'api.iconify.design' || url.hostname === 'icon-sets.iconify.design')
-    )
-  } catch {
-    return false
-  }
-}
-
 iconRoutes.get('/iconify/:prefix/:name', async (c) => {
   const iconUrl = iconifyUrlFromParams(c.req.param('prefix'), c.req.param('name'))
   if (!iconUrl) {
@@ -196,12 +103,12 @@ iconRoutes.get('/iconify/:prefix/:name', async (c) => {
       return cached
     }
 
-    const icon = await fetchIcon(iconUrl)
+    const icon = await fetchCacheableIcon(iconUrl)
     if (!icon) {
       return cachedFallbackIconResponse(c, c.req.raw, c.req.param('name').replace(/\.svg$/i, ''), iconUrl)
     }
 
-    const response = iconBytesToResponse(icon)
+    const response = iconBytesToResponse(icon, SUCCESS_CACHE)
     cacheResponse(c, c.req.raw, response)
     return response
   } catch {
@@ -224,7 +131,7 @@ iconRoutes.get('/icon/:id', async (c) => {
 
     const bookmark = await getBookmarkIconData(c.env.DB, id)
     if (bookmark?.icon_blob) {
-      const response = dataUriToResponse(bookmark.icon_blob)
+      const response = dataUriToResponse(bookmark.icon_blob, SUCCESS_CACHE)
       if (!response) {
         await setIconBlob(c.env.DB, id, null)
       } else {
@@ -239,7 +146,7 @@ iconRoutes.get('/icon/:id', async (c) => {
 
     if (bookmark.icon.startsWith('data:image/')) {
       await setIconBlob(c.env.DB, id, bookmark.icon)
-      const response = dataUriToResponse(bookmark.icon)
+      const response = dataUriToResponse(bookmark.icon, SUCCESS_CACHE)
       if (!response) return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
       cacheResponse(c, c.req.raw, response)
       return response
@@ -249,19 +156,19 @@ iconRoutes.get('/icon/:id', async (c) => {
       return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
     }
 
-    const fetchedIcon = await fetchIcon(bookmark.icon)
+    const fetchedIcon = await fetchCacheableIcon(bookmark.icon)
     if (!fetchedIcon) {
       return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
     }
 
     if (isIconifyIconUrl(bookmark.icon)) {
-      const response = iconBytesToResponse(fetchedIcon)
+      const response = iconBytesToResponse(fetchedIcon, SUCCESS_CACHE)
       cacheResponse(c, c.req.raw, response)
       return response
     }
 
     await setIconBlob(c.env.DB, id, iconBytesToDataUri(fetchedIcon))
-    const response = iconBytesToResponse(fetchedIcon)
+    const response = iconBytesToResponse(fetchedIcon, SUCCESS_CACHE)
     cacheResponse(c, c.req.raw, response)
     return response
   } catch {
@@ -288,7 +195,7 @@ iconRoutes.get('/category-icon/:id', async (c) => {
     }
 
     if (category.icon.startsWith('data:image/')) {
-      const response = dataUriToResponse(category.icon)
+      const response = dataUriToResponse(category.icon, SUCCESS_CACHE)
       if (!response) return cachedFallbackIconResponse(c, c.req.raw, category.title, '')
       cacheResponse(c, c.req.raw, response)
       return response
@@ -298,12 +205,12 @@ iconRoutes.get('/category-icon/:id', async (c) => {
       return cachedFallbackIconResponse(c, c.req.raw, category.title, '')
     }
 
-    const fetchedIcon = await fetchIcon(category.icon)
+    const fetchedIcon = await fetchCacheableIcon(category.icon)
     if (!fetchedIcon) {
       return cachedFallbackIconResponse(c, c.req.raw, category.title, category.icon)
     }
 
-    const response = iconBytesToResponse(fetchedIcon)
+    const response = iconBytesToResponse(fetchedIcon, SUCCESS_CACHE)
     cacheResponse(c, c.req.raw, response)
     return response
   } catch {
