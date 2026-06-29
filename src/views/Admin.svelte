@@ -41,6 +41,7 @@
 <script lang="ts">
   import type { Settings } from '../../shared/types'
   import type { ImportSource } from '../lib/importData'
+  import { iconifyProxyIcon, isIconifyIconUrl } from '../lib/icons'
   import CategoryEditModal from '../components/CategoryEditModal.svelte'
   import LoginModal from '../components/LoginModal.svelte'
   import SettingsPanel from '../components/SettingsPanel.svelte'
@@ -297,6 +298,11 @@
 
   function getBookmarkIconUrl(bookmark: AdminBookmark): string {
     const icon = bookmark.icon ?? ''
+    const iconifyUrl =
+      bookmark.icon_source === 'iconify' || isIconifyIconUrl(icon)
+        ? iconifyProxyIcon(icon)
+        : ''
+    if (iconifyUrl) return iconifyUrl
     if (/^data:image\//i.test(icon)) return icon
     if (/^https?:\/\//i.test(icon)) {
       const version = createIconVersion(`${bookmark.id}:${bookmark.icon_source ?? ''}:${icon}:${bookmark.title}:${bookmark.url}`)

@@ -180,7 +180,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 首页启动优先使用 `/api/public/data` 派生站点配置，公开关闭时复用 1005 响应中的轻量配置进入登录页，匿名 1005 会短时走 edge cache
 - Worker 为非 HTML 的 `/assets/*` hash 构建产物设置一年 immutable 缓存，为 HTML 和 `sw.js` 设置 no-cache 重验证；Service Worker 预缓存 `/index.html` 做离线回退，避免安装阶段重复预缓存根路径
 - CSS 压缩
-- 图标代理响应由 Service Worker cache-first 读取，页面滚动、搜索筛选和设置保存后优先命中本地缓存；首页书签和分类图标使用原生懒加载与异步解码，降低首屏图标并发请求
+- 图标代理响应由 Service Worker cache-first 读取，页面滚动、搜索筛选和设置保存后优先命中本地缓存；已保存的 Iconify 图标使用稳定 `/api/iconify/*` 代理，同一个图标在浏览器本地只缓存一份；首页书签和分类图标使用原生懒加载与异步解码，降低首屏图标并发请求
 - 首页搜索预计算书签索引，滚动高亮缓存分区 DOM 并用 `requestAnimationFrame` 节流
 - 后台初始化使用 `/api/admin/data` 一次拉取分类、书签和完整设置，并从完整设置派生站点配置
 - 登录响应携带用户名；登录成功和已有登录态启动都无需先请求 `/api/me`
@@ -197,7 +197,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - `/api/admin/data` 合并后台进入时的数据读取，分类、书签和 settings 使用 D1 batch 读取
 - `/api/public/data` 确认公开后用一次 D1 batch 合并公开 settings、分类和书签读取，并只读取首页公开字段，不返回 `created_at` 等管理字段
 - 公开聚合、后台聚合、书签列表和图标详情等读取路径跳过预检查式 schema 迁移，仅在旧库缺列错误时迁移并重试一次
-- `/api/icon/:id`、`/api/category-icon/:id` 与 `/api/iconify/:set/:name.svg` 统一代理外站图标，书签图标 cache miss 时一次 D1 查询同时读取地址和 `icon_blob`，外站抓取成功后直接返回图片字节，失败时返回临时 SVG fallback，不缓存第三方失败结果
+- `/api/icon/:id`、`/api/category-icon/:id` 与 `/api/iconify/:set/:name.svg` 统一代理外站图标，普通书签图标 cache miss 时一次 D1 查询同时读取地址和 `icon_blob`，外站抓取成功后直接返回图片字节；Iconify 图标不写 `icon_blob`，通过稳定 `/api/iconify/*` 代理共享 edge cache 与浏览器本地缓存；失败时返回临时 SVG fallback，不缓存第三方失败结果
 - 静态资源 CDN
 
 ### 网络

@@ -139,7 +139,7 @@ Published cf-navs (x.xx sec)
 - [ ] 通过右键编辑进入编辑弹窗，删除需二次确认
 - [ ] 部署新版后强制刷新一次页面，确认新版 Service Worker 已激活
 - [ ] 首页搜索框输入关键词时，书签区域直接筛选，不出现本地书签下拉列表
-- [ ] 打开浏览器 Network 面板，上下滚动、搜索筛选、保存设置后，首页图标请求优先命中 `/api/icon/*` 或 `/api/category-icon/*`
+- [ ] 打开浏览器 Network 面板，上下滚动、搜索筛选、保存设置后，首页图标请求优先命中 `/api/icon/*`、`/api/category-icon/*` 或 `/api/iconify/*`
 - [ ] Network 面板中不应出现前台直接请求 `https://favicon.im/*`、`https://a.favicon.im/*`，首页和新增/编辑弹窗也不应直连 `https://api.iconify.design/*`
 - [ ] 第三方图标服务失败或限流时，浏览器控制台不应出现 favicon.im/Iconify 429；失败图标应显示文字 fallback
 

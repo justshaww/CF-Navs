@@ -28,13 +28,22 @@
   let searchQuery = ''
   let sectionsKey = ''
   let scrollFrame = 0
+  let sortedCategoriesSource: PublicCategory[] | null = null
+  let sortedCategoriesMemo: PublicCategory[] = []
+  let sortedBookmarksSource: PublicBookmark[] | null = null
+  let sortedBookmarksMemo: PublicBookmark[] = []
+  let categoryTitleSource: PublicCategory[] | null = null
+  let categoryTitleMemo = new Map<number, string>()
+  let searchIndexBookmarksSource: PublicBookmark[] | null = null
+  let searchIndexCategoriesSource: PublicCategory[] | null = null
+  let searchIndexMemo = new Map<number, string>()
 
-  $: sortedCategories = [...categories].sort((a, b) => a.sort - b.sort)
-  $: sortedBookmarks = [...bookmarks].sort((a, b) => a.sort - b.sort)
+  $: sortedCategories = getSortedCategories(categories)
+  $: sortedBookmarks = getSortedBookmarks(bookmarks)
   $: normalizedSearchQuery = normalizeSearchQuery(searchQuery)
   $: hasSearchQuery = normalizedSearchQuery.length > 0
-  $: categoryTitleById = new Map(sortedCategories.map((category) => [category.id, category.title]))
-  $: searchTextByBookmarkId = buildSearchIndex(sortedBookmarks, categoryTitleById)
+  $: categoryTitleById = getCategoryTitleMap(sortedCategories)
+  $: searchTextByBookmarkId = getSearchIndex(sortedBookmarks, sortedCategories, categoryTitleById)
   $: visibleBookmarks = hasSearchQuery
     ? sortedBookmarks.filter((bookmark) => bookmarkMatchesSearch(bookmark, normalizedSearchQuery, searchTextByBookmarkId))
     : sortedBookmarks
@@ -103,6 +112,45 @@
 
   function normalizeSearchQuery(value: string): string {
     return value.trim().toLowerCase()
+  }
+
+  function getSortedCategories(items: PublicCategory[]): PublicCategory[] {
+    if (items === sortedCategoriesSource) return sortedCategoriesMemo
+
+    sortedCategoriesSource = items
+    sortedCategoriesMemo = [...items].sort((a, b) => a.sort - b.sort)
+    return sortedCategoriesMemo
+  }
+
+  function getSortedBookmarks(items: PublicBookmark[]): PublicBookmark[] {
+    if (items === sortedBookmarksSource) return sortedBookmarksMemo
+
+    sortedBookmarksSource = items
+    sortedBookmarksMemo = [...items].sort((a, b) => a.sort - b.sort)
+    return sortedBookmarksMemo
+  }
+
+  function getCategoryTitleMap(items: PublicCategory[]): Map<number, string> {
+    if (items === categoryTitleSource) return categoryTitleMemo
+
+    categoryTitleSource = items
+    categoryTitleMemo = new Map(items.map((category) => [category.id, category.title]))
+    return categoryTitleMemo
+  }
+
+  function getSearchIndex(
+    items: PublicBookmark[],
+    categoryItems: PublicCategory[],
+    categoryTitles: Map<number, string>,
+  ): Map<number, string> {
+    if (items === searchIndexBookmarksSource && categoryItems === searchIndexCategoriesSource) {
+      return searchIndexMemo
+    }
+
+    searchIndexBookmarksSource = items
+    searchIndexCategoriesSource = categoryItems
+    searchIndexMemo = buildSearchIndex(items, categoryTitles)
+    return searchIndexMemo
   }
 
   function buildSearchIndex(

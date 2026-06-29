@@ -36,6 +36,19 @@ function parseId(c: AppContext): number | null {
   return Number.isInteger(id) && id > 0 ? id : null
 }
 
+function isIconifyIconUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname === 'api.iconify.design' && url.pathname.endsWith('.svg')
+  } catch {
+    return false
+  }
+}
+
+function shouldCacheIconBlob(iconUrl: string, iconSource: string | null | undefined): boolean {
+  return /^https?:\/\//i.test(iconUrl) && iconSource !== 'iconify' && !isIconifyIconUrl(iconUrl)
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
@@ -96,7 +109,7 @@ bookmarksRoutes.post('/', async (c) => {
     })
 
     // 异步缓存图标 blob（不阻塞响应）
-    if (bookmark.icon && /^https?:\/\//i.test(bookmark.icon)) {
+    if (bookmark.icon && shouldCacheIconBlob(bookmark.icon, bookmark.icon_source)) {
       waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
     }
 
@@ -145,7 +158,7 @@ bookmarksRoutes.put('/:id', async (c) => {
     if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark not found'))
 
     // 异步缓存图标 blob（不阻塞响应）
-    if (bookmark.icon && /^https?:\/\//i.test(bookmark.icon)) {
+    if (bookmark.icon && shouldCacheIconBlob(bookmark.icon, bookmark.icon_source)) {
       waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
     }
 

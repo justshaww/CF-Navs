@@ -178,7 +178,7 @@
   }
 
   function canPreviewIcon(icon: string): boolean {
-    return /^https?:\/\//i.test(icon) || /^data:image\//i.test(icon)
+    return /^https?:\/\//i.test(icon) || /^data:image\//i.test(icon) || Boolean(iconifyProxyIcon(icon))
   }
 
   function createIconVersion(input: string): string {
@@ -211,12 +211,13 @@
   }
 
   function getFormIconPreviewUrl(): string {
-    if ((form.icon_source === 'favicon_im' || isFaviconImIconUrl(form.icon)) && form.url.trim()) {
-      return logoSurfIcon(form.title.trim(), form.url.trim())
+    const iconifyPreview = iconifyProxyIcon(form.icon)
+    if (form.icon_source === 'iconify' || iconifyPreview) {
+      return iconifyProxyIcon(iconifyNameFromUrl(form.icon) ?? iconifyName) || iconifyPreview
     }
 
-    if (form.icon_source === 'iconify') {
-      return iconifyProxyIcon(iconifyNameFromUrl(form.icon) ?? iconifyName)
+    if ((form.icon_source === 'favicon_im' || isFaviconImIconUrl(form.icon)) && form.url.trim()) {
+      return logoSurfIcon(form.title.trim(), form.url.trim())
     }
 
     if (form.id != null && /^https?:\/\//i.test(form.icon)) {
@@ -301,12 +302,19 @@
   }
 
   async function handleSubmit() {
+    const trimmedIcon = form.icon.trim()
+    const submittedIconifyUrl =
+      form.icon_source === 'iconify'
+        ? iconifyIcon(iconifyName || trimmedIcon)
+        : iconifyIcon(trimmedIcon)
+    const submitIcon = submittedIconifyUrl || trimmedIcon
+
     await onSubmit?.({
       ...form,
       title: form.title.trim(),
       url: form.url.trim(),
-      icon: form.icon.trim(),
-      icon_source: form.icon.trim() ? form.icon_source : '',
+      icon: submitIcon,
+      icon_source: submitIcon ? (submittedIconifyUrl ? 'iconify' : form.icon_source) : '',
       icon_background_color: form.icon_background_color.trim(),
       description: form.description.trim(),
     })

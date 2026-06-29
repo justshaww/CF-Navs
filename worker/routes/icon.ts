@@ -153,6 +153,15 @@ function iconifyUrlFromParams(prefixParam: string, nameParam: string): string | 
   return `https://api.iconify.design/${encodeURIComponent(prefix)}/${encodeURIComponent(name)}.svg`
 }
 
+function isIconifyIconUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname === 'api.iconify.design' && url.pathname.endsWith('.svg')
+  } catch {
+    return false
+  }
+}
+
 iconRoutes.get('/iconify/:prefix/:name', async (c) => {
   const iconUrl = iconifyUrlFromParams(c.req.param('prefix'), c.req.param('name'))
   if (!iconUrl) {
@@ -219,6 +228,12 @@ iconRoutes.get('/icon/:id', async (c) => {
     const fetchedIcon = await fetchIcon(bookmark.icon)
     if (!fetchedIcon) {
       return fallbackIconResponse(bookmark.title, bookmark.url)
+    }
+
+    if (isIconifyIconUrl(bookmark.icon)) {
+      const response = iconBytesToResponse(fetchedIcon)
+      cacheResponse(c, c.req.raw, response)
+      return response
     }
 
     await setIconBlob(c.env.DB, id, iconBytesToDataUri(fetchedIcon))
