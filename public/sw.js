@@ -8,8 +8,8 @@
 //  - 导航请求       网络优先，离线回退到缓存的 index.html
 //  - /assets/*等    缓存优先（构建产物带 hash，安全长期缓存）
 
-const CACHE = 'cf-navs-v4'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
+const CACHE = 'cf-navs-v5'
+const APP_SHELL = ['/index.html', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
