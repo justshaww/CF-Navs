@@ -26,9 +26,9 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-export async function fetchCacheableIcon(iconUrl: string): Promise<FetchedIcon | null> {
+export async function fetchCacheableIcon(iconUrl: string, timeoutMs = CACHE_TIMEOUT_MS): Promise<FetchedIcon | null> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), CACHE_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const response = await fetch(iconUrl, {

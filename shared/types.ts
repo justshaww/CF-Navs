@@ -201,6 +201,23 @@ export interface FaviconResp {
   icon: string // 解析到的“直接”图标 URL（方式1；失败回退 Google）
 }
 
+// GET /api/iconify-search?query=...
+export interface IconifyCandidate {
+  name: string
+  prefix: string
+  icon: string
+  label: string
+  collection: string
+  url: string
+  preview_url: string
+  colored: boolean
+}
+
+export interface IconifySearchResp {
+  query: string
+  candidates: IconifyCandidate[]
+}
+
 // POST /api/categories/sort  和  /api/bookmarks/sort
 // 传有序 id 数组，后端按下标写 sort
 export interface SortReq {

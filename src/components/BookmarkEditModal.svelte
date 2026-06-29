@@ -12,7 +12,9 @@
     type IconCandidate,
     type LogoSurfColorScheme,
   } from '../lib/icons'
+  import { getErrorMessage, iconifyApi } from '../lib/api'
   import ColorAlphaInput from './ColorAlphaInput.svelte'
+  import type { IconifyCandidate as IconifySearchCandidate } from '../../shared/types'
 
   type BookmarkFormValue = {
     id?: string | number
@@ -60,6 +62,12 @@
   let iconifyName = ''
   let iconifyUseConfirmed = false
   let confirmedIconifyName = ''
+  let iconifySearchCandidates: IconifySearchCandidate[] = []
+  let iconifySearchLoading = false
+  let iconifySearchError = ''
+  let iconifySearchTimer: ReturnType<typeof setTimeout> | null = null
+  let iconifySearchRequestId = 0
+  let lastIconifySearchQuery = ''
   let previousBodyOverflow: string | null = null
   let previousDocumentOverflow: string | null = null
 
@@ -90,6 +98,10 @@
     iconifyName = form.icon_source === 'iconify' ? iconifyNameFromUrl(form.icon) ?? '' : ''
     iconifyUseConfirmed = mode === 'edit' && form.icon_source === 'iconify' && Boolean(iconifyName)
     confirmedIconifyName = iconifyUseConfirmed ? iconifyName : ''
+    iconifySearchCandidates = []
+    iconifySearchError = ''
+    iconifySearchLoading = false
+    lastIconifySearchQuery = ''
     // 编辑模式也重新生成候选
     if (form.url.trim()) {
       candidates = getIconCandidates(form.url.trim(), form.title.trim())
@@ -114,6 +126,7 @@
     iconifyUseConfirmed &&
     Boolean(normalizedIconifyName) &&
     confirmedIconifyName === normalizedIconifyName
+  $: scheduleIconifyCandidateSearch(showIconifyOptions, iconifyName)
   $: logoPreviewText = (form.title.trim() || 'NAV').slice(0, 4)
   $: if (iconifyUseConfirmed && normalizedIconifyName !== confirmedIconifyName) {
     iconifyUseConfirmed = false
@@ -126,6 +139,69 @@
   }
   $: if (form.icon_source === 'iconify' && normalizedIconifyName && form.icon !== iconifySourceUrl) {
     form.icon = iconifySourceUrl
+  }
+
+  function getIconifySearchQuery(value: string): string {
+    const normalized = normalizeIconifyName(value)
+    if (normalized) return normalized
+
+    const plain = value
+      .trim()
+      .toLowerCase()
+      .replace(/^iconify:/, '')
+      .replace(/^@iconify-json\//, '')
+      .replace(/^@iconify-icons\//, '')
+      .replace(/[^a-z0-9-]/g, '')
+
+    return plain.length >= 2 && plain.length <= 80 ? plain : ''
+  }
+
+  function clearIconifySearchTimer() {
+    if (iconifySearchTimer) {
+      clearTimeout(iconifySearchTimer)
+      iconifySearchTimer = null
+    }
+  }
+
+  function scheduleIconifyCandidateSearch(enabled: boolean, value: string) {
+    const query = enabled ? getIconifySearchQuery(value) : ''
+    if (query === lastIconifySearchQuery) return
+
+    lastIconifySearchQuery = query
+    clearIconifySearchTimer()
+    iconifySearchRequestId += 1
+    iconifySearchError = ''
+
+    if (!query) {
+      iconifySearchCandidates = []
+      iconifySearchLoading = false
+      return
+    }
+
+    const requestId = iconifySearchRequestId
+    iconifySearchLoading = true
+    iconifySearchTimer = setTimeout(() => {
+      void loadIconifyCandidates(query, requestId)
+    }, 280)
+  }
+
+  async function loadIconifyCandidates(query: string, requestId: number) {
+    try {
+      const result = await iconifyApi.search(query)
+      if (requestId !== iconifySearchRequestId) return
+
+      iconifySearchCandidates = result.candidates
+      iconifySearchError = ''
+    } catch (searchError) {
+      if (requestId !== iconifySearchRequestId) return
+
+      iconifySearchCandidates = []
+      iconifySearchError = getErrorMessage(searchError)
+    } finally {
+      if (requestId === iconifySearchRequestId) {
+        iconifySearchLoading = false
+      }
+    }
   }
 
   function getLogoSchemeByName(name: string): LogoSurfColorScheme {
@@ -170,6 +246,16 @@
     iconifyName = normalizedIconifyName
     iconifyUseConfirmed = true
     confirmedIconifyName = normalizedIconifyName
+    candidateError = ''
+    faviconError = ''
+  }
+
+  function selectIconifySearchCandidate(candidate: IconifySearchCandidate) {
+    iconifyName = candidate.name
+    form.icon = candidate.url
+    form.icon_source = 'iconify'
+    iconifyUseConfirmed = true
+    confirmedIconifyName = candidate.name
     candidateError = ''
     faviconError = ''
   }
@@ -319,6 +405,7 @@
   }
 
   onDestroy(() => {
+    clearIconifySearchTimer()
     setPageScrollLocked(false)
   })
 </script>
@@ -420,6 +507,26 @@
             </button>
           </div>
           <small class="hint-text">可从 icon-sets.iconify.design 复制图标名或完整图标页面链接，保存后会通过本地图标代理和浏览器缓存加载。</small>
+          {#if iconifySearchCandidates.length > 0}
+            <div class="iconify-candidates">
+              {#each iconifySearchCandidates as candidate}
+                <button
+                  type="button"
+                  class="candidate-card iconify-candidate-card"
+                  class:selected={iconifyUseConfirmed && confirmedIconifyName === candidate.name}
+                  on:click={() => selectIconifySearchCandidate(candidate)}
+                  title={`${candidate.name} - ${candidate.collection}`}
+                >
+                  <img src={candidate.preview_url} alt={candidate.name} loading="lazy" />
+                  <span class="candidate-label">{candidate.name}</span>
+                </button>
+              {/each}
+            </div>
+          {:else if iconifySearchLoading}
+            <small class="hint-text">Iconify 图标搜索中...</small>
+          {:else if iconifySearchError}
+            <small class="field-error">{iconifySearchError}</small>
+          {/if}
           {#if candidateError}
             <small class="field-error">{candidateError}</small>
           {/if}
@@ -736,6 +843,12 @@
     gap: 8px;
   }
 
+  .iconify-candidates {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
   .candidate-card {
     display: flex;
     flex-direction: column;
@@ -773,6 +886,7 @@
     color: #475569;
     text-align: center;
     line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .candidate-card.selected .candidate-label {
@@ -958,6 +1072,10 @@
 
     .icon-candidates {
       grid-template-columns: repeat(2, 1fr);
+    }
+
+    .iconify-candidates {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .logo-scheme-grid {

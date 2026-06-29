@@ -67,6 +67,7 @@ app.use('/api/fetch-favicon', authRequired)
 app.route('/api', faviconRoutes)
 
 // /api/icon/:id 公开（不须认证），用于前台加载缓存图标
+app.use('/api/iconify-search', authRequired)
 app.route('/api', iconRoutes)
 
 app.use('/api/settings', authRequired)

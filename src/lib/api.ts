@@ -7,6 +7,7 @@ import {
   type Category,
   type CategoryUpsertReq,
   type FaviconResp,
+  type IconifySearchResp,
   type ImportReq,
   type ImportResp,
   type LoginReq,
@@ -347,6 +348,10 @@ export const bookmarksApi = {
   fetchFavicon: (url: string) => request<FaviconResp>(`/fetch-favicon?url=${encodeURIComponent(url)}`, { auth: true }),
 }
 
+export const iconifyApi = {
+  search: (query: string) => request<IconifySearchResp>(`/iconify-search?query=${encodeURIComponent(query)}`, { auth: true }),
+}
+
 export const settingsApi = {
   get: () => request<Settings>('/settings', { auth: true }),
   update: (payload: SettingsUpdateReq) => jsonRequest<Settings>('/settings', 'PUT', payload, true),
@@ -363,6 +368,7 @@ export const api = {
   auth: authApi,
   categories: categoriesApi,
   bookmarks: bookmarksApi,
+  iconify: iconifyApi,
   settings: settingsApi,
   data: dataApi,
 }
