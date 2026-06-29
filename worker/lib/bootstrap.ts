@@ -1,6 +1,6 @@
 import type { Env } from '../types'
 import { hashPassword } from './crypto'
-import { getSettingValue, setSettingValue } from './db'
+import { getSettingValues, setSettingValue } from './db'
 
 const ADMIN_USERNAME_KEY = 'admin_username'
 const ADMIN_PASSWORD_KEY = 'admin_password'
@@ -11,10 +11,9 @@ export interface AdminCredentials {
 }
 
 export async function ensureAdminBootstrap(env: Env): Promise<AdminCredentials> {
-  const [adminUsername, adminPassword] = await Promise.all([
-    getSettingValue<string>(env.DB, ADMIN_USERNAME_KEY),
-    getSettingValue<string>(env.DB, ADMIN_PASSWORD_KEY),
-  ])
+  const credentials = await getSettingValues<string>(env.DB, [ADMIN_USERNAME_KEY, ADMIN_PASSWORD_KEY])
+  const adminUsername = credentials.get(ADMIN_USERNAME_KEY) ?? null
+  const adminPassword = credentials.get(ADMIN_PASSWORD_KEY) ?? null
 
   if (adminUsername && adminPassword) {
     return {

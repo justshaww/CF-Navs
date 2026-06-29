@@ -408,15 +408,33 @@ export async function getSiteConfig(db: D1Database): Promise<SiteConfig> {
   return config
 }
 
-// 读取任意单个内部 key（如 admin_password / admin_username），返回解析后的值
-export async function getSettingValue<T = unknown>(db: D1Database, key: string): Promise<T | null> {
-  const row = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string | null }>()
-  if (!row || row.value == null) return null
-  try {
-    return JSON.parse(row.value) as T
-  } catch {
-    return row.value as unknown as T
+export async function getSettingValues<T = unknown>(
+  db: D1Database,
+  keys: string[],
+): Promise<Map<string, T | null>> {
+  if (keys.length === 0) return new Map()
+
+  const placeholders = keys.map(() => '?').join(',')
+  const { results } = await db
+    .prepare(`SELECT key, value FROM settings WHERE key IN (${placeholders})`)
+    .bind(...keys)
+    .all<{ key: string; value: string | null }>()
+
+  const values = new Map<string, T | null>()
+  for (const row of results ?? []) {
+    if (row.value == null) {
+      values.set(row.key, null)
+      continue
+    }
+
+    try {
+      values.set(row.key, JSON.parse(row.value) as T)
+    } catch {
+      values.set(row.key, row.value as unknown as T)
+    }
   }
+
+  return values
 }
 
 // 写入任意单个内部 key（value 会被 JSON.stringify）
