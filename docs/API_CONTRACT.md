@@ -13,7 +13,7 @@
 ## 鉴权规则
 
 - `authRequired`：读取 Bearer token，查 KV session；无效时返回 401。
-- `publicOrAuth`：`settings.public_mode=true` 时放行；关闭公开模式时要求有效 token，否则返回 `code=1005`。
+- `/api/public/data`：匿名请求先查公开数据 edge cache；缓存未命中时读取 `settings.public_mode`，公开模式关闭则要求有效 token，否则返回 `code=1005`。
 
 ## 公开接口
 
@@ -23,7 +23,7 @@
 | GET | `/api/config` | 无 | `SiteConfig` |
 | GET | `/api/public/data` | 公开模式或登录 | `PublicData` |
 
-`/api/config` 使用短 TTL Cloudflare edge cache，设置保存或数据导入后会主动失效。`/api/public/data` 只返回公开设置子集，不包含 `admin_username`、`admin_password`、`public_mode` 等内部字段；匿名公开访问会使用短 TTL edge cache，带登录态请求绕过该缓存。
+`/api/config` 使用短 TTL Cloudflare edge cache，设置保存或数据导入后会主动失效。`/api/public/data` 只返回公开设置子集，不包含 `admin_username`、`admin_password`、`public_mode` 等内部字段；匿名公开访问会先查短 TTL edge cache，命中时直接返回而不读取 D1，带登录态请求绕过该缓存。
 
 ## 认证接口
 

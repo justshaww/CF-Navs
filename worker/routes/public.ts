@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { PublicData, PublicSettings, Settings, SiteConfig } from '../../shared/types'
+import { ErrCode, type PublicData, type PublicSettings, type Settings, type SiteConfig } from '../../shared/types'
 import {
   cachePublicDataResponse,
   cacheSiteConfigResponse,
@@ -7,8 +7,9 @@ import {
   matchSiteConfigCache,
 } from '../lib/cache'
 import { getSettings, getSiteConfig, listBookmarks, listCategories } from '../lib/db'
+import { fail } from '../lib/response'
 import { ok } from '../lib/response'
-import { publicOrAuth } from '../middleware/publicMode'
+import { extractBearerToken, validateSession } from '../middleware/auth'
 import type { HonoEnv } from '../types'
 
 function toPublicSettings(settings: Settings): PublicSettings {
@@ -51,14 +52,28 @@ publicRoutes.get('/config', async (c) => {
   return response
 })
 
-publicRoutes.get('/public/data', publicOrAuth, async (c) => {
-  const publicSettings = c.get('publicSettings') ?? await getSettings(c.env.DB)
-  const canUsePublicCache = publicSettings.public_mode && !c.req.header('Authorization')
-  if (canUsePublicCache) {
+publicRoutes.get('/public/data', async (c) => {
+  const token = extractBearerToken(c.req.header('Authorization'))
+  if (!token) {
     const cached = await matchPublicDataCache(c.req.url)
     if (cached) return cached
   }
 
+  const publicSettings = await getSettings(c.env.DB)
+  if (!publicSettings.public_mode) {
+    if (!token) {
+      return c.json(fail(ErrCode.FORBIDDEN, 'forbidden'))
+    }
+
+    const session = await validateSession(c.env, token)
+    if (!session) {
+      return c.json(fail(ErrCode.FORBIDDEN, 'forbidden'))
+    }
+
+    c.set('username', session.username)
+  }
+
+  const canUsePublicCache = publicSettings.public_mode && !token
   const [categories, bookmarks, settings] = await Promise.all([
     listCategories(c.env.DB),
     listBookmarks(c.env.DB),
