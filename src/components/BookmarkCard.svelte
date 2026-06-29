@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import type { CardStyle, PublicBookmark } from '../../shared/types'
   import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
 
@@ -19,6 +20,7 @@
   let contextMenuOpen = false
   let modalOpen = false
   let iconStateKey = ''
+  let windowListenersAttached = false
 
   $: openInNewTab = bookmark.open_method === 1
   $: openInModal = bookmark.open_method === 3
@@ -46,6 +48,7 @@
     useExternalIcon = false
     fallbackFailed = false
   }
+  $: syncWindowListeners(contextMenuOpen || modalOpen)
 
   // 图标来源：外部 URL 默认走 Worker 缓存代理；代理失败时再回退直连外站。
   $: iconUrl = (() => {
@@ -134,9 +137,27 @@
     if (contextMenuOpen && event.key === 'Escape') closeContextMenu()
   }
 
-</script>
+  function syncWindowListeners(active: boolean) {
+    if (typeof window === 'undefined') return
 
-<svelte:window on:click={handleWindowClick} on:keydown={handleDocumentKeydown} />
+    if (active && !windowListenersAttached) {
+      window.addEventListener('click', handleWindowClick)
+      window.addEventListener('keydown', handleDocumentKeydown)
+      windowListenersAttached = true
+      return
+    }
+
+    if (!active && windowListenersAttached) {
+      window.removeEventListener('click', handleWindowClick)
+      window.removeEventListener('keydown', handleDocumentKeydown)
+      windowListenersAttached = false
+    }
+  }
+
+  onDestroy(() => {
+    syncWindowListeners(false)
+  })
+</script>
 
 <div
   class="bookmark-card-shell"
