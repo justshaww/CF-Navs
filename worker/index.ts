@@ -15,6 +15,37 @@ import type { HonoEnv } from './types'
 
 const app = new Hono<HonoEnv>()
 
+const IMMUTABLE_ASSET_CACHE = 'public, max-age=31536000, immutable'
+const REVALIDATE_CACHE = 'no-cache, max-age=0, must-revalidate'
+const SHORT_STATIC_CACHE = 'public, max-age=86400'
+
+function withAssetCacheHeaders(request: Request, response: Response): Response {
+  const url = new URL(request.url)
+  const headers = new Headers(response.headers)
+  const contentType = headers.get('Content-Type') ?? ''
+
+  if (response.ok) {
+    if (url.pathname.startsWith('/assets/')) {
+      headers.set('Cache-Control', IMMUTABLE_ASSET_CACHE)
+    } else if (
+      url.pathname === '/' ||
+      url.pathname === '/index.html' ||
+      url.pathname === '/sw.js' ||
+      contentType.includes('text/html')
+    ) {
+      headers.set('Cache-Control', REVALIDATE_CACHE)
+    } else if (url.pathname === '/manifest.webmanifest' || url.pathname === '/icon.svg') {
+      headers.set('Cache-Control', SHORT_STATIC_CACHE)
+    }
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 app.get('/api/health', (c) => c.json(ok({ status: 'ok' })))
 
 app.route('/api', authRoutes)
@@ -55,12 +86,13 @@ app.onError((err, c) => {
   return new Response('Internal Server Error', { status: 500 })
 })
 
-app.all('*', (c) => {
+app.all('*', async (c) => {
   if (new URL(c.req.url).pathname.startsWith('/api/')) {
     return c.json(fail(ErrCode.NOT_FOUND, 'not found'))
   }
 
-  return c.env.ASSETS.fetch(c.req.raw)
+  const response = await c.env.ASSETS.fetch(c.req.raw)
+  return withAssetCacheHeaders(c.req.raw, response)
 })
 
 export default app

@@ -178,6 +178,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - Vite 快速构建
 - 首页主包、后台管理和书签编辑弹窗代码分割，后台功能按需加载
 - 首页启动优先使用 `/api/public/data` 派生站点配置，公开关闭时复用 1005 响应中的轻量配置进入登录页
+- Worker 为 `/assets/*` hash 构建产物设置一年 immutable 缓存，为 HTML 和 `sw.js` 设置 no-cache 重验证
 - CSS 压缩
 - 图标代理响应由 Service Worker cache-first 读取，页面滚动、搜索筛选和设置保存后优先命中本地缓存
 - 首页搜索预计算书签索引，滚动高亮缓存分区 DOM 并用 `requestAnimationFrame` 节流
