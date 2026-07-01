@@ -2,7 +2,12 @@
 
 这是一份简化的部署指南，适合快速上手。完整文档请查看 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
-## ⚡ 5分钟部署
+## 部署方式选择
+
+- **Wrangler CLI 部署**：适合本地可运行命令行的用户，完整控制 D1/KV 创建、初始化和部署流程。
+- **Cloudflare 控制台在线部署**：适合先 Fork 项目，再通过 Cloudflare 关联 GitHub 自动构建部署的用户。
+
+## 方式一：Wrangler CLI 部署
 
 ### 1. 克隆项目并安装依赖
 
@@ -55,6 +60,35 @@ npm run deploy
 部署成功后，访问返回的 URL 即可使用！
 
 部署新版后建议强制刷新一次页面，让新版 Service Worker 接管。验证首页搜索时，输入关键词应直接筛选书签区域；打开浏览器 Network 面板时，刷新首页、上下滚动、搜索筛选和后台切回首页不应让已缓存的普通书签图标重复请求 `/api/icon/*`，分类图标和 Iconify 图标可分别显示为 `/api/category-icon/*`、`/api/iconify/*`。编辑打开或保存书签时才会调用 `/api/bookmarks/:id/icon-cache/refresh` 刷新普通书签图标缓存。新增/编辑弹窗中的 Iconify 候选、手动预览和从 `icon-sets.iconify.design` 粘贴的页面链接应显示为 `/api/iconify/*`，不应由前台直接请求 `api.iconify.design` 或 `icon-sets.iconify.design`。
+
+## 方式二：Cloudflare 控制台在线部署
+
+1. 在 GitHub 上 Fork 本仓库。
+2. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db`，复制 `database_id`。
+3. 创建 KV 命名空间 `SESSION`，复制 namespace `id`。
+4. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择你的 fork。
+5. 生产分支选择 `main`，根目录填写 `/`。
+6. Deploy command 填写：
+
+```bash
+npm run deploy:cloudflare
+```
+
+7. 添加 Build variables：
+
+| 变量名 | 说明 |
+| --- | --- |
+| `CF_NAVS_D1_DATABASE_ID` | D1 数据库的 `database_id` |
+| `CF_NAVS_KV_NAMESPACE_ID` | KV 命名空间的 `id` |
+| `CF_NAVS_WORKER_NAME` | 可选；需要和 Cloudflare Worker 项目名一致 |
+
+8. 部署完成后，在 Worker 的 **Settings → Variables & Secrets** 中添加运行时 Secret：
+
+```text
+INIT_ADMIN_PASSWORD = 你的管理员密码
+```
+
+如果构建 Token 无权初始化 D1，可以先在 D1 控制台 SQL Console 执行 [schema.sql](../schema.sql)，再把 Deploy command 改成 `npm run deploy:ci`。
 
 ## 🔑 首次登录
 

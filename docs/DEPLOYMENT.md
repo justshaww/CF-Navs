@@ -1,6 +1,24 @@
 # Cloudflare 部署检查清单
 
-在部署到 Cloudflare Workers 之前，请按照此清单逐项检查。
+在部署到 Cloudflare Workers 之前，请按照此清单逐项检查。你可以选择 Wrangler CLI 部署，也可以在 Cloudflare 控制台导入 GitHub fork 在线部署。
+
+## 部署方式
+
+### 方式一：Wrangler CLI
+
+适合本地命令行部署。需要创建 D1/KV、生成 `wrangler.local.toml`、设置 Secret、初始化数据库并运行 `npm run deploy`。
+
+### 方式二：Cloudflare 控制台导入 GitHub
+
+适合 Fork 项目后在线部署。
+
+1. 在 GitHub 上 Fork 仓库。
+2. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db` 和 KV 命名空间 `SESSION`。
+3. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择 fork。
+4. Deploy command 填写 `npm run deploy:cloudflare`。
+5. 添加 Build variables：`CF_NAVS_D1_DATABASE_ID`、`CF_NAVS_KV_NAMESPACE_ID`，可选 `CF_NAVS_WORKER_NAME`。
+6. 部署完成后，在 Worker 的 **Settings → Variables & Secrets** 中添加 `INIT_ADMIN_PASSWORD`。
+7. 如果构建 Token 无法初始化 D1，则先在 D1 SQL Console 执行 [../schema.sql](../schema.sql)，再把 Deploy command 改成 `npm run deploy:ci`。
 
 ## 📋 部署前准备
 
