@@ -31,10 +31,11 @@
 - ✅ 书签 CRUD 操作
 - ✅ 前台右键编辑书签，编辑入口以卡片浮层显示
 - ✅ 新增/编辑书签弹窗内部滚动，保存按钮保持可见
-- ✅ 拖拽排序（分类和书签）
+- ✅ 拖拽排序（分类和书签；排序模式显示全量列表，避免跨页排序错乱）
+- ✅ 后台分类和书签列表内部滚动、每页 10 条分页，顶部操作区和书签搜索栏固定
 - ✅ 多种方式获取图标（Favicon.im / 完整标题文字图标 / Google / Iconify / 自定义 URL、文字或表情）
 - ✅ 文字图标读取完整标题，并支持新增/编辑书签时选择 logo.surf 风格配色
-- ✅ 图标代理缓存与前端外链降级（Worker + D1 + Cloudflare edge cache + Service Worker）
+- ✅ 图标代理缓存与本地缓存优先读取（Worker + D1 + Cloudflare edge cache + 浏览器本地缓存）
 - ✅ 书签列表搜索筛选
 - ✅ 站点设置管理
 - ✅ 数据导入导出
@@ -59,6 +60,9 @@ src/
 │   ├── api.ts          # API 客户端
 │   ├── stores.ts       # Svelte stores
 │   ├── icons.ts        # 图标候选辅助（多源候选 + 文字图标配色）
+│   ├── adminDataCache.ts # 登录态后台聚合数据浏览器本地快照
+│   ├── localBookmarkIconCache.ts # 书签图标浏览器本地缓存
+│   ├── sortableList.ts  # 通用拖拽排序 action
 │   └── importData.ts   # CF-Navs / SunPanel 导入转换
 └── App.svelte          # 主应用
 ```
@@ -78,6 +82,7 @@ worker/
 │   └── auth.ts         # 认证中间件
 ├── lib/
 │   ├── db.ts           # 数据库操作（含幂等迁移）
+│   ├── bookmarkIconCache.ts # 书签图标 blob 缓存刷新
 │   └── ...
 └── index.ts            # Worker 入口
 ```
@@ -159,6 +164,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 
 ### 交互设计
 - 拖拽排序
+- 后台分类和书签列表使用面板内滚动与每页 10 条分页，顶部操作区、搜索栏和底部分页保持固定；排序模式显示全量列表，避免跨页排序错乱
 - 平滑过渡动画
 - 加载状态反馈
 - 错误提示
@@ -182,11 +188,11 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 加载提示使用轻量 CSS 动画和进度条，不依赖重型脚本或图片资源
 - Worker 为非 HTML 的 `/assets/*` hash 构建产物设置一年 immutable 缓存，为 HTML 和 `sw.js` 设置 no-cache 重验证；Service Worker 预缓存 `/index.html` 做离线回退，避免安装阶段重复预缓存根路径，并且运行时只缓存成功静态资源和成功 HTML 导航响应，避免失败响应污染本地缓存
 - CSS 压缩
-- 图标代理响应由 Service Worker cache-first 读取，页面滚动、搜索筛选和设置保存后优先命中本地缓存；已保存的 Iconify 图标和从 `icon-sets.iconify.design` 复制的图标页面链接都会规范化为稳定 `/api/iconify/*` 代理，同一个图标在浏览器本地只缓存一份；首页书签和分类图标使用原生懒加载与异步解码，降低首屏图标并发请求
+- 首页和后台书签图标普通渲染优先读取浏览器本地缓存、聚合数据 `icon_blob`、data URI 或 `/api/iconify/*`，不主动挂载 `/api/icon/:id`；编辑打开和保存书签时才调用刷新接口更新本地图标缓存；首页书签和分类图标使用原生懒加载与异步解码，降低首屏图标并发请求
 - 前台右上角主题按钮使用浏览器本地偏好快速切换亮暗模式，不触发 Worker 请求；新增/编辑书签弹窗默认收起文字图标配色和 Iconify 输入区，选中对应图标类型后才展开
 - SunPanel 导入会识别 Iconify 图标名和 icon-sets 页面链接，导入后保存为标准 Iconify URL 并标记 `icon_source: iconify`，首页走 `/api/iconify/*` 代理与本地缓存
 - 首页搜索预计算书签索引，滚动高亮缓存分区 DOM 并用 `requestAnimationFrame` 节流
-- 后台入口或首页管理操作按需使用 `/api/admin/data` 一次拉取分类、书签和完整设置，并从完整设置派生站点配置
+- 后台入口或首页管理操作按需使用 `/api/admin/data` 一次拉取分类、书签和完整设置，并从完整设置派生站点配置；同一登录态会把后台聚合数据写入浏览器本地快照，前后台切换和刷新时优先读取本地快照
 - 登录响应携带用户名；登录成功和已有登录态启动都无需先请求 `/api/me`
 - Worker 认证中间件在单个 isolate 内短时复用已验证 session，后台连续操作不必每个请求都读取 KV，登录成功和退出登录会同步更新该内存缓存
 - 前端 API 客户端在内存中复用已解析的有效登录态，认证请求不再反复读取和解析 localStorage，并监听跨标签页 storage 变更
@@ -195,7 +201,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 登录成功时只有当前 IP 确实存在失败状态才删除限流 key，正常首次登录不再产生多余 KV delete
 - 导入恢复接口直接返回导入后的后台聚合数据，前端无需导入后再请求 `/api/admin/data`；Worker 复用本次导入时已经规范化的分类和书签结果，只额外读取完整 settings，避免写入后再从 D1 重读刚导入的两张表
 - 后台 CRUD、排序和设置保存后使用接口返回值增量更新本地 store，避免额外拉取全量 `/api/public/data`
-- 新增书签后异步预热普通外站图标 blob；编辑书签时不再无条件预热图标，避免只改标题、描述、分类或打开方式时重复请求外站图标并写 D1
+- 书签新增、编辑打开和保存后通过显式刷新接口更新普通外站图标 blob；普通渲染、搜索筛选和前后台切换不再重复请求外站图标并写 D1
 - 后台保存设置和导入恢复的 settings 写入合并为单条多 VALUES upsert，减少完整配置保存时的 D1 statement 数
 - 分类和书签排序使用分块 `UPDATE ... CASE id ... WHERE id IN (...)`，大列表拖拽排序时不再为每个 id 生成一条 D1 statement
 
@@ -211,7 +217,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 - 分类和书签新增用单条 `INSERT ... SELECT ... RETURNING` 合并末尾排序计算和返回值，书签新增还会在同一语句中判断分类是否存在；分类和书签更新使用 `UPDATE ... RETURNING` 直接返回更新后的完整行，避免更新前额外读取旧记录；书签更新在 SQL 内只于图标变化时清空 `icon_blob`
 - 分类删除使用删除语句 `changes` 判断是否存在，避免删除前额外读取分类
 - 公开聚合、后台聚合、书签列表和图标详情等读取路径跳过预检查式 schema 迁移，仅在旧库缺列错误时迁移并重试一次
-- `/api/icon/:id`、`/api/category-icon/:id` 与 `/api/iconify/:set/:name.svg` 统一代理外站图标，普通书签图标 cache miss 时一次 D1 查询同时读取地址和 `icon_blob`，外站抓取成功后直接返回图片字节；Iconify 图标和 icon-sets 页面链接不写 `icon_blob`，通过稳定 `/api/iconify/*` 代理共享 edge cache 与浏览器本地缓存；普通 HTTP(S) 书签图标代理抓取失败时返回错误，让前端回退原始图标 URL，图标缺失、非 HTTP(S) 值、分类图标或 Iconify 失败时仍使用短 TTL 临时 SVG fallback
+- `/api/icon/:id`、`/api/category-icon/:id` 与 `/api/iconify/:set/:name.svg` 统一代理外站图标，普通书签图标 cache miss 时一次 D1 查询同时读取地址和 `icon_blob`，外站抓取成功后直接返回图片字节；普通书签卡片和后台列表优先读取浏览器本地缓存或聚合数据中的 `icon_blob`，不会在普通渲染时主动挂载 `/api/icon/:id`；Iconify 图标和 icon-sets 页面链接不写 `icon_blob`，通过稳定 `/api/iconify/*` 代理共享 edge cache 与浏览器本地缓存；普通 HTTP(S) 书签图标代理抓取失败时返回错误，图标缺失、非 HTTP(S) 值、分类图标或 Iconify 失败时仍使用短 TTL 临时 SVG fallback
 - 静态资源 CDN
 
 ### 网络

@@ -18,8 +18,10 @@
   } from '../shared/types'
   import Home from './views/Home.svelte'
   import { api, getErrorMessage, isApiError, isUnauthorizedError } from './lib/api'
+  import { clearCachedAdminData, readCachedAdminData, writeCachedAdminData } from './lib/adminDataCache'
   import { colorToRgbString } from './lib/color'
   import { prepareImportPayload, type ImportSource } from './lib/importData'
+  import { createBookmarkIconCacheKey, writeBookmarkIconDataUri } from './lib/localBookmarkIconCache'
   import { adminStore, authStore, configStore, isAuthenticated, publicStore } from './lib/stores'
 
   type AppView = 'home' | 'admin' | 'login'
@@ -118,6 +120,7 @@
     icon?: string
     icon_source?: string
     icon_background_color?: string
+    icon_blob?: string
     description?: string
     open_method?: 'same_tab' | 'new_tab' | 'modal'
   }> {
@@ -129,6 +132,7 @@
       icon: bookmark.icon ?? '',
       icon_source: bookmark.icon_source ?? '',
       icon_background_color: bookmark.icon_background_color ?? '',
+      icon_blob: bookmark.icon_blob ?? '',
       description: bookmark.description ?? '',
       open_method: bookmark.open_method === 2 ? 'same_tab' : bookmark.open_method === 3 ? 'modal' : 'new_tab',
     }))
@@ -432,6 +436,7 @@
     })
 
     if (!updated) await refreshListsWhenLocalDataMissing()
+    await persistCurrentAdminData()
   }
 
   async function applyLocalCategoryDelete(categoryId: number): Promise<void> {
@@ -445,6 +450,7 @@
     }))
 
     if (!updated) await refreshListsWhenLocalDataMissing()
+    await persistCurrentAdminData()
   }
 
   async function applyLocalBookmarkUpsert(bookmark: Bookmark): Promise<void> {
@@ -465,6 +471,7 @@
     })
 
     if (!updated) await refreshListsWhenLocalDataMissing()
+    await persistCurrentAdminData()
   }
 
   async function applyLocalBookmarkDelete(bookmarkId: number): Promise<void> {
@@ -476,6 +483,44 @@
     }))
 
     if (!updated) await refreshListsWhenLocalDataMissing()
+    await persistCurrentAdminData()
+  }
+
+  async function applyLocalBookmarkIconBlob(bookmarkId: number, iconBlob: string | null): Promise<void> {
+    updateAdminBookmarksLocally((bookmarks) => bookmarks.map((bookmark) => (
+      bookmark.id === bookmarkId ? { ...bookmark, icon_blob: iconBlob } : bookmark
+    )))
+
+    updatePublicDataLocally((data) => ({
+      ...data,
+      bookmarks: data.bookmarks.map((bookmark) => (
+        bookmark.id === bookmarkId ? { ...bookmark, icon_blob: iconBlob } : bookmark
+      )),
+    }))
+
+    if (iconBlob?.startsWith('data:image/')) {
+      const current =
+        get(adminStore).data.bookmarks.find((bookmark) => bookmark.id === bookmarkId) ??
+        get(publicStore).data?.bookmarks.find((bookmark) => bookmark.id === bookmarkId)
+      if (current) {
+        await writeBookmarkIconDataUri(
+          createBookmarkIconCacheKey({
+            id: current.id,
+            icon: current.icon ?? '',
+            iconSource: current.icon_source,
+          }),
+          iconBlob,
+        )
+      }
+    }
+
+    await persistCurrentAdminData()
+  }
+
+  async function refreshBookmarkIconCache(bookmarkId: number): Promise<string | null> {
+    const result = await api.bookmarks.refreshIconCache(bookmarkId)
+    await applyLocalBookmarkIconBlob(bookmarkId, result.icon_blob)
+    return result.icon_blob
   }
 
   async function applyLocalCategorySort(ids: number[], refreshMissing = true): Promise<void> {
@@ -500,6 +545,7 @@
     }))
 
     if (!updated && refreshMissing) await refreshListsWhenLocalDataMissing()
+    if (refreshMissing) await persistCurrentAdminData()
   }
 
   async function applyLocalBookmarkSort(ids: number[], refreshMissing = true): Promise<void> {
@@ -524,9 +570,10 @@
     }))
 
     if (!updated && refreshMissing) await refreshListsWhenLocalDataMissing()
+    if (refreshMissing) await persistCurrentAdminData()
   }
 
-  function applyLocalSettings(settings: Settings): void {
+  async function applyLocalSettings(settings: Settings): Promise<void> {
     adminStore.setSettings(settings)
     applyConfigFromSettings(settings)
 
@@ -537,6 +584,8 @@
         settings: toPublicSettings(settings),
       })
     }
+
+    await persistCurrentAdminData()
   }
 
   function applyLoggedInData(data: AdminData): void {
@@ -553,8 +602,24 @@
     })
   }
 
-  async function refreshLoggedInData(): Promise<void> {
+  async function persistCurrentAdminData(): Promise<void> {
+    const data = get(adminStore).data
+    if (isLoggedIn() && data.settings) {
+      await writeCachedAdminData(data)
+    }
+  }
+
+  async function refreshLoggedInData(forceRemote = false): Promise<void> {
+    if (!forceRemote) {
+      const cached = await readCachedAdminData()
+      if (cached?.settings) {
+        applyLoggedInData(cached)
+        return
+      }
+    }
+
     applyLoggedInData(await api.admin.getData())
+    await persistCurrentAdminData()
   }
 
   async function ensureLoggedInDataLoaded(): Promise<boolean> {
@@ -572,6 +637,7 @@
       if (isUnauthorizedError(error)) {
         authStore.setSession(null)
         adminStore.reset()
+        await clearCachedAdminData()
         await refreshPublicData()
         await handleOpenLogin()
         return false
@@ -600,6 +666,7 @@
         if (isUnauthorizedError(error)) {
           authStore.setSession(null)
           adminStore.reset()
+          await clearCachedAdminData()
         } else {
           rootError = getErrorMessage(error)
         }
@@ -722,7 +789,7 @@
       await authStore.login(payload.username, payload.password)
       loginModalOpen = false
       rootError = ''
-      await refreshLoggedInData()
+      await refreshLoggedInData(true)
       currentView = 'home'
     } catch {
       // authStore 已经记录错误
@@ -739,6 +806,7 @@
       resetSettingsState()
       resetBookmarkState()
       adminStore.reset()
+      await clearCachedAdminData()
       if (previousSettings) {
         applyConfigFromSettings(previousSettings)
       }
@@ -865,9 +933,14 @@
     if (!await ensureLoggedInDataLoaded()) {
       return
     }
+    await refreshBookmarkIconCache(Number(bookmark.id)).catch(() => undefined)
     await ensureBookmarkEditModalComponent()
     bookmarkModalMode = 'edit'
-    activeBookmark = toBookmarkForm(current)
+    const refreshed =
+      get(adminStore).data.bookmarks.find((item) => item.id === Number(bookmark.id)) ??
+      get(publicStore).data?.bookmarks.find((item) => item.id === Number(bookmark.id)) ??
+      current
+    activeBookmark = toBookmarkForm(refreshed)
     bookmarkModalOpen = true
   }
 
@@ -887,6 +960,8 @@
         bookmark = await api.bookmarks.create(toBookmarkPayload(form))
       }
 
+      const iconBlob = await refreshBookmarkIconCache(bookmark.id).catch(() => bookmark.icon_blob)
+      bookmark = { ...bookmark, icon_blob: iconBlob ?? null }
       resetBookmarkState()
       await applyLocalBookmarkUpsert(bookmark)
     } catch (error) {
@@ -922,7 +997,7 @@
 
     try {
       const settings = await api.settings.update(payload)
-      applyLocalSettings(settings)
+      await applyLocalSettings(settings)
     } catch (error) {
       settingsError = getErrorMessage(error)
     } finally {
@@ -946,10 +1021,13 @@
 
     try {
       await savePromise
+      if (requestSeq === categorySortRequestSeq) {
+        await persistCurrentAdminData()
+      }
     } catch (error) {
       if (requestSeq === categorySortRequestSeq) {
         categoryError = getErrorMessage(error)
-        await refreshLoggedInData().catch(() => undefined)
+        await refreshLoggedInData(true).catch(() => undefined)
       }
     }
   }
@@ -970,12 +1048,38 @@
 
     try {
       await savePromise
+      if (requestSeq === bookmarkSortRequestSeq) {
+        await persistCurrentAdminData()
+      }
     } catch (error) {
       if (requestSeq === bookmarkSortRequestSeq) {
         bookmarkError = getErrorMessage(error)
-        await refreshLoggedInData().catch(() => undefined)
+        await refreshLoggedInData(true).catch(() => undefined)
       }
     }
+  }
+
+  // 首页按分类内拖拽排序：只给出该分类内的新顺序，这里据此重建“全量有序 id 列表”，
+  // 仅替换该分类占据的槽位，其它书签位置保持不变，从而保持全局 sort 与后台平铺表一致。
+  async function handleSortBookmarksInCategory(
+    categoryId: number,
+    orderedIdsInCategory: number[],
+  ): Promise<void> {
+    const current = get(publicStore).data?.bookmarks ?? get(adminStore).data.bookmarks
+    const flatOrdered = [...current].sort((a, b) => a.sort - b.sort || a.id - b.id)
+
+    const newOrderQueue = orderedIdsInCategory.map((id) => Number(id))
+    let queueIndex = 0
+    const fullOrderedIds = flatOrdered.map((bookmark) => {
+      if (bookmark.category_id === categoryId) {
+        const replacement = newOrderQueue[queueIndex] ?? bookmark.id
+        queueIndex += 1
+        return replacement
+      }
+      return bookmark.id
+    })
+
+    await handleSortBookmarks(fullOrderedIds)
   }
 
   function handleExportData(): void {
@@ -1032,6 +1136,7 @@
 
       const result = await api.data.importAll(prepared.payload)
       applyLoggedInData(result.data)
+      await persistCurrentAdminData()
       backupMessage = `导入成功：${result.categories} 个分类、${result.bookmarks} 个书签。`
     } catch (error) {
       backupError = getErrorMessage(error)
@@ -1101,6 +1206,7 @@
           authLoading={$authStore.loading}
           onOpenCreateBookmark={handleOpenCreateBookmark}
           onEditBookmark={handleEditBookmark}
+          onSortBookmarksInCategory={handleSortBookmarksInCategory}
           onSwitchToAdmin={handleSwitchToAdmin}
           onLogout={handleLogout}
           onOpenLogin={handleOpenLogin}

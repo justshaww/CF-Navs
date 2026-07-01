@@ -1,12 +1,14 @@
 <script lang="ts">
   import type { CardStyle, PublicBookmark, PublicCategory } from '../../shared/types'
   import BookmarkCard from './BookmarkCard.svelte'
+  import { sortableList } from '../lib/sortableList'
 
   type AsyncVoid<T = void> = T | Promise<T>
 
   export let category: PublicCategory
   export let bookmarks: PublicBookmark[] = []
   export let canAddBookmark = false
+  export let canSort = false
   export let cardWidth = 200 // 改为 200，Sun-Panel 标准
   export let cardHeight = 0
   export let cardStyle: CardStyle = 'info'
@@ -15,9 +17,49 @@
   export let cardIconShowTitle = true
   export let onAddBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
+  export let onSortBookmarks: ((categoryId: number, orderedIds: number[]) => AsyncVoid) | undefined = undefined
 
   let categoryIconFailed = false
   let categoryIconStateKey = ''
+
+  // 排序模式：先点“排序”进入，拖拽只改本地快照，点“保存”才回写。
+  let sortMode = false
+  let localBookmarks: PublicBookmark[] = []
+  let savingSort = false
+
+  $: displayBookmarks = sortMode ? localBookmarks : bookmarks
+
+  function enterSort() {
+    localBookmarks = [...bookmarks]
+    sortMode = true
+  }
+
+  function cancelSort() {
+    sortMode = false
+    localBookmarks = []
+  }
+
+  function handleReorder(orderedIds: Array<string | number>) {
+    const byId = new Map(localBookmarks.map((item) => [String(item.id), item]))
+    localBookmarks = orderedIds
+      .map((id) => byId.get(String(id)))
+      .filter((item): item is PublicBookmark => Boolean(item))
+  }
+
+  async function saveSort() {
+    if (!onSortBookmarks) {
+      cancelSort()
+      return
+    }
+    savingSort = true
+    try {
+      await onSortBookmarks(category.id, localBookmarks.map((item) => item.id))
+      sortMode = false
+      localBookmarks = []
+    } finally {
+      savingSort = false
+    }
+  }
 
   $: sectionId = `category-${category.id}`
   $: categoryIconKey = `${category.id}:${category.icon ?? ''}:${category.title}`
@@ -76,8 +118,18 @@
       <div>
         <div class="section-heading-row">
           <h2>{category.title}</h2>
-          {#if canAddBookmark}
-            <button type="button" class="add-link-button" on:click={handleAddBookmark}>新增链接</button>
+          {#if sortMode}
+            <button type="button" class="add-link-button ghost" on:click={cancelSort} disabled={savingSort}>取消</button>
+            <button type="button" class="add-link-button" on:click={saveSort} disabled={savingSort}>
+              {#if savingSort}保存中...{:else}保存排序{/if}
+            </button>
+          {:else}
+            {#if canAddBookmark}
+              <button type="button" class="add-link-button" on:click={handleAddBookmark}>新增链接</button>
+            {/if}
+            {#if canSort && bookmarks.length > 1}
+              <button type="button" class="add-link-button ghost" on:click={enterSort}>排序</button>
+            {/if}
           {/if}
         </div>
         <p>共 {bookmarks.length} 个站点</p>
@@ -88,22 +140,33 @@
   {#if bookmarks.length > 0}
     <div
       class="bookmark-grid"
+      class:is-sorting={sortMode}
       style="--card-min-width: {gridMinWidth}px; --mobile-card-min-width: {mobileGridMinWidth}px; --bookmark-grid-gap: {gridGap}; --mobile-bookmark-grid-gap: {mobileGridGap};"
+      use:sortableList={{
+        enabled: sortMode,
+        onSort: handleReorder,
+      }}
     >
-      {#each bookmarks as bookmark (bookmark.id)}
-        <BookmarkCard
-          {bookmark}
-          style={cardStyle}
-          iconSize={cardIconSize}
-          showDescription={cardShowDescription}
-          showIconTitle={cardIconShowTitle}
-          width={cardWidth}
-          height={cardHeight}
-          canEdit={Boolean(onEditBookmark)}
-          onEdit={onEditBookmark}
-        />
+      {#each displayBookmarks as bookmark (bookmark.id)}
+        <div class="bookmark-grid-item" data-sortable-item data-sort-id={bookmark.id}>
+          <BookmarkCard
+            {bookmark}
+            style={cardStyle}
+            iconSize={cardIconSize}
+            showDescription={cardShowDescription}
+            showIconTitle={cardIconShowTitle}
+            width={cardWidth}
+            height={cardHeight}
+            canEdit={Boolean(onEditBookmark)}
+            sortMode={sortMode}
+            onEdit={onEditBookmark}
+          />
+        </div>
       {/each}
     </div>
+    {#if sortMode}
+      <p class="sort-hint">拖动卡片调整顺序，完成后点击「保存排序」。</p>
+    {/if}
   {:else}
     <div class="empty-card">这个分类下暂时还没有可展示的书签。</div>
   {/if}
@@ -179,18 +242,56 @@
     cursor: pointer;
   }
 
+  .add-link-button.ghost {
+    background: rgba(148, 163, 184, 0.16);
+    color: #475569;
+  }
+
+  .add-link-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
   .section-title-wrap p {
     margin-top: 0.25rem;
     color: rgba(100, 116, 139, 0.92);
     font-size: 0.9rem;
   }
 
+  .sort-hint {
+    margin: 0;
+    color: rgba(100, 116, 139, 0.92);
+    font-size: 0.85rem;
+  }
 
   .bookmark-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 200px), 1fr));
     gap: var(--bookmark-grid-gap, 18px);
     justify-content: start;
+  }
+
+  .bookmark-grid-item {
+    min-width: 0;
+    display: flex;
+  }
+
+  /* 排序模式下让卡片显示可拖拽光标，并抑制点击跳转态 */
+  .bookmark-grid.is-sorting .bookmark-grid-item {
+    cursor: move;
+  }
+
+  /* 拖拽占位与镜像样式，稳定占位、抑制抖动 */
+  .bookmark-grid :global(.sortable-ghost) {
+    opacity: 0.35;
+  }
+
+  .bookmark-grid :global(.sortable-chosen) {
+    cursor: move;
+  }
+
+  .bookmark-grid :global(.sortable-drag) {
+    opacity: 0.9;
   }
 
   /* 移动端响应式 */

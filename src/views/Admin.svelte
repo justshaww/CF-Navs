@@ -1,6 +1,4 @@
 <script context="module" lang="ts">
-  import type { ActionReturn } from 'svelte/action'
-
   export type AdminCategory = {
     id: string | number
     title: string
@@ -16,6 +14,7 @@
     icon?: string
     icon_source?: string
     icon_background_color?: string
+    icon_blob?: string
     description?: string
     open_method?: 'same_tab' | 'new_tab' | 'modal'
   }
@@ -43,32 +42,10 @@
   import type { Settings } from '../../shared/types'
   import type { ImportSource } from '../lib/importData'
   import { iconifyProxyIcon, isIconifyIconUrl } from '../lib/icons'
+  import { sortableList, type SortHandler } from '../lib/sortableList'
+  import CachedBookmarkIcon from '../components/CachedBookmarkIcon.svelte'
   import CategoryEditModal from '../components/CategoryEditModal.svelte'
   import SettingsPanel from '../components/SettingsPanel.svelte'
-
-  type SortableInstance = {
-    destroy: () => void
-  }
-
-  type SortableLibrary = {
-    create: (element: HTMLElement, options: { [key: string]: unknown }) => SortableInstance
-  }
-
-  type SortableModule = {
-    default: SortableLibrary
-  }
-
-  type SortHandler = (orderedIds: Array<string | number>) => AsyncVoid
-  type SortableActionOptions = {
-    enabled: boolean
-    onSort?: SortHandler
-  }
-
-  type SortableDomEvent = {
-    oldIndex?: number
-    newIndex?: number
-    from: HTMLElement
-  }
 
   type BookmarkCategoryOption = {
     id: string | number
@@ -76,6 +53,7 @@
   }
 
   type AsyncVoid<T = void> = T | Promise<T>
+  const PAGE_SIZE = 10
 
   export let isAuthenticated = false
   export let authLoading = false
@@ -202,87 +180,91 @@
       title: category.title,
     }))
 
-  let sortableModulePromise: Promise<SortableModule> | null = null
+  // ========== 排序模式（先点“排序”进入，拖拽后点“保存”回写） ==========
+  let categorySortMode = false
+  let bookmarkSortMode = false
+  // 进入排序模式时对当前列表做本地快照，拖拽只改动快照，取消即丢弃。
+  let localCategories: AdminCategory[] = []
+  let localBookmarks: AdminBookmark[] = []
+  let savingSort = false
+  let categoryPage = 1
+  let bookmarkPage = 1
 
-  const loadSortable = async (): Promise<SortableModule> => {
-    if (!sortableModulePromise) {
-      // @ts-ignore sortablejs does not ship types in this project setup
-      sortableModulePromise = import('sortablejs/modular/sortable.core.esm.js') as Promise<SortableModule>
-    }
+  $: categoryTotalPages = pageCount(categories.length)
+  $: bookmarkTotalPages = pageCount(filteredBookmarks.length)
+  $: categoryPage = clampPage(categoryPage, categoryTotalPages)
+  $: bookmarkPage = clampPage(bookmarkPage, bookmarkTotalPages)
+  $: pagedCategories = slicePage(categories, categoryPage)
+  $: pagedBookmarks = slicePage(filteredBookmarks, bookmarkPage)
+  // 排序模式下渲染本地快照全量列表，避免跨页排序造成全局顺序不完整。
+  $: displayCategories = categorySortMode ? localCategories : pagedCategories
+  $: displayBookmarks = bookmarkSortMode ? localBookmarks : pagedBookmarks
 
-    return sortableModulePromise
+  function enterCategorySort() {
+    localCategories = [...categories]
+    categoryPage = 1
+    categorySortMode = true
   }
 
-  const sortableAction = (target: HTMLElement, initialOptions: SortableActionOptions): ActionReturn<SortableActionOptions> => {
-    let sortable: SortableInstance | null = null
-    let options = initialOptions
+  function cancelCategorySort() {
+    categorySortMode = false
+    localCategories = []
+  }
 
-    const destroySortable = () => {
-      sortable?.destroy()
-      sortable = null
+  function handleReorderCategories(orderedIds: Array<string | number>) {
+    const byId = new Map(localCategories.map((item) => [String(item.id), item]))
+    localCategories = orderedIds
+      .map((id) => byId.get(String(id)))
+      .filter((item): item is AdminCategory => Boolean(item))
+  }
+
+  async function saveCategorySort() {
+    if (!onSortCategories) {
+      cancelCategorySort()
+      return
     }
-
-    const readDomOrder = (container: HTMLElement): Array<string | number> =>
-      Array.from(container.querySelectorAll<HTMLElement>('[data-sort-id]'))
-        .map((element) => {
-          const raw = element.dataset.sortId ?? ''
-          const numeric = Number(raw)
-          return Number.isFinite(numeric) && raw !== '' ? numeric : raw
-        })
-        .filter((value) => value !== '')
-
-    const initSortable = async () => {
-      if (!options.enabled || !options.onSort) {
-        destroySortable()
-        return
-      }
-
-      const { default: SortableCtor } = await loadSortable()
-
-      if (!options.enabled || !options.onSort) {
-        destroySortable()
-        return
-      }
-
-      destroySortable()
-
-      sortable = SortableCtor.create(target, {
-        animation: 150,
-        handle: '[data-drag-handle]',
-        draggable: '[data-sortable-item]',
-        forceFallback: true,
-        fallbackOnBody: true,
-        swapThreshold: 0.65,
-        onEnd: async (event: SortableDomEvent) => {
-          const { oldIndex, newIndex, from } = event
-
-          if (oldIndex == null || newIndex == null || oldIndex === newIndex || !options.onSort) {
-            return
-          }
-
-          const orderedIds = readDomOrder(from)
-          if (orderedIds.length > 0) {
-            await options.onSort(orderedIds)
-          }
-        },
-      })
+    savingSort = true
+    try {
+      await onSortCategories(localCategories.map((item) => item.id))
+      categorySortMode = false
+      localCategories = []
+    } finally {
+      savingSort = false
     }
+  }
 
-    void initSortable()
+  function enterBookmarkSort() {
+    // 排序基于完整列表，进入排序模式前清空搜索，避免只对过滤子集排序。
+    bookmarkSearch = ''
+    bookmarkPage = 1
+    localBookmarks = [...bookmarks]
+    bookmarkSortMode = true
+  }
 
-    return {
-      update(nextOptions: SortableActionOptions) {
-        const shouldRebuild =
-          nextOptions.enabled !== options.enabled ||
-          nextOptions.onSort !== options.onSort
-        options = nextOptions
-        if (shouldRebuild) {
-          void initSortable()
-        }
-      },
-      destroy() {
-        destroySortable()
-      },
+  function cancelBookmarkSort() {
+    bookmarkSortMode = false
+    localBookmarks = []
+  }
+
+  function handleReorderBookmarks(orderedIds: Array<string | number>) {
+    const byId = new Map(localBookmarks.map((item) => [String(item.id), item]))
+    localBookmarks = orderedIds
+      .map((id) => byId.get(String(id)))
+      .filter((item): item is AdminBookmark => Boolean(item))
+  }
+
+  async function saveBookmarkSort() {
+    if (!onSortBookmarks) {
+      cancelBookmarkSort()
+      return
+    }
+    savingSort = true
+    try {
+      await onSortBookmarks(localBookmarks.map((item) => item.id))
+      bookmarkSortMode = false
+      localBookmarks = []
+    } finally {
+      savingSort = false
     }
   }
 
@@ -292,8 +274,18 @@
   const getBookmarksByCategory = (categoryId: string | number) =>
     bookmarks.filter((bookmark) => bookmark.category_id === categoryId)
 
+  function createIconVersion(input: string): string {
+    let hash = 0
+    for (let i = 0; i < input.length; i += 1) {
+      hash = Math.imul(31, hash) + input.charCodeAt(i) | 0
+    }
+    return Math.abs(hash).toString(36)
+  }
+
   function getBookmarkIconUrl(bookmark: AdminBookmark): string {
     const icon = bookmark.icon ?? ''
+    const cachedIcon = bookmark.icon_blob ?? ''
+    if (/^data:image\//i.test(cachedIcon)) return cachedIcon
     const iconifyUrl =
       bookmark.icon_source === 'iconify' || isIconifyIconUrl(icon)
         ? iconifyProxyIcon(icon)
@@ -301,12 +293,64 @@
     if (iconifyUrl) return iconifyUrl
     if (/^data:image\//i.test(icon)) return icon
     if (/^https?:\/\//i.test(icon)) {
-      return icon
+      return `/api/icon/${bookmark.id}?v=${createIconVersion(`${bookmark.id}:${icon}:${bookmark.title}:${bookmark.url}`)}`
     }
     return icon
   }
 
+  function hasBookmarkImageIcon(bookmark: AdminBookmark): boolean {
+    const icon = bookmark.icon ?? ''
+    const cachedIcon = bookmark.icon_blob ?? ''
+    return Boolean(
+      getBookmarkIconUrl(bookmark) &&
+      (
+        /^data:image\//i.test(cachedIcon) ||
+        /^data:image\//i.test(icon) ||
+        /^https?:\/\//i.test(icon) ||
+        bookmark.icon_source === 'iconify' ||
+        isIconifyIconUrl(icon)
+      ),
+    )
+  }
+
+  function getBookmarkFallbackIcon(bookmark: AdminBookmark): string {
+    const icon = bookmark.icon ?? ''
+    if (/^https?:\/\//i.test(icon) || /^data:image\//i.test(icon) || isIconifyIconUrl(icon)) {
+      return '🔖'
+    }
+    return icon || '🔖'
+  }
+
   let bookmarkSearch = ''
+
+  function pageCount(total: number): number {
+    return Math.max(1, Math.ceil(total / PAGE_SIZE))
+  }
+
+  function clampPage(page: number, totalPages: number): number {
+    if (!Number.isFinite(page)) return 1
+    return Math.min(Math.max(1, Math.trunc(page)), totalPages)
+  }
+
+  function slicePage<T>(items: T[], page: number): T[] {
+    const start = (clampPage(page, pageCount(items.length)) - 1) * PAGE_SIZE
+    return items.slice(start, start + PAGE_SIZE)
+  }
+
+  function pageStart(page: number, total: number): number {
+    if (total === 0) return 0
+    return (clampPage(page, pageCount(total)) - 1) * PAGE_SIZE + 1
+  }
+
+  function pageEnd(page: number, total: number): number {
+    if (total === 0) return 0
+    return Math.min(clampPage(page, pageCount(total)) * PAGE_SIZE, total)
+  }
+
+  function handleBookmarkSearchInput(event: Event) {
+    bookmarkSearch = (event.currentTarget as HTMLInputElement).value
+    bookmarkPage = 1
+  }
 
   $: filteredBookmarks = bookmarkSearch.trim()
     ? bookmarks.filter((b) => {
@@ -437,6 +481,7 @@
     <!-- 右侧内容区 -->
     <div class="admin-content">
       {#if activeTab === 'categories'}
+        <div class="list-view">
         <!-- 分类管理 -->
         <section class="status-panel">
           <div class="status-item">
@@ -453,142 +498,199 @@
           </div>
         </section>
 
-  <section class="panel">
-      <div class="panel-header">
+  <section class="panel list-panel category-list-panel">
+      <div class="panel-header list-panel-header">
         <div>
           <p class="panel-eyebrow">分类</p>
           <h2>分类列表</h2>
         </div>
-        <button type="button" class="primary-button" on:click={handleCreateCategory} disabled={!isAuthenticated}>
-          新增分类
-        </button>
+        <div class="header-actions">
+          {#if !categorySortMode}
+            <button
+              type="button"
+              class="ghost-button"
+              on:click={enterCategorySort}
+              disabled={!isAuthenticated || categoriesLoading || authLoading || categories.length < 2}
+            >
+              排序
+            </button>
+            <button type="button" class="primary-button" on:click={handleCreateCategory} disabled={!isAuthenticated}>
+              新增分类
+            </button>
+          {/if}
+        </div>
       </div>
 
-      {#if categoriesLoading}
-        <p class="empty-text">分类加载中...</p>
-      {:else if categories.length === 0}
-        <p class="empty-text">暂无分类数据</p>
-      {:else}
-        <div
-          class="list-stack"
-          use:sortableAction={{
-            enabled: isAuthenticated && !categoriesLoading && !authLoading,
-            onSort: onSortCategories,
-          }}
-        >
-          {#each categories as category (category.id)}
-            <article class="compact-card" data-sortable-item data-sort-id={category.id}>
-              <button
-                type="button"
-                class="drag-handle"
-                data-drag-handle
-                aria-label={`拖动排序分类 ${category.title}`}
-                disabled={!isAuthenticated || categoriesLoading || authLoading}
-              >
-                ⋮⋮
-              </button>
-              <span class="icon-badge">{category.icon || '📁'}</span>
-              <div class="compact-info">
-                <h3>{category.title}</h3>
-                <span class="count-badge">{category.bookmarkCount ?? getBookmarksByCategory(category.id).length} 个书签</span>
+      <div class="panel-scroll-body">
+        {#if categoriesLoading}
+          <p class="empty-text">分类加载中...</p>
+        {:else if categories.length === 0}
+          <p class="empty-text">暂无分类数据</p>
+        {:else}
+          <div
+            class="list-stack"
+            class:is-sorting={categorySortMode}
+            use:sortableList={{
+              enabled: categorySortMode,
+              onSort: handleReorderCategories,
+            }}
+          >
+            {#each displayCategories as category (category.id)}
+              <article class="compact-card" class:sortable={categorySortMode} data-sortable-item data-sort-id={category.id}>
+                {#if categorySortMode}
+                  <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                {/if}
+                <span class="icon-badge">{category.icon || '📁'}</span>
+                <div class="compact-info">
+                  <h3>{category.title}</h3>
+                  <span class="count-badge">{category.bookmarkCount ?? getBookmarksByCategory(category.id).length} 个书签</span>
+                </div>
+                {#if !categorySortMode}
+                  <div class="inline-actions">
+                    <button type="button" class="sm-button" on:click={() => onEditCategory?.(category)} disabled={!isAuthenticated}>
+                      编辑
+                    </button>
+                    <button type="button" class="sm-button" on:click={() => handleCreateBookmark(category.id)} disabled={!isAuthenticated}>
+                      加书签
+                    </button>
+                    <button
+                      type="button"
+                      class="sm-button danger"
+                      on:click={() => onDeleteCategory?.(category)}
+                      disabled={!isAuthenticated || deletingCategoryId === category.id}
+                    >
+                      {#if deletingCategoryId === category.id}删除中...{:else}删除{/if}
+                    </button>
+                  </div>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      {#if categories.length > 0}
+        <div class="panel-footer">
+          {#if categorySortMode}
+            <div class="sort-hint">拖动卡片调整顺序，完成后点击「保存排序」。</div>
+          {:else}
+            <div class="pagination">
+              <span>第 {pageStart(categoryPage, categories.length)}-{pageEnd(categoryPage, categories.length)} 条 / 共 {categories.length} 条</span>
+              <div class="pager-actions">
+                <button type="button" class="ghost-button compact" on:click={() => categoryPage -= 1} disabled={categoryPage <= 1}>上一页</button>
+                <span>{categoryPage} / {categoryTotalPages}</span>
+                <button type="button" class="ghost-button compact" on:click={() => categoryPage += 1} disabled={categoryPage >= categoryTotalPages}>下一页</button>
               </div>
-              <div class="inline-actions">
-                <button type="button" class="sm-button" on:click={() => onEditCategory?.(category)} disabled={!isAuthenticated}>
-                  编辑
-                </button>
-                <button type="button" class="sm-button" on:click={() => handleCreateBookmark(category.id)} disabled={!isAuthenticated}>
-                  加书签
-                </button>
-                <button
-                  type="button"
-                  class="sm-button danger"
-                  on:click={() => onDeleteCategory?.(category)}
-                  disabled={!isAuthenticated || deletingCategoryId === category.id}
-                >
-                  {#if deletingCategoryId === category.id}删除中...{:else}删除{/if}
-                </button>
-              </div>
-            </article>
-          {/each}
+            </div>
+          {/if}
         </div>
       {/if}
     </section>
+        </div>
       {:else if activeTab === 'bookmarks'}
+        <div class="list-view">
         <!-- 书签管理 -->
-    <section class="panel wide-panel">
-      <div class="panel-header">
+    <section class="panel wide-panel list-panel bookmark-list-panel">
+      <div class="panel-header list-panel-header">
         <div>
           <p class="panel-eyebrow">书签</p>
           <h2>书签列表</h2>
         </div>
-        <button
-          type="button"
-          class="primary-button"
-          on:click={() => handleCreateBookmark()}
-          disabled={!isAuthenticated || categories.length === 0}
-        >
-          新增书签
-        </button>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="ghost-button"
+            on:click={enterBookmarkSort}
+            disabled={bookmarkSortMode || !isAuthenticated || bookmarksLoading || authLoading || bookmarks.length < 2}
+          >
+            排序
+          </button>
+          <button
+            type="button"
+            class="primary-button"
+            on:click={() => handleCreateBookmark()}
+            disabled={bookmarkSortMode || !isAuthenticated || categories.length === 0}
+          >
+            新增书签
+          </button>
+        </div>
       </div>
 
-      {#if bookmarksLoading}
-        <p class="empty-text">书签加载中...</p>
-      {:else if bookmarks.length === 0}
-        <p class="empty-text">暂无书签数据</p>
-      {:else}
-        <div class="bookmark-search-bar">
-          <input
-            type="text"
-            placeholder="搜索标题、链接或分类…"
-            bind:value={bookmarkSearch}
-          />
-        </div>
-        <div class="table-wrap">
-          <table>
+      <div class="list-toolbar">
+        {#if !bookmarkSortMode}
+          <div class="bookmark-search-bar">
+            <input
+              type="text"
+              placeholder="搜索标题、链接或分类…"
+              value={bookmarkSearch}
+              on:input={handleBookmarkSearchInput}
+            />
+          </div>
+        {/if}
+      </div>
+
+      <div class="panel-scroll-body table-scroll-body">
+        {#if bookmarksLoading}
+          <p class="empty-text">书签加载中...</p>
+        {:else if bookmarks.length === 0}
+          <p class="empty-text">暂无书签数据</p>
+        {:else}
+          <div class="table-wrap">
+            <table class:is-sorting={bookmarkSortMode}>
             <colgroup>
-              <col style="width: 44px;" />
+              {#if bookmarkSortMode}<col style="width: 44px;" />{/if}
               <col />
               <col style="width: 88px;" />
               <col />
               <col style="width: 114px;" />
-              <col style="width: 122px;" />
+              {#if !bookmarkSortMode}<col style="width: 122px;" />{/if}
             </colgroup>
             <thead>
               <tr>
-                <th style="width: 44px;">排序</th>
+                {#if bookmarkSortMode}<th style="width: 44px;">排序</th>{/if}
                 <th>标题</th>
                 <th style="width: 88px;">分类</th>
                 <th>链接</th>
                 <th style="width: 114px;">打开方式</th>
-                <th style="width: 122px;">操作</th>
+                {#if !bookmarkSortMode}<th style="width: 122px;">操作</th>{/if}
               </tr>
             </thead>
             <tbody
-              use:sortableAction={{
-                enabled: isAuthenticated && !bookmarksLoading && !authLoading && !bookmarkSearch.trim(),
-                onSort: onSortBookmarks,
+              use:sortableList={{
+                enabled: bookmarkSortMode,
+                onSort: handleReorderBookmarks,
+                handle: '[data-drag-handle]',
               }}
             >
-              {#each filteredBookmarks as bookmark (bookmark.id)}
-                <tr data-sortable-item data-sort-id={bookmark.id}>
-                  <td>
-                    <button
-                      type="button"
-                      class="drag-handle"
-                      data-drag-handle
-                      aria-label={`拖动排序书签 ${bookmark.title}`}
-                      disabled={!isAuthenticated || bookmarksLoading || authLoading}
-                    >
-                      ⋮⋮
-                    </button>
-                  </td>
+              {#each displayBookmarks as bookmark (bookmark.id)}
+                <tr data-sortable-item data-sort-id={bookmark.id} class:is-sorting={bookmarkSortMode}>
+                  {#if bookmarkSortMode}
+                    <td>
+                      <button
+                        type="button"
+                        class="drag-handle"
+                        data-drag-handle
+                        aria-label={`拖动排序书签 ${bookmark.title}`}
+                      >
+                        ⋮⋮
+                      </button>
+                    </td>
+                  {/if}
                   <td>
                     <div class="bookmark-cell">
                       <span class="icon-badge small" style={bookmark.icon_background_color ? `background: ${bookmark.icon_background_color};` : ''}>
-                        {#if bookmark.icon && (/^https?:\/\//i.test(bookmark.icon) || /^data:image\//i.test(bookmark.icon))}
-                          <img src={getBookmarkIconUrl(bookmark)} alt="" style="width: 100%; height: 100%; object-fit: contain;" />
+                        {#if hasBookmarkImageIcon(bookmark)}
+                          <CachedBookmarkIcon
+                            id={bookmark.id}
+                            icon={bookmark.icon ?? ''}
+                            iconSource={bookmark.icon_source}
+                            iconBlob={bookmark.icon_blob ?? ''}
+                            src={getBookmarkIconUrl(bookmark)}
+                            alt=""
+                            fallback={getBookmarkFallbackIcon(bookmark)}
+                            style="width: 100%; height: 100%; object-fit: contain;"
+                          />
                         {:else}
-                          {bookmark.icon || '🔖'}
+                          {getBookmarkFallbackIcon(bookmark)}
                         {/if}
                       </span>
                       <div>
@@ -606,31 +708,51 @@
                   <td class="method-cell">
                     {bookmark.open_method === 'same_tab' ? '当前标签页' : bookmark.open_method === 'modal' ? '当前页弹层' : '新标签页'}
                   </td>
-                  <td>
-                    <div class="inline-actions compact">
-                      <button type="button" class="ghost-button compact" on:click={() => onEditBookmark?.(bookmark)} disabled={!isAuthenticated}>
-                        编辑
-                      </button>
-                      <button
-                        type="button"
-                        class="danger-button compact"
-                        on:click={() => onDeleteBookmark?.(bookmark)}
-                        disabled={!isAuthenticated || deletingBookmarkId === bookmark.id}
-                      >
-                        {#if deletingBookmarkId === bookmark.id}删除中...{:else}删除{/if}
-                      </button>
-                    </div>
-                  </td>
+                  {#if !bookmarkSortMode}
+                    <td>
+                      <div class="inline-actions compact">
+                        <button type="button" class="ghost-button compact" on:click={() => onEditBookmark?.(bookmark)} disabled={!isAuthenticated}>
+                          编辑
+                        </button>
+                        <button
+                          type="button"
+                          class="danger-button compact"
+                          on:click={() => onDeleteBookmark?.(bookmark)}
+                          disabled={!isAuthenticated || deletingBookmarkId === bookmark.id}
+                        >
+                          {#if deletingBookmarkId === bookmark.id}删除中...{:else}删除{/if}
+                        </button>
+                      </div>
+                    </td>
+                  {/if}
                 </tr>
               {/each}
             </tbody>
-          </table>
-          {#if filteredBookmarks.length === 0}
-            <p class="empty-text" style="padding: 24px 0; text-align: center;">未找到匹配的书签。</p>
+            </table>
+            {#if !bookmarkSortMode && filteredBookmarks.length === 0}
+              <p class="empty-text" style="padding: 24px 0; text-align: center;">未找到匹配的书签。</p>
+            {/if}
+          </div>
+        {/if}
+      </div>
+      {#if bookmarks.length > 0}
+        <div class="panel-footer">
+          {#if bookmarkSortMode}
+            <div class="sort-hint">拖动行调整顺序，完成后点击「保存排序」。</div>
+          {:else}
+            <div class="pagination">
+              <span>第 {pageStart(bookmarkPage, filteredBookmarks.length)}-{pageEnd(bookmarkPage, filteredBookmarks.length)} 条 / 共 {filteredBookmarks.length} 条</span>
+              <div class="pager-actions">
+                <button type="button" class="ghost-button compact" on:click={() => bookmarkPage -= 1} disabled={bookmarkPage <= 1}>上一页</button>
+                <span>{bookmarkPage} / {bookmarkTotalPages}</span>
+                <button type="button" class="ghost-button compact" on:click={() => bookmarkPage += 1} disabled={bookmarkPage >= bookmarkTotalPages}>下一页</button>
+              </div>
+            </div>
           {/if}
         </div>
       {/if}
     </section>
+        </div>
       {:else if activeTab === 'settings'}
         <!-- 站点设置 -->
   <section class="settings-panel-wrap">
@@ -688,6 +810,30 @@
       {/if}
     </div>
   </div>
+
+  {#if categorySortMode || bookmarkSortMode}
+    <div class="floating-sort-bar" role="toolbar" aria-label="排序操作">
+      <span class="floating-sort-hint">
+        {categorySortMode ? '正在排序分类' : '正在排序书签'}，拖动调整顺序后保存。
+      </span>
+      <button
+        type="button"
+        class="ghost-button"
+        on:click={categorySortMode ? cancelCategorySort : cancelBookmarkSort}
+        disabled={savingSort}
+      >
+        取消
+      </button>
+      <button
+        type="button"
+        class="primary-button"
+        on:click={categorySortMode ? saveCategorySort : saveBookmarkSort}
+        disabled={savingSort}
+      >
+        {#if savingSort}保存中...{:else}保存排序{/if}
+      </button>
+    </div>
+  {/if}
 </div>
 
 <CategoryEditModal
@@ -712,11 +858,13 @@
   .admin-page {
     position: relative;
     min-height: 100vh;
+    height: 100vh;
     box-sizing: border-box;
     padding: 32px;
     display: grid;
     grid-template-rows: auto 1fr; /* header自动高度，内容占满剩余空间 */
     gap: 24px;
+    overflow: hidden;
     background:
       radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28%),
       #f8fafc;
@@ -777,6 +925,8 @@
     display: flex;
     gap: 24px;
     align-items: flex-start;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .admin-sidebar {
@@ -843,9 +993,25 @@
   .admin-content {
     flex: 1;
     min-width: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    padding-right: 4px;
+  }
+
+  .list-view {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 24px;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .list-view > .list-panel:only-child {
+    grid-row: 1 / -1;
   }
 
   .eyebrow,
@@ -901,6 +1067,22 @@
     padding: 24px;
   }
 
+  .list-panel {
+    display: grid;
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .category-list-panel {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .bookmark-list-panel {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
   .wide-panel {
     min-width: 0;
   }
@@ -911,6 +1093,42 @@
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 18px;
+  }
+
+  .list-panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    margin: 0;
+    padding: 20px 24px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .list-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    padding: 12px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .panel-scroll-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px 24px;
+  }
+
+  .table-scroll-body {
+    padding: 0;
+    overflow: auto;
+  }
+
+  .panel-footer {
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+    padding: 12px 24px;
   }
 
   .list-stack {
@@ -984,6 +1202,7 @@
     padding: 0;
     font-size: 11px;
     line-height: 1;
+    user-select: none;
   }
 
   .drag-handle:active {
@@ -996,6 +1215,95 @@
 
   [data-sortable-item] {
     touch-action: manipulation;
+  }
+
+  /* 排序模式：面板头部按钮组 */
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* 悬浮排序操作栏：固定在视口底部，长列表滚动时也能直接点保存 */
+  .floating-sort-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100vw - 32px);
+    padding: 10px 14px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 18px 46px rgba(15, 23, 42, 0.22);
+  }
+
+  .floating-sort-hint {
+    color: #475569;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sort-hint {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .pager-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  /* 排序模式下的分类卡片：整卡可拖，禁用文本选中 */
+  .compact-card.sortable {
+    cursor: grab;
+    user-select: none;
+    border-color: #bfdbfe;
+    background: #f8fbff;
+  }
+
+  .compact-card.sortable:active {
+    cursor: grabbing;
+  }
+
+  .list-stack.is-sorting .compact-card {
+    transition: none;
+  }
+
+  tr.is-sorting {
+    background: #f8fbff;
+  }
+
+  /* SortableJS 拖拽态：稳定占位、抑制抖动 */
+  :global(.sortable-ghost) {
+    opacity: 0.35;
+  }
+
+  :global(.sortable-chosen) {
+    cursor: grabbing;
+  }
+
+  :global(.sortable-drag) {
+    opacity: 1 !important;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
   }
 
   .bookmark-cell p,
@@ -1067,11 +1375,12 @@
   }
 
   .table-wrap {
-    overflow-x: auto;
+    min-height: 0;
+    overflow: visible;
   }
 
   .bookmark-search-bar {
-    margin-bottom: 12px;
+    margin: 0;
   }
 
   .bookmark-search-bar input {
@@ -1099,6 +1408,7 @@
 
   table {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
   }
 
@@ -1112,6 +1422,10 @@
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    background: #ffffff;
     font-size: 12px;
     color: #64748b;
     font-weight: 600;
@@ -1262,6 +1576,22 @@
       padding: 20px;
     }
 
+    .admin-layout {
+      gap: 16px;
+    }
+
+    .admin-sidebar {
+      width: 164px;
+    }
+
+    .admin-content {
+      gap: 16px;
+    }
+
+    .list-view {
+      gap: 16px;
+    }
+
     .admin-header-actions {
       top: 20px;
       right: 20px;
@@ -1286,6 +1616,31 @@
 
     .status-panel {
       grid-template-columns: 1fr;
+    }
+
+    .list-panel-header,
+    .list-toolbar,
+    .panel-footer {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .panel-scroll-body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .table-scroll-body {
+      padding: 0;
+    }
+
+    .pagination {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .floating-sort-bar {
+      bottom: 16px;
     }
 
     .inline-actions.compact {

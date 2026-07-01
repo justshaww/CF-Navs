@@ -113,10 +113,10 @@ const PUBLIC_DATA_SETTINGS_WITHOUT_SITE_CONFIG_KEYS = PUBLIC_DATA_SETTINGS_KEYS.
 
 const CATEGORY_LIST_SQL = 'SELECT id, title, icon, sort, created_at FROM categories ORDER BY sort ASC, id ASC'
 const BOOKMARK_LIST_SQL =
-  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at FROM bookmarks ORDER BY sort ASC, id ASC'
+  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort, created_at FROM bookmarks ORDER BY sort ASC, id ASC'
 const PUBLIC_CATEGORY_LIST_SQL = 'SELECT id, title, icon, sort FROM categories ORDER BY sort ASC, id ASC'
 const PUBLIC_BOOKMARK_LIST_SQL =
-  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort FROM bookmarks ORDER BY sort ASC, id ASC'
+  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort FROM bookmarks ORDER BY sort ASC, id ASC'
 const SETTINGS_LIST_SQL = 'SELECT key, value FROM settings'
 const PUBLIC_DATA_SETTINGS_LIST_SQL = `SELECT key, value FROM settings WHERE key IN (${PUBLIC_DATA_SETTINGS_KEYS
   .map((key) => `'${key}'`)
@@ -124,7 +124,9 @@ const PUBLIC_DATA_SETTINGS_LIST_SQL = `SELECT key, value FROM settings WHERE key
 const PUBLIC_DATA_SETTINGS_WITHOUT_SITE_CONFIG_LIST_SQL = `SELECT key, value FROM settings WHERE key IN (${PUBLIC_DATA_SETTINGS_WITHOUT_SITE_CONFIG_KEYS
   .map((key) => `'${key}'`)
   .join(',')})`
-const SORT_UPDATE_CHUNK_SIZE = 300
+// D1 单条预处理语句最多绑定 100 个参数；本 UPDATE 每个 id 用 3 个参数
+// （CASE 的 WHEN ? THEN ? 两个 + WHERE IN (?) 一个），故每批最多 33 个 id，取 30 留余量。
+const SORT_UPDATE_CHUNK_SIZE = 30
 
 function isRecoverableSchemaError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
@@ -287,13 +289,14 @@ export interface BookmarkIconData {
   title: string
   url: string
   icon: string | null
+  icon_source: Bookmark['icon_source']
   icon_blob: string | null
 }
 
 export async function getBookmarkIconData(db: D1Database, id: number): Promise<BookmarkIconData | null> {
   return await withSchemaRetry(db, async () => (
     await db
-      .prepare('SELECT title, url, icon, icon_blob FROM bookmarks WHERE id = ?')
+      .prepare('SELECT title, url, icon, icon_source, icon_blob FROM bookmarks WHERE id = ?')
       .bind(id)
       .first<BookmarkIconData>()
   ))
@@ -311,7 +314,7 @@ export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Pr
          )
          SELECT ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
          WHERE EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at`,
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort, created_at`,
       )
       .bind(
         req.category_id,
@@ -336,6 +339,7 @@ export async function updateBookmark(
   req: BookmarkUpsertReq,
 ): Promise<Bookmark | null> {
   const nextIcon = req.icon ?? null
+  const nextIconSource = req.icon_source ?? null
   const openMethod: 1 | 2 | 3 | null =
     req.open_method === 2 ? 2 : req.open_method === 3 ? 3 : req.open_method === 1 ? 1 : null
   return await withSchemaRetry(db, async () => (
@@ -345,14 +349,19 @@ export async function updateBookmark(
          SET category_id = ?,
              title = ?,
              url = ?,
-             icon_blob = CASE WHEN (icon IS NULL AND ? IS NULL) OR icon = ? THEN icon_blob ELSE NULL END,
+             icon_blob = CASE
+               WHEN ((icon IS NULL AND ? IS NULL) OR icon = ?)
+                AND ((icon_source IS NULL AND ? IS NULL) OR icon_source = ?)
+               THEN icon_blob
+               ELSE NULL
+             END,
              icon = ?,
              icon_source = ?,
              icon_background_color = ?,
              description = ?,
              open_method = COALESCE(?, open_method)
          WHERE id = ? AND EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at`,
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort, created_at`,
       )
       .bind(
         req.category_id,
@@ -360,8 +369,10 @@ export async function updateBookmark(
         req.url,
         nextIcon,
         nextIcon,
+        nextIconSource,
+        nextIconSource,
         nextIcon,
-        req.icon_source ?? null,
+        nextIconSource,
         req.icon_background_color ?? null,
         req.description ?? null,
         openMethod,
@@ -583,6 +594,7 @@ export async function importData(
       icon: b.icon ?? null,
       icon_source: (b as unknown as Record<string, Bookmark['icon_source']>).icon_source ?? null,
       icon_background_color: (b as unknown as Record<string, string | null | undefined>).icon_background_color ?? null,
+      icon_blob: (b as unknown as Record<string, string | null | undefined>).icon_blob ?? null,
       description: b.description ?? null,
       open_method: openMethod,
       sort: Number.isFinite(b.sort) ? b.sort : 0,
@@ -592,7 +604,7 @@ export async function importData(
     stmts.push(
       db
         .prepare(
-          'INSERT INTO bookmarks (id, category_id, title, url, icon, icon_source, icon_background_color, description, open_method, sort, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO bookmarks (id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .bind(
           bookmark.id,
@@ -602,6 +614,7 @@ export async function importData(
           bookmark.icon,
           bookmark.icon_source,
           bookmark.icon_background_color,
+          bookmark.icon_blob,
           bookmark.description,
           bookmark.open_method,
           bookmark.sort,

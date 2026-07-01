@@ -6,8 +6,9 @@
     Settings,
     ThemeMode,
   } from '../../shared/types'
-  import { splitCssColorAlpha } from '../lib/color'
+  import { parseCssColor, splitCssColorAlpha } from '../lib/color'
   import ColorAlphaInput from './ColorAlphaInput.svelte'
+  import GradientBackgroundInput from './GradientBackgroundInput.svelte'
 
   type SettingsPanelValue = Pick<
     Settings,
@@ -44,13 +45,15 @@
   ]
 
   const backgroundTypeOptions: Array<{ value: BackgroundSetting['type']; label: string; hint: string }> = [
-    { value: 'color', label: '纯色', hint: '填写 #hex 或 CSS 颜色值，例如 #0f172a。' },
-    { value: 'gradient', label: '渐变', hint: '填写完整 CSS 渐变，例如 linear-gradient(135deg,#1e3a8a,#0f172a)。' },
-    { value: 'image', label: '图片', hint: '填写图片外链 URL（可使用图床直链）。' },
+    { value: 'color', label: '纯色', hint: '支持 #hex、rgb()、rgba()，也可用颜色拾取器。' },
+    { value: 'gradient', label: '渐变', hint: '支持完整 CSS 渐变，也可用下方两端颜色生成。' },
+    { value: 'image', label: '图片', hint: '填写图片外链 URL；配置图床后可快速上传。' },
   ]
 
   const defaultLightBackground: BackgroundSetting = { type: 'color', value: '#f8fafc', blur: 0, mask: 0.18, maskColor: '#ffffff' }
   const defaultDarkBackground: BackgroundSetting = { type: 'color', value: '#0f172a', blur: 0, mask: 0.3, maskColor: '#000000' }
+  const defaultLightGradient = { start: '#e0f2fe', end: '#f8fafc' }
+  const defaultDarkGradient = { start: '#1e3a8a', end: '#0f172a' }
   const defaultSearchEngine: SearchEngineSetting = {
     current: 'Google',
     engines: [
@@ -281,6 +284,63 @@
     return Math.min(max, Math.max(min, input))
   }
 
+  function gradientValue(start: string, end: string): string {
+    return `linear-gradient(135deg, ${start}, ${end})`
+  }
+
+  function isGradientValue(input: string): boolean {
+    return /gradient\s*\(/i.test(input)
+  }
+
+  function normalizeBackgroundValueForType(
+    currentValue: string,
+    nextType: BackgroundSetting['type'],
+    defaults: { color: string; gradientStart: string; gradientEnd: string },
+  ): string {
+    const trimmed = currentValue.trim()
+
+    if (nextType === 'color') {
+      return parseCssColor(trimmed) ? trimmed : defaults.color
+    }
+
+    if (nextType === 'gradient') {
+      return isGradientValue(trimmed)
+        ? trimmed
+        : gradientValue(parseCssColor(trimmed) ? trimmed : defaults.gradientStart, defaults.gradientEnd)
+    }
+
+    return /^https?:\/\//i.test(trimmed) ? trimmed : ''
+  }
+
+  function updateBackgroundType(theme: 'light' | 'dark', nextType: BackgroundSetting['type']): void {
+    const background = form.backgrounds[theme]
+    const defaults = theme === 'light'
+      ? {
+          color: defaultLightBackground.value,
+          gradientStart: defaultLightGradient.start,
+          gradientEnd: defaultLightGradient.end,
+        }
+      : {
+          color: defaultDarkBackground.value,
+          gradientStart: defaultDarkGradient.start,
+          gradientEnd: defaultDarkGradient.end,
+        }
+
+    form.backgrounds[theme] = {
+      ...background,
+      type: nextType,
+      value: normalizeBackgroundValueForType(background.value, nextType, defaults),
+    }
+  }
+
+  function handleLightBackgroundTypeChange(event: Event): void {
+    updateBackgroundType('light', (event.currentTarget as HTMLSelectElement).value as BackgroundSetting['type'])
+  }
+
+  function handleDarkBackgroundTypeChange(event: Event): void {
+    updateBackgroundType('dark', (event.currentTarget as HTMLSelectElement).value as BackgroundSetting['type'])
+  }
+
   $: nextKey = JSON.stringify({ value, loading })
   $: if (nextKey !== formKey) {
     formKey = nextKey
@@ -466,34 +526,66 @@
               <div class="background-main-row">
                 <label class="field background-type-field">
                   <span>背景类型</span>
-                  <select bind:value={form.backgrounds.light.type}>
+                  <select
+                    value={form.backgrounds.light.type}
+                    on:change={handleLightBackgroundTypeChange}
+                  >
                     {#each backgroundTypeOptions as option}
                       <option value={option.value}>{option.label}</option>
                     {/each}
                   </select>
-                  <small>{lightBackgroundHint}</small>
                 </label>
 
-                <label class="field background-value-field">
+                <div class="field background-value-field">
                   <span>背景值</span>
-                  <div class="inline-input">
-                    <input
+                  {#if form.backgrounds.light.type === 'color'}
+                    <ColorAlphaInput
                       bind:value={form.backgrounds.light.value}
-                      type="text"
-                      placeholder={form.backgrounds.light.type === 'image'
-                        ? 'https://img.example.com/light-bg.png'
-                        : form.backgrounds.light.type === 'gradient'
-                          ? 'linear-gradient(135deg,#e0f2fe,#f8fafc)'
-                          : '#f8fafc'}
+                      placeholder="#f8fafc"
+                      inputLabel="浅色背景颜色值"
+                      swatchTitle="选择浅色背景颜色"
+                      alphaText="浅色背景透明度"
                     />
-                    {#if form.backgrounds.light.type === 'image' && uploadHost}
-                      <button type="button" class="ghost-button" on:click={openUpload}>打开图床上传 ↗</button>
+                  {:else if form.backgrounds.light.type === 'gradient'}
+                    <GradientBackgroundInput
+                      bind:value={form.backgrounds.light.value}
+                      defaultStart={defaultLightGradient.start}
+                      defaultEnd={defaultLightGradient.end}
+                      startLabel="浅色起始颜色"
+                      endLabel="浅色结束颜色"
+                      manualLabel="浅色完整渐变值"
+                      gradientPlaceholder="linear-gradient(135deg, #e0f2fe, #f8fafc)"
+                    />
+                  {:else}
+                    <div class="inline-input">
+                      <input
+                        bind:value={form.backgrounds.light.value}
+                        type="text"
+                        placeholder="https://img.example.com/light-bg.png"
+                        aria-label="浅色背景图片地址"
+                      />
+                      {#if uploadHost}
+                        <button type="button" class="ghost-button" on:click={openUpload}>打开图床上传 ↗</button>
+                      {/if}
+                    </div>
+                  {/if}
+                  {#if form.backgrounds.light.type === 'color'}
+                    <small>支持 #hex、rgb() 和 rgba()，也可点击色块选择颜色。</small>
+                  {:else if form.backgrounds.light.type === 'gradient'}
+                    <small>可用颜色选择器生成两色渐变，也可手动填写完整 CSS 渐变。</small>
+                  {:else}
+                    {#if uploadHost}
+                      <small>填写图片外链 URL，或打开已配置图床上传。</small>
+                    {:else}
+                      <small>填写图片外链 URL；配置图床地址后可快速打开上传页。</small>
                     {/if}
-                  </div>
+                  {/if}
                   {#if !lightBackgroundValid}
                     <small class="warn">请填写浅色模式背景值。</small>
                   {/if}
-                </label>
+                </div>
+
+                <small class="background-type-hint">{lightBackgroundHint}</small>
               </div>
 
               <div class="background-range-grid">
@@ -534,34 +626,66 @@
               <div class="background-main-row">
                 <label class="field background-type-field">
                   <span>背景类型</span>
-                  <select bind:value={form.backgrounds.dark.type}>
+                  <select
+                    value={form.backgrounds.dark.type}
+                    on:change={handleDarkBackgroundTypeChange}
+                  >
                     {#each backgroundTypeOptions as option}
                       <option value={option.value}>{option.label}</option>
                     {/each}
                   </select>
-                  <small>{darkBackgroundHint}</small>
                 </label>
 
-                <label class="field background-value-field">
+                <div class="field background-value-field">
                   <span>背景值</span>
-                  <div class="inline-input">
-                    <input
+                  {#if form.backgrounds.dark.type === 'color'}
+                    <ColorAlphaInput
                       bind:value={form.backgrounds.dark.value}
-                      type="text"
-                      placeholder={form.backgrounds.dark.type === 'image'
-                        ? 'https://img.example.com/dark-bg.png'
-                        : form.backgrounds.dark.type === 'gradient'
-                          ? 'linear-gradient(135deg,#1e3a8a,#0f172a)'
-                          : '#0f172a'}
+                      placeholder="#0f172a"
+                      inputLabel="深色背景颜色值"
+                      swatchTitle="选择深色背景颜色"
+                      alphaText="深色背景透明度"
                     />
-                    {#if form.backgrounds.dark.type === 'image' && uploadHost}
-                      <button type="button" class="ghost-button" on:click={openUpload}>打开图床上传 ↗</button>
+                  {:else if form.backgrounds.dark.type === 'gradient'}
+                    <GradientBackgroundInput
+                      bind:value={form.backgrounds.dark.value}
+                      defaultStart={defaultDarkGradient.start}
+                      defaultEnd={defaultDarkGradient.end}
+                      startLabel="深色起始颜色"
+                      endLabel="深色结束颜色"
+                      manualLabel="深色完整渐变值"
+                      gradientPlaceholder="linear-gradient(135deg, #1e3a8a, #0f172a)"
+                    />
+                  {:else}
+                    <div class="inline-input">
+                      <input
+                        bind:value={form.backgrounds.dark.value}
+                        type="text"
+                        placeholder="https://img.example.com/dark-bg.png"
+                        aria-label="深色背景图片地址"
+                      />
+                      {#if uploadHost}
+                        <button type="button" class="ghost-button" on:click={openUpload}>打开图床上传 ↗</button>
+                      {/if}
+                    </div>
+                  {/if}
+                  {#if form.backgrounds.dark.type === 'color'}
+                    <small>支持 #hex、rgb() 和 rgba()，也可点击色块选择颜色。</small>
+                  {:else if form.backgrounds.dark.type === 'gradient'}
+                    <small>可用颜色选择器生成两色渐变，也可手动填写完整 CSS 渐变。</small>
+                  {:else}
+                    {#if uploadHost}
+                      <small>填写图片外链 URL，或打开已配置图床上传。</small>
+                    {:else}
+                      <small>填写图片外链 URL；配置图床地址后可快速打开上传页。</small>
                     {/if}
-                  </div>
+                  {/if}
                   {#if !darkBackgroundValid}
                     <small class="warn">请填写深色模式背景值。</small>
                   {/if}
-                </label>
+                </div>
+
+                <small class="background-type-hint">{darkBackgroundHint}</small>
               </div>
 
               <div class="background-range-grid">
@@ -1013,7 +1137,7 @@
 
   .background-main-row {
     display: grid;
-    grid-template-columns: minmax(140px, 0.36fr) minmax(0, 1fr);
+    grid-template-columns: 128px minmax(0, 1fr);
     gap: 14px;
     align-items: start;
   }
@@ -1028,6 +1152,21 @@
   .background-value-field {
     min-width: 0;
     align-content: start;
+  }
+
+  .background-type-field {
+    width: 128px;
+  }
+
+  .background-type-field select {
+    width: 128px;
+    min-width: 128px;
+  }
+
+  .background-type-hint {
+    grid-column: 1 / -1;
+    display: block;
+    min-width: 0;
   }
 
   .background-value-field .inline-input {
@@ -1249,6 +1388,12 @@
     .background-main-row,
     .background-range-grid {
       grid-template-columns: 1fr;
+    }
+
+    .background-type-field,
+    .background-type-field select {
+      width: 100%;
+      min-width: 0;
     }
 
     .background-value-field .inline-input {

@@ -172,6 +172,7 @@ function prepareSunPanelImport(parsed: unknown): PreparedImport {
         icon: normalizedIcon.icon,
         icon_source: normalizedIcon.icon_source,
         icon_background_color: normalizedIcon.icon_background_color,
+        icon_blob: null,
         description: readString(rawBookmark.description).trim() || null,
         open_method: sunPanelOpenMethodToCFNavs(rawBookmark.openMethod),
         sort: readNumber(rawBookmark.sort, bookmarkIndex),

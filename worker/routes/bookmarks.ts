@@ -4,28 +4,18 @@ import { ErrCode, type BookmarkUpsertReq, type SortReq } from '../../shared/type
 import {
   createBookmark,
   deleteBookmark,
+  getBookmarkIconData,
   listBookmarks,
-  setIconBlob,
   sortBookmarks,
   updateBookmark,
 } from '../lib/db'
 import { invalidatePublicDataCache } from '../lib/cache'
-import { fetchCacheableIcon, iconBytesToDataUri, shouldPersistIconBlob } from '../lib/iconData'
+import { cacheBookmarkIconBlob } from '../lib/bookmarkIconCache'
 import { fail, ok } from '../lib/response'
 import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
-
-function waitUntil(c: AppContext, promise: Promise<unknown>): void {
-  const executionCtx = (c as unknown as { executionCtx?: ExecutionContext }).executionCtx
-  if (executionCtx) {
-    executionCtx.waitUntil(promise)
-    return
-  }
-
-  void promise
-}
 
 function badRequest(c: AppContext, msg: string) {
   return c.json(fail(ErrCode.BAD_REQUEST, msg))
@@ -92,11 +82,6 @@ bookmarksRoutes.post('/', async (c) => {
     })
     if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
 
-    // Warm the icon blob after create without blocking the API response.
-    if (bookmark.icon && shouldPersistIconBlob(bookmark.icon, bookmark.icon_source)) {
-      waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
-    }
-
     invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(bookmark))
@@ -138,10 +123,6 @@ bookmarksRoutes.put('/:id', async (c) => {
     })
     if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark or category not found'))
 
-    if (bookmark.icon && shouldPersistIconBlob(bookmark.icon, bookmark.icon_source)) {
-      waitUntil(c, cacheIconBlob(c, bookmark.id, bookmark.icon))
-    }
-
     invalidateRuntimeDataCache()
     invalidatePublicDataCache(c, c.req.url)
     return c.json(ok(bookmark))
@@ -182,19 +163,27 @@ bookmarksRoutes.post('/sort', async (c) => {
   }
 })
 
-export default bookmarksRoutes
+bookmarksRoutes.post('/:id/icon-cache/refresh', async (c) => {
+  const id = parseId(c)
+  if (id == null) return badRequest(c, 'invalid bookmark id')
 
-// ========== 图标缓存辅助 ==========
-
-async function cacheIconBlob(c: AppContext, bookmarkId: number, iconUrl: string): Promise<void> {
   try {
-    const icon = await fetchCacheableIcon(iconUrl)
+    const bookmark = await getBookmarkIconData(c.env.DB, id)
+    if (!bookmark) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark not found'))
 
-    if (!icon) return
+    const iconCache = await cacheBookmarkIconBlob(c.env.DB, id, bookmark.icon, bookmark.icon_source)
 
-    // 只缓存图片类型的响应
-    await setIconBlob(c.env.DB, bookmarkId, iconBytesToDataUri(icon))
+    if (iconCache.wrote) {
+      invalidateRuntimeDataCache()
+      invalidatePublicDataCache(c, c.req.url)
+    }
+
+    return c.json(ok({
+      icon_blob: iconCache.reuseExisting ? bookmark.icon_blob : iconCache.iconBlob,
+    }))
   } catch {
-    // 缓存失败不阻塞主流程
+    return c.json(fail(ErrCode.SERVER_ERROR, 'failed to refresh bookmark icon cache'))
   }
-}
+})
+
+export default bookmarksRoutes

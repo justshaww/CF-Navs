@@ -2,8 +2,19 @@
   import { onDestroy } from 'svelte'
   import type { CardStyle, PublicBookmark } from '../../shared/types'
   import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
+  import {
+    createBookmarkIconCacheKey,
+    readCachedBookmarkIconDataUri,
+    readCachedBookmarkIconUrl,
+    revokeLocalIconUrl,
+    writeBookmarkIconDataUri,
+  } from '../lib/localBookmarkIconCache'
 
   type AsyncVoid<T = void> = T | Promise<T>
+  type IconStyleOptions = {
+    compact?: boolean
+    customBackground?: string
+  }
 
   export let bookmark: PublicBookmark
   export let style: CardStyle = 'info'
@@ -13,10 +24,15 @@
   export let width: number = 200
   export let height: number = 0
   export let canEdit = false
+  export let sortMode = false
   export let onEdit: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
 
-  let useExternalIcon = false
+  let cachedIconFailed = false
   let fallbackFailed = false
+  let localCachedIconUrl = ''
+  let syncLocalCachedIconUrl = ''
+  let localCachePending = false
+  let localCacheRequestId = 0
   let contextMenuOpen = false
   let modalOpen = false
   let iconStateKey = ''
@@ -25,6 +41,7 @@
   $: openInNewTab = bookmark.open_method === 1
   $: openInModal = bookmark.open_method === 3
   $: rawIcon = bookmark.icon?.trim() ?? ''
+  $: cachedIcon = bookmark.icon_blob?.trim() ?? ''
   $: customTextIcon =
     rawIcon &&
     bookmark.icon_source !== 'logo_surf' &&
@@ -34,11 +51,25 @@
       ? rawIcon
       : ''
   $: iconText = customTextIcon || bookmark.title.trim().slice(0, 1) || '书'
-  $: infoIconSize = Math.max(0, Math.min(height > 0 ? height : 70, width))
+  $: infoCardHeight = height > 0 ? height : 70
+  $: infoIconInset = infoCardHeight <= 56 ? 6 : 8
+  $: infoIconSize = Math.max(32, Math.min(infoCardHeight - infoIconInset * 2, width - infoIconInset * 2))
   $: compactIconSize = Math.max(0, iconSize)
+  $: iconBackgroundColor = bookmark.icon_background_color || ''
+  $: hasCustomIconBackground = Boolean(iconBackgroundColor)
+  $: infoIconStyle = buildIconStyle(infoIconSize, { customBackground: iconBackgroundColor })
+  $: compactIconStyle = buildIconStyle(compactIconSize, {
+    compact: true,
+    customBackground: iconBackgroundColor,
+  })
   $: tooltipText = bookmark.description ? `${bookmark.title}\n${bookmark.description}` : bookmark.title
-  $: nextIconStateKey = `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.title}:${bookmark.url}`
-  $: iconVersion = createIconVersion(`icon-render-v2:${nextIconStateKey}`)
+  $: nextIconStateKey = `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.icon_blob ?? ''}:${bookmark.title}:${bookmark.url}`
+  $: localCacheKey = createBookmarkIconCacheKey({
+    id: bookmark.id,
+    icon: rawIcon,
+    iconSource: bookmark.icon_source,
+  })
+  $: syncLocalCachedIconUrl = readCachedBookmarkIconDataUri(localCacheKey) ?? ''
   $: cardShellStyle =
     style === 'info'
       ? `min-width: ${width}px; ${height > 0 ? `height: ${height}px;` : ''}`
@@ -48,53 +79,126 @@
     bookmark.icon_source === 'iconify' || isIconifyIconUrl(rawIcon)
       ? iconifyProxyIcon(rawIcon)
       : ''
-  $: canUseExternalIconFallback =
+  $: shouldWaitForLocalIconCache =
     /^https?:\/\//i.test(rawIcon) &&
+    !iconifyProxyUrl &&
     bookmark.icon_source !== 'logo_surf' &&
-    !isIconifyIconUrl(rawIcon)
+    !customTextIcon &&
+    !/^data:image\//i.test(cachedIcon)
   $: if (nextIconStateKey !== iconStateKey) {
     iconStateKey = nextIconStateKey
-    useExternalIcon = false
+    cachedIconFailed = false
     fallbackFailed = false
+    resetLocalCachedIconUrl()
+    void loadLocalCachedIcon(localCacheKey, cachedIcon, shouldWaitForLocalIconCache)
   }
   $: syncWindowListeners(contextMenuOpen || modalOpen)
 
-  // 图标来源：外部 URL 默认走 Worker 缓存代理；代理失败时再回退直连外站。
+  // 普通渲染只读本地缓存或聚合数据里的 icon_blob；刷新缓存只在编辑/保存动作中触发。
   $: iconUrl = (() => {
     if (bookmark.icon_source === 'logo_surf') return bookmark.icon || logoSurfIcon(bookmark.title, bookmark.url)
+    if (syncLocalCachedIconUrl) return syncLocalCachedIconUrl
+    if (localCachedIconUrl) return localCachedIconUrl
+    if (!cachedIconFailed && /^data:image\//i.test(cachedIcon)) return cachedIcon
+    if (localCachePending && shouldWaitForLocalIconCache) return ''
     if (!rawIcon || customTextIcon) return ''
     if (iconifyProxyUrl) return iconifyProxyUrl
     if (/^data:image\//i.test(rawIcon)) return rawIcon
-    if (/^https?:\/\//i.test(rawIcon)) {
-      return useExternalIcon ? rawIcon : `/api/icon/${bookmark.id}?v=${iconVersion}`
-    }
     return ''
   })()
   $: hasRenderableIcon = Boolean(iconUrl) && !fallbackFailed
 
-  function createIconVersion(input: string): string {
-    let hash = 0
-    for (let i = 0; i < input.length; i += 1) {
-      hash = Math.imul(31, hash) + input.charCodeAt(i) | 0
+  function resetLocalCachedIconUrl() {
+    if (localCachedIconUrl) {
+      revokeLocalIconUrl(localCachedIconUrl)
+      localCachedIconUrl = ''
     }
-    return Math.abs(hash).toString(36)
   }
 
-  function handleIconError() {
-    if (bookmark.icon_source === 'logo_surf' || !rawIcon || !/^https?:\/\//i.test(rawIcon)) {
-      fallbackFailed = true
-      useExternalIcon = false
+  async function loadLocalCachedIcon(
+    cacheKey: string,
+    dataUri: string,
+    waitForLocalCache: boolean,
+  ) {
+    const requestId = ++localCacheRequestId
+
+    if (/^data:image\//i.test(dataUri)) {
+      localCachePending = false
+      await writeBookmarkIconDataUri(cacheKey, dataUri)
+      if (requestId !== localCacheRequestId) return
       return
     }
 
-    if (useExternalIcon || !canUseExternalIconFallback) {
-      // 外站直连也失败了 → 显示首字母
-      fallbackFailed = true
-      useExternalIcon = false
-    } else {
-      // 缓存代理失败时，最后尝试一次直连外站。
-      useExternalIcon = true
+    if (waitForLocalCache) {
+      localCachePending = true
     }
+
+    const cachedUrl = await readCachedBookmarkIconUrl(cacheKey)
+    if (requestId !== localCacheRequestId) {
+      if (cachedUrl) revokeLocalIconUrl(cachedUrl)
+      return
+    }
+
+    if (cachedUrl) {
+      resetLocalCachedIconUrl()
+      localCachedIconUrl = cachedUrl
+      localCachePending = false
+      return
+    }
+
+    if (!cachedUrl) {
+      if (requestId === localCacheRequestId) {
+        localCachePending = false
+      }
+      return
+    }
+  }
+
+  function iconRadiusFor(size: number): number {
+    return Math.round(Math.max(9, Math.min(16, size * 0.22)))
+  }
+
+  function iconPaddingFor(size: number, compact = false): number {
+    const ratio = compact ? 0.12 : 0.15
+    return Math.round(Math.max(compact ? 5 : 6, Math.min(compact ? 12 : 10, size * ratio)))
+  }
+
+  function iconFontSizeFor(size: number): number {
+    return Math.round(Math.max(18, Math.min(32, size * 0.42)))
+  }
+
+  function buildIconStyle(size: number, options: IconStyleOptions = {}): string {
+    const radius = iconRadiusFor(size)
+    const imageRadius = Math.max(5, radius - 4)
+    return [
+      `width: ${size}px;`,
+      `height: ${size}px;`,
+      'max-width: 100%;',
+      `--bookmark-icon-radius: ${radius}px;`,
+      `--bookmark-icon-image-radius: ${imageRadius}px;`,
+      `--bookmark-icon-padding: ${iconPaddingFor(size, options.compact)}px;`,
+      `--bookmark-icon-font-size: ${iconFontSizeFor(size)}px;`,
+      options.customBackground ? `background: ${options.customBackground};` : '',
+    ].join(' ')
+  }
+
+  function handleIconError() {
+    if (localCachedIconUrl) {
+      resetLocalCachedIconUrl()
+      return
+    }
+
+    if (!cachedIconFailed && /^data:image\//i.test(cachedIcon)) {
+      cachedIconFailed = true
+      return
+    }
+
+    if (bookmark.icon_source === 'logo_surf' || !rawIcon || !/^https?:\/\//i.test(rawIcon)) {
+      fallbackFailed = true
+      return
+    }
+
+    fallbackFailed = true
   }
 
   function handleIconLoad() {
@@ -106,6 +210,10 @@
   }
 
   function handleContextMenu(event: MouseEvent) {
+    if (sortMode) {
+      event.preventDefault()
+      return
+    }
     if (!canEdit || !onEdit) return
     event.preventDefault()
     event.stopPropagation()
@@ -118,6 +226,10 @@
   }
 
   function handleLinkClick(event: MouseEvent) {
+    if (sortMode) {
+      event.preventDefault()
+      return
+    }
     if (!openInModal) return
     event.preventDefault()
     modalOpen = true
@@ -155,6 +267,8 @@
   }
 
   onDestroy(() => {
+    localCacheRequestId += 1
+    resetLocalCachedIconUrl()
     syncWindowListeners(false)
   })
 </script>
@@ -163,6 +277,7 @@
   class="bookmark-card-shell"
   class:is-info={style === 'info'}
   class:is-icon={style !== 'info'}
+  class:sort-mode={sortMode}
   style={cardShellStyle}
 >
   {#if style === 'info'}
@@ -178,7 +293,8 @@
     >
       <div
         class="bookmark-icon"
-        style="width: {infoIconSize}px; height: {infoIconSize}px; max-width: 100%; {bookmark.icon_background_color ? `background: ${bookmark.icon_background_color};` : ''}"
+        class:has-custom-background={hasCustomIconBackground}
+        style={infoIconStyle}
       >
         {#if hasRenderableIcon}
           <img
@@ -215,7 +331,11 @@
       on:click={handleLinkClick}
       on:contextmenu={handleContextMenu}
     >
-      <div class="bookmark-icon" style={bookmark.icon_background_color ? `background: ${bookmark.icon_background_color};` : ''}>
+      <div
+        class="bookmark-icon"
+        class:has-custom-background={hasCustomIconBackground}
+        style={compactIconStyle}
+      >
         {#if hasRenderableIcon}
           <img
             src={iconUrl}
@@ -278,30 +398,63 @@
 
   .bookmark-card-shell.is-icon {
     flex: 0 0 auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  /* 排序模式：整卡可拖动，禁用 hover 位移与点击导航，避免抖动 */
+  .bookmark-card-shell.sort-mode .bookmark-card {
+    cursor: move;
+    transform: none !important;
+    transition: none;
+    user-select: none;
+  }
+
+  .bookmark-card-shell.sort-mode .bookmark-card:hover {
+    transform: none !important;
+  }
+
+  .bookmark-card-shell.sort-mode .bookmark-card-icon::after {
+    display: none;
   }
 
   /* 通用卡片样式 */
   .bookmark-card {
+    box-sizing: border-box;
     text-decoration: none;
     color: inherit;
-    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    background:
+      linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.78)), rgba(255, 255, 255, 0.34)),
+      rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.62));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.52),
+      0 10px 26px rgba(15, 23, 42, 0.11);
+    backdrop-filter: blur(14px) saturate(1.18);
+    -webkit-backdrop-filter: blur(14px) saturate(1.18);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease,
+      background 0.18s ease;
   }
 
   /* 详情风格 */
   .bookmark-card-info {
     display: flex;
     align-items: center;
+    gap: 0.82rem;
     width: 100%;
     height: 70px; /* 默认高度，可被内联样式覆盖 */
-    padding: 0;
+    padding: 0 0.95rem 0 0.55rem;
     border-radius: 1.2rem;
-    background: rgb(var(--card-bg-rgb, 255 255 255) / var(--card-bg-opacity, 0.9));
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     overflow: hidden;
   }
 
   .bookmark-card-info:hover {
-    box-shadow: 0 0 20px 10px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.62);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.64),
+      0 16px 34px rgba(15, 23, 42, 0.16);
     transform: translateY(-2px);
   }
 
@@ -309,7 +462,7 @@
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    padding: 0 1rem; /* 添加左右内边距 */
+    padding: 0;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -342,24 +495,29 @@
   /* 极简风格 */
   .bookmark-card-icon {
     position: relative;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
     padding: 0;
     border-radius: 1.2rem;
-    background: rgb(var(--card-bg-rgb, 255 255 255) / var(--card-bg-opacity, 0.9));
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    overflow: visible;
   }
 
   .bookmark-card-icon:hover {
-    box-shadow: 0 0 20px 10px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.62);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.64),
+      0 16px 34px rgba(15, 23, 42, 0.16);
     transform: translateY(-2px);
   }
 
   .bookmark-card-icon .bookmark-icon {
     width: 100%;
     height: 100%;
-    border-radius: inherit;
   }
 
   .bookmark-card-icon::after {
@@ -408,28 +566,39 @@
 
   /* 图标样式 */
   .bookmark-icon {
+    box-sizing: border-box;
     flex-shrink: 0;
     min-width: 0;
     max-width: 100%;
     aspect-ratio: 1 / 1;
-    border-radius: 0;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: var(--bookmark-icon-radius, 12px);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.5);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.62)),
+      rgba(255, 255, 255, 0.52);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.62),
+      0 6px 14px rgba(15, 23, 42, 0.08);
   }
 
-  /* 详情风格的图标填充整个高度 */
+  .bookmark-icon.has-custom-background {
+    border-color: rgba(15, 23, 42, 0.08);
+  }
+
+  /* 详情风格的图标采用内嵌方形底座，避免只在左侧裁切圆角 */
   .bookmark-card-info .bookmark-icon {
-    height: 100%; /* 填充整个卡片高度 */
-    border-radius: 1.2rem 0 0 1.2rem;
+    align-self: center;
   }
 
   .bookmark-icon img {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: calc(100% - (var(--bookmark-icon-padding, 8px) * 2));
+    height: calc(100% - (var(--bookmark-icon-padding, 8px) * 2));
+    border-radius: var(--bookmark-icon-image-radius, 8px);
     object-fit: contain;
   }
 
@@ -439,7 +608,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow-wrap: anywhere;
-    font-size: 2.5rem;
+    font-size: var(--bookmark-icon-font-size, 1.75rem);
     font-weight: 600;
     color: #475569;
   }
@@ -447,13 +616,22 @@
   /* 暗色主题适配 */
   :global([data-theme='dark']) .bookmark-card-info,
   :global([data-theme='dark']) .bookmark-card-icon {
-    background: rgb(var(--card-bg-rgb, 255 255 255) / var(--card-bg-opacity, 0.15));
+    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.15) * 0.82)), rgba(15, 23, 42, 0.22)),
+      rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.15) * 0.7));
     color: var(--card-text-color, #e2e8f0);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 14px 32px rgba(0, 0, 0, 0.24);
   }
 
   :global([data-theme='dark']) .bookmark-card-info:hover,
   :global([data-theme='dark']) .bookmark-card-icon:hover {
-    box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 18px 38px rgba(0, 0, 0, 0.32);
   }
 
   :global([data-theme='dark']) .bookmark-card-info .bookmark-description {
@@ -466,7 +644,13 @@
   }
 
   :global([data-theme='dark']) .bookmark-icon {
-    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(148, 163, 184, 0.16);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(15, 23, 42, 0.2)),
+      rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 6px 16px rgba(0, 0, 0, 0.18);
   }
 
   :global([data-theme='dark']) .bookmark-icon .icon-text {

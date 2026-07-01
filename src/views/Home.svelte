@@ -15,6 +15,7 @@
   export let authLoading = false
   export let onOpenCreateBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
+  export let onSortBookmarksInCategory: ((categoryId: number, orderedIds: number[]) => AsyncVoid) | undefined = undefined
   export let onSwitchToAdmin: (() => AsyncVoid) | undefined = undefined
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
@@ -363,8 +364,10 @@
                 cardIconSize={settings?.card_icon_size ?? 70}
                 cardShowDescription={settings?.card_show_description ?? true}
                 cardIconShowTitle={settings?.card_icon_show_title ?? true}
+                canSort={isAuthenticated && !hasSearchQuery}
                 onAddBookmark={onOpenCreateBookmark}
                 onEditBookmark={onEditBookmark}
+                onSortBookmarks={onSortBookmarksInCategory}
               />
             </div>
           {/each}

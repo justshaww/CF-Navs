@@ -343,6 +343,8 @@ export const bookmarksApi = {
   list: () => request<Bookmark[]>('/bookmarks', { auth: true }),
   create: (payload: BookmarkUpsertReq) => jsonRequest<Bookmark>('/bookmarks', 'POST', payload, true),
   update: (id: number, payload: BookmarkUpsertReq) => jsonRequest<Bookmark>(`/bookmarks/${id}`, 'PUT', payload, true),
+  refreshIconCache: (id: number) =>
+    jsonRequest<{ icon_blob: string | null }>(`/bookmarks/${id}/icon-cache/refresh`, 'POST', undefined, true),
   remove: (id: number) => request<null>(`/bookmarks/${id}`, { method: 'DELETE', auth: true }),
   sort: (ids: SortReq['ids']) => jsonRequest<null>('/bookmarks/sort', 'POST', { ids }, true),
   fetchFavicon: (url: string) => request<FaviconResp>(`/fetch-favicon?url=${encodeURIComponent(url)}`, { auth: true }),

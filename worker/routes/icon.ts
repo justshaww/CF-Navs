@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErrCode, type IconifyCandidate, type IconifySearchResp } from '../../shared/types'
 import { getBookmarkIconData, getCategory, setIconBlob } from '../lib/db'
+import { invalidatePublicDataCache } from '../lib/cache'
 import {
   dataUriToResponse,
   fetchCacheableIcon,
@@ -10,6 +11,7 @@ import {
   isIconifyIconUrl,
 } from '../lib/iconData'
 import { fail, ok } from '../lib/response'
+import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
 
 type AppContext = Context<HonoEnv>
@@ -549,6 +551,8 @@ iconRoutes.get('/icon/:id', async (c) => {
 
     if (bookmark.icon.startsWith('data:image/')) {
       await setIconBlob(c.env.DB, id, bookmark.icon)
+      invalidateRuntimeDataCache()
+      invalidatePublicDataCache(c, c.req.url)
       const response = dataUriToResponse(bookmark.icon, SUCCESS_CACHE)
       if (!response) return cachedFallbackIconResponse(c, c.req.raw, bookmark.title, bookmark.url)
       cacheResponse(c, c.req.raw, response)
@@ -571,6 +575,8 @@ iconRoutes.get('/icon/:id', async (c) => {
     }
 
     await setIconBlob(c.env.DB, id, iconBytesToDataUri(fetchedIcon))
+    invalidateRuntimeDataCache()
+    invalidatePublicDataCache(c, c.req.url)
     const response = iconBytesToResponse(fetchedIcon, SUCCESS_CACHE)
     cacheResponse(c, c.req.raw, response)
     return response

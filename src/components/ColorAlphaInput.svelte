@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte'
   import {
     clampAlpha,
     cssColorIncludesAlpha,
@@ -14,6 +15,8 @@
   export let inputLabel = '颜色值'
   export let swatchTitle = '打开颜色选择器'
   export let alphaText = '透明度'
+
+  const dispatch = createEventDispatcher<{ change: string }>()
 
   let pickerOpen = false
   let pickerHex = '#ffffff'
@@ -40,11 +43,13 @@
     if (alpha === null) {
       internalAlpha = clampAlpha(nextAlpha)
       value = formatCssColor(normalized, internalAlpha)
+      dispatch('change', value)
       return
     }
 
     alpha = clampAlpha(nextAlpha)
     value = normalized
+    dispatch('change', value)
   }
 
   function handleTextInput(event: Event) {
@@ -55,6 +60,7 @@
     if (parsed && alpha !== null && cssColorIncludesAlpha(nextValue)) {
       alpha = parsed.alpha
     }
+    dispatch('change', value)
   }
 
   function handleColorInput(event: Event) {
