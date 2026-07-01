@@ -64,31 +64,31 @@ npm run deploy
 ## 方式二：Cloudflare 控制台在线部署
 
 1. 在 GitHub 上 Fork 本仓库。
-2. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db`，复制 `database_id`。
-3. 创建 KV 命名空间 `SESSION`，复制 namespace `id`。
-4. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择你的 fork。
-5. 生产分支选择 `main`，根目录填写 `/`。
-6. Deploy command 填写：
+2. 进入 Cloudflare 控制台的 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择你的 fork。
+3. 生产分支选择 `main`，根目录填写 `/`。
+4. Deploy command 填写：
 
 ```bash
-npm run deploy:cloudflare
+npm run build && npx wrangler deploy
 ```
 
-7. 添加 Build variables：
+5. 保存并完成首次部署。
+6. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db`，打开 SQL Console，执行 [schema.sql](../schema.sql)。
+7. 创建 KV 命名空间 `SESSION`。
+8. 在 Worker 的 **Settings → Bindings** 中添加：
 
-| 变量名 | 说明 |
-| --- | --- |
-| `CF_NAVS_D1_DATABASE_ID` | D1 数据库的 `database_id` |
-| `CF_NAVS_KV_NAMESPACE_ID` | KV 命名空间的 `id` |
-| `CF_NAVS_WORKER_NAME` | 可选；需要和 Cloudflare Worker 项目名一致 |
+| 类型 | 绑定名 | 选择 |
+| --- | --- | --- |
+| D1 database | `DB` | `cf-navs-db` |
+| KV namespace | `SESSION` | 你的会话 KV 命名空间 |
 
-8. 部署完成后，在 Worker 的 **Settings → Variables & Secrets** 中添加运行时 Secret：
+9. 在 Worker 的 **Settings → Variables & Secrets** 中添加运行时 Secret：
 
 ```text
 INIT_ADMIN_PASSWORD = 你的管理员密码
 ```
 
-如果构建 Token 无权初始化 D1，可以先在 D1 控制台 SQL Console 执行 [schema.sql](../schema.sql)，再把 Deploy command 改成 `npm run deploy:ci`。
+10. 重新部署或重试最近一次部署，然后访问 Workers URL。
 
 ## 🔑 首次登录
 

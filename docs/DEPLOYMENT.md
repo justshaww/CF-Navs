@@ -13,12 +13,13 @@
 适合 Fork 项目后在线部署。
 
 1. 在 GitHub 上 Fork 仓库。
-2. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db` 和 KV 命名空间 `SESSION`。
-3. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择 fork。
-4. Deploy command 填写 `npm run deploy:cloudflare`。
-5. 添加 Build variables：`CF_NAVS_D1_DATABASE_ID`、`CF_NAVS_KV_NAMESPACE_ID`，可选 `CF_NAVS_WORKER_NAME`。
-6. 部署完成后，在 Worker 的 **Settings → Variables & Secrets** 中添加 `INIT_ADMIN_PASSWORD`。
-7. 如果构建 Token 无法初始化 D1，则先在 D1 SQL Console 执行 [../schema.sql](../schema.sql)，再把 Deploy command 改成 `npm run deploy:ci`。
+2. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择 fork。
+3. Deploy command 填写 `npm run build && npx wrangler deploy`。
+4. 首次部署完成后，在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db` 和 KV 命名空间 `SESSION`。
+5. 在 D1 SQL Console 执行 [../schema.sql](../schema.sql)。
+6. 在 Worker 的 **Settings → Bindings** 中添加 D1 绑定 `DB` 和 KV 绑定 `SESSION`。
+7. 在 Worker 的 **Settings → Variables & Secrets** 中添加 `INIT_ADMIN_PASSWORD`。
+8. 重新部署或重试最近一次部署。
 
 ## 📋 部署前准备
 

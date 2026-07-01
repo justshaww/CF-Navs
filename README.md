@@ -103,43 +103,39 @@ npm run deploy
 
 ### 方式二：Cloudflare 控制台在线部署
 
-这种方式适合不想在本地运行 Wrangler 的用户。Cloudflare Workers Builds 支持从 GitHub/GitLab 仓库导入项目，并在 push 后自动构建和部署。
+这种方式适合不想在本地运行 Wrangler 的用户。Cloudflare Workers Builds 支持从 GitHub/GitLab 仓库导入项目，并在 push 后自动构建和部署；D1 和 KV 通过控制台手动绑定，不需要在仓库里填写资源 ID。
 
 1. 在 GitHub 上 Fork 本仓库。
-2. 登录 Cloudflare 控制台，创建 D1 数据库 `cf-navs-db`，复制 `database_id`。
-3. 创建 KV 命名空间 `SESSION`，复制 namespace `id`。
-4. 进入 **Workers & Pages**，选择 **Create application**。
-5. 在 **Import a repository** 旁选择 **Get started**，关联 GitHub 账号并选择你的 fork。
-6. 创建 Worker 时，项目名使用 `cf-navs`。如果你想用其他名字，需要在构建变量里同时设置 `CF_NAVS_WORKER_NAME` 为同一个名字。
-7. 构建设置建议如下：
+2. 登录 Cloudflare 控制台，进入 **Workers & Pages**，选择 **Create application**。
+3. 在 **Import a repository** 旁选择 **Get started**，关联 GitHub 账号并选择你的 fork。
+4. 创建 Worker 时，项目名建议使用 `cf-navs`。如果使用其他名字，请同步修改 fork 中 `wrangler.toml` 的 `name`。
+5. 构建设置建议如下：
 
 | 配置项 | 值 |
 | --- | --- |
 | Production branch | `main` |
 | Root directory | `/` |
 | Build command | 留空 |
-| Deploy command | `npm run deploy:cloudflare` |
-| `CF_NAVS_D1_DATABASE_ID` | D1 数据库的 `database_id` |
-| `CF_NAVS_KV_NAMESPACE_ID` | KV 命名空间的 `id` |
-| `CF_NAVS_WORKER_NAME` | 可选；需要和 Cloudflare 里的 Worker 项目名一致 |
+| Deploy command | `npm run build && npx wrangler deploy` |
 
-`npm run deploy:cloudflare` 会在 Cloudflare 构建环境里临时生成 `wrangler.local.toml`，执行远程 D1 初始化，然后构建并部署 Worker。真实资源 ID 只放在 Cloudflare 的 Build variables 中，不需要提交到 fork。
+6. 保存并完成首次部署。首次访问可能会因为还没有绑定数据库和 KV 而不可用，这是正常的。
+7. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db`，打开 SQL Console，执行 [schema.sql](schema.sql) 初始化表结构。
+8. 在 Worker 的 **Settings → Bindings** 中添加绑定：
 
-8. 保存并部署。部署完成后，在该 Worker 的 **Settings → Variables & Secrets** 中添加运行时 Secret：
+| 类型 | 绑定名 | 选择 |
+| --- | --- | --- |
+| D1 database | `DB` | `cf-navs-db` |
+| KV namespace | `SESSION` | 你的会话 KV 命名空间 |
+
+9. 在 Worker 的 **Settings → Variables & Secrets** 中添加运行时 Secret：
 
 ```text
 INIT_ADMIN_PASSWORD = 你的管理员密码
 ```
 
-9. 重新部署或重试最近一次部署，然后访问 Workers URL。
+10. 重新部署或重试最近一次部署，然后访问 Workers URL。
 
-如果你的 Cloudflare 构建 Token 没有 D1 初始化权限，可以先在 D1 控制台的 SQL Console 中执行 [schema.sql](schema.sql)，再把 Deploy command 改为：
-
-```bash
-npm run deploy:ci
-```
-
-注意：Cloudflare 要求控制台中的 Worker 名称与 Wrangler 配置里的 `name` 保持一致，否则 Git 集成构建会失败。默认项目名是 `cf-navs`。
+注意：绑定名必须是 `DB` 和 `SESSION`。公开 `wrangler.toml` 不包含 D1/KV 资源 ID，在线部署依赖 Dashboard 绑定；本地 CLI 部署会通过 Git 忽略的 `wrangler.local.toml` 写入 ID。Cloudflare 要求控制台中的 Worker 名称与 Wrangler 配置里的 `name` 保持一致，否则 Git 集成构建会失败。默认项目名是 `cf-navs`。
 
 ## 本地开发
 
@@ -163,12 +159,9 @@ npm run dev:web            # 启动前端开发服务器
 npm run build              # 构建前端
 npm run type-check         # TypeScript 与 Svelte 类型检查
 npm run setup:wrangler     # 生成本地 wrangler.local.toml
-npm run setup:wrangler:ci  # 从 CI 环境变量生成 wrangler.local.toml
 npm run db:init            # 初始化本地 D1
 npm run db:init:remote     # 初始化远程 D1
 npm run deploy             # 本地构建并部署到 Cloudflare
-npm run deploy:ci          # CI 环境生成配置后部署
-npm run deploy:cloudflare  # Cloudflare Git 集成部署
 ```
 
 ## 技术栈
@@ -208,7 +201,7 @@ CF-Navs/
 
 - 使用强密码设置 `INIT_ADMIN_PASSWORD`。
 - 不要提交 `.dev.vars`、`wrangler.local.toml` 或任何真实 Secret。
-- 在线部署时，把资源 ID 放在 Cloudflare Build variables，把管理员密码放在 Runtime Secret。
+- 在线部署时，通过 Worker Settings 绑定 D1/KV，把管理员密码放在 Runtime Secret。
 - 生产环境建议定期导出备份 JSON。
 - 如需额外访问控制，可以叠加 Cloudflare Access。
 

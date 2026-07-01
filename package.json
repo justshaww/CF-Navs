@@ -8,12 +8,9 @@
     "build": "vite build",
     "type-check": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
     "setup:wrangler": "node scripts/create-wrangler-local.mjs",
-    "setup:wrangler:ci": "node scripts/create-wrangler-ci.mjs",
     "wrangler": "node scripts/wrangler-config.mjs",
     "dev": "node scripts/wrangler-config.mjs dev",
     "deploy": "npm run build && node scripts/wrangler-config.mjs deploy",
-    "deploy:ci": "npm run setup:wrangler:ci && npm run deploy",
-    "deploy:cloudflare": "npm run setup:wrangler:ci && npm run db:init:remote && npm run deploy",
     "db:init": "node scripts/wrangler-config.mjs d1 execute cf-navs-db --local --file=./schema.sql",
     "db:init:remote": "node scripts/wrangler-config.mjs d1 execute cf-navs-db --remote --file=./schema.sql"
   },

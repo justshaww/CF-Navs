@@ -56,9 +56,40 @@ if (!kvId) {
   throw new Error('Could not find a KV namespace named SESSION in the current Cloudflare account.')
 }
 
-const config = readFileSync(publicConfig, 'utf8')
-  .replace('replace-with-your-d1-database-id', d1Id)
-  .replace('replace-with-your-kv-namespace-id', kvId)
+function setD1Id(config, id) {
+  if (config.includes('replace-with-your-d1-database-id')) {
+    return config.replace('replace-with-your-d1-database-id', id)
+  }
+
+  if (/database_id\s*=/.test(config)) {
+    return config.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${id}"`)
+  }
+
+  if (config.includes('[[d1_databases]]')) {
+    return config.replace(/(\[\[d1_databases\]\])/, `$1\nbinding = "DB"\ndatabase_name = "cf-navs-db"\ndatabase_id = "${id}"`)
+  }
+
+  return `${config.trimEnd()}\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "cf-navs-db"\ndatabase_id = "${id}"\n`
+}
+
+function setKvId(config, id) {
+  if (config.includes('replace-with-your-kv-namespace-id')) {
+    return config.replace('replace-with-your-kv-namespace-id', id)
+  }
+
+  const kvBlockPattern = /(\[\[kv_namespaces\]\]\s*[\r\n]+binding\s*=\s*"SESSION")/
+  if (/^\s*id\s*=/m.test(config)) {
+    return config.replace(/^\s*id\s*=\s*"[^"]*"/m, `id = "${id}"`)
+  }
+
+  if (kvBlockPattern.test(config)) {
+    return config.replace(kvBlockPattern, `$1\nid = "${id}"`)
+  }
+
+  return `${config.trimEnd()}\n\n[[kv_namespaces]]\nbinding = "SESSION"\nid = "${id}"\n`
+}
+
+const config = setKvId(setD1Id(readFileSync(publicConfig, 'utf8'), d1Id), kvId)
 
 writeFileSync(localConfig, config, 'utf8')
 console.log('Created wrangler.local.toml with Cloudflare resource IDs from your current Wrangler account.')
