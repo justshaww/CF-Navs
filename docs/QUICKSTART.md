@@ -7,8 +7,8 @@
 ### 1. 克隆项目并安装依赖
 
 ```bash
-git clone https://github.com/your-username/cf-navs.git
-cd cf-navs
+git clone https://github.com/lbjxr/CF-Navs.git
+cd CF-Navs
 npm install
 ```
 

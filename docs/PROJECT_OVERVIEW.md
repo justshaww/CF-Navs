@@ -275,6 +275,8 @@ docs/
 ├── DEPLOYMENT.md       # 部署指南
 ├── API_CONTRACT.md     # API 契约
 ├── PROJECT_OVERVIEW.md # 项目概览
+├── TECHNICAL_NOTES.md  # 图标、缓存、性能和会话细节
+├── TROUBLESHOOTING.md  # 常见问题排查
 └── SUNPANEL_IMPORT.md  # Sun-Panel 数据导入说明
 ```
 
