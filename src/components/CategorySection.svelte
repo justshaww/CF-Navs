@@ -276,8 +276,20 @@
 
   .section-title-wrap p {
     margin-top: 0.25rem;
-    color: rgba(100, 116, 139, 0.92);
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    min-height: 1.55rem;
+    padding: 0.16rem 0.46rem;
+    border: 1px solid var(--home-stat-border, rgba(148, 163, 184, 0.24));
+    border-radius: 0.55rem;
+    background: var(--home-stat-chip-bg, rgba(255, 255, 255, 0.34));
+    color: var(--home-text-color, currentColor);
     font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+    opacity: var(--home-muted-opacity, 0.72);
   }
 
   .sort-hint {
@@ -367,7 +379,7 @@
   }
 
   :global([data-theme='dark']) .section-title-wrap p {
-    color: rgba(148, 163, 184, 0.92);
+    color: var(--home-text-color, #e5eefb);
   }
 
 

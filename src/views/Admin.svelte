@@ -1004,14 +1004,15 @@
 
   .list-view {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     gap: 24px;
     min-height: 0;
-    height: 100%;
+    height: auto;
+    align-content: start;
   }
 
   .list-view > .list-panel:only-child {
-    grid-row: 1 / -1;
+    grid-row: auto;
   }
 
   .eyebrow,
@@ -1070,17 +1071,18 @@
   .list-panel {
     display: grid;
     min-height: 0;
-    height: 100%;
+    height: auto;
+    align-self: start;
     padding: 0;
     overflow: hidden;
   }
 
   .category-list-panel {
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, auto) auto;
   }
 
   .bookmark-list-panel {
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, auto) auto;
   }
 
   .wide-panel {

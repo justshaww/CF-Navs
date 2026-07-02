@@ -7,6 +7,7 @@
     ThemeMode,
   } from '../../shared/types'
   import { parseCssColor, splitCssColorAlpha } from '../lib/color'
+  import { gradientPresets, type GradientPresetId, type ThemeGradientPreset } from '../lib/themePresets'
   import ColorAlphaInput from './ColorAlphaInput.svelte'
   import GradientBackgroundInput from './GradientBackgroundInput.svelte'
 
@@ -242,7 +243,7 @@
     const darkBackground = normalizeBackground(source.backgrounds.dark, defaultDarkBackground)
     return {
       site_title: source.site_title.trim(),
-      site_title_color: source.site_title_color?.trim() || '#ffffff',
+      site_title_color: source.site_title_color?.trim() ?? '',
       site_title_font_size: clampNumber(source.site_title_font_size, 16, 72),
       public_mode: source.public_mode,
       theme: source.theme,
@@ -333,6 +334,45 @@
     }
   }
 
+  function cloneBackgroundSetting(source: BackgroundSetting): BackgroundSetting {
+    return { ...source }
+  }
+
+  function backgroundSettingEquals(current: BackgroundSetting, target: BackgroundSetting): boolean {
+    return (
+      current.type === target.type &&
+      current.value.trim() === target.value.trim() &&
+      Number(current.blur) === target.blur &&
+      Number(current.mask) === target.mask &&
+      current.maskColor.trim() === target.maskColor
+    )
+  }
+
+  function getActiveGradientPresetId(): GradientPresetId | 'custom' {
+    const preset = gradientPresets.find((item) => (
+      backgroundSettingEquals(form.backgrounds.light, item.light) &&
+      backgroundSettingEquals(form.backgrounds.dark, item.dark) &&
+      form.card_background_color.trim() === item.cardBackgroundColor &&
+      Number(form.card_background_opacity) === item.cardBackgroundOpacity &&
+      form.card_text_color.trim() === item.cardTextColor &&
+      form.site_title_color.trim() === item.siteTitleColor
+    ))
+
+    return preset?.id ?? 'custom'
+  }
+
+  function applyGradientPreset(preset: ThemeGradientPreset): void {
+    form.backgrounds = {
+      light: cloneBackgroundSetting(preset.light),
+      dark: cloneBackgroundSetting(preset.dark),
+    }
+    form.background = cloneBackgroundSetting(form.theme === 'dark' ? preset.dark : preset.light)
+    form.card_background_color = preset.cardBackgroundColor
+    form.card_background_opacity = preset.cardBackgroundOpacity
+    form.card_text_color = preset.cardTextColor
+    form.site_title_color = preset.siteTitleColor
+  }
+
   function handleLightBackgroundTypeChange(event: Event): void {
     updateBackgroundType('light', (event.currentTarget as HTMLSelectElement).value as BackgroundSetting['type'])
   }
@@ -388,6 +428,7 @@
     backgroundTypeOptions.find((option) => option.value === form.backgrounds.light.type)?.hint ?? ''
   $: darkBackgroundHint =
     backgroundTypeOptions.find((option) => option.value === form.backgrounds.dark.type)?.hint ?? ''
+  $: activeGradientPresetId = getActiveGradientPresetId()
   $: uploadHost = form.image_host_url.trim()
 
   function addEngine() {
@@ -464,12 +505,12 @@
             <span>标题颜色</span>
             <ColorAlphaInput
               bind:value={form.site_title_color}
-              placeholder="#ffffff"
+              placeholder="留空则跟随主题"
               inputLabel="标题颜色值"
               swatchTitle="选择标题颜色"
               alphaText="标题透明度"
             />
-            <small>首页搜索栏上方标题的文字颜色。</small>
+            <small>首页搜索栏上方标题的文字颜色；留空时自动跟随当前主题。</small>
           </div>
 
           <label class="field">
@@ -516,6 +557,62 @@
       <!-- 背景 -->
       <fieldset class="group" disabled={saving}>
         <legend>背景</legend>
+        <div class="gradient-preset-panel">
+          <div class="gradient-preset-header">
+            <div>
+              <strong>内置渐变方案</strong>
+              <p>选择后会同时应用浅色/深色背景、遮罩、卡片透明度和自动文字颜色。</p>
+            </div>
+            {#if activeGradientPresetId === 'custom'}
+              <span>自定义</span>
+            {:else}
+              <span>已选方案</span>
+            {/if}
+          </div>
+
+          <div class="gradient-preset-grid">
+            {#each gradientPresets as preset (preset.id)}
+              <label
+                class="gradient-preset-option"
+                class:active={activeGradientPresetId === preset.id}
+                style={`--preset-light-bg: ${preset.light.value}; --preset-dark-bg: ${preset.dark.value};`}
+              >
+                <input
+                  type="radio"
+                  name="gradient-preset"
+                  checked={activeGradientPresetId === preset.id}
+                  on:change={() => applyGradientPreset(preset)}
+                />
+                <span class="preset-preview" aria-hidden="true">
+                  <span class="preset-swatch light"></span>
+                  <span class="preset-swatch dark"></span>
+                </span>
+                <span class="preset-copy">
+                  <strong>{preset.label}</strong>
+                  <small>{preset.description}</small>
+                </span>
+              </label>
+            {/each}
+
+            <label class="gradient-preset-option custom" class:active={activeGradientPresetId === 'custom'}>
+              <input
+                type="radio"
+                name="gradient-preset"
+                checked={activeGradientPresetId === 'custom'}
+                on:change={() => undefined}
+              />
+              <span class="preset-preview custom-preview" aria-hidden="true">
+                <span></span>
+                <span></span>
+              </span>
+              <span class="preset-copy">
+                <strong>自定义渐变</strong>
+                <small>保留下面浅色/深色背景的完整 CSS 渐变手动配置。</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div class="theme-background-grid">
           <section class="theme-background-card">
             <div class="theme-background-header">
@@ -1092,6 +1189,155 @@
     gap: 16px;
   }
 
+  .gradient-preset-panel {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    border: 1px solid #dbeafe;
+    border-radius: 16px;
+    padding: 14px;
+    background:
+      linear-gradient(135deg, rgba(239, 246, 255, 0.92), rgba(240, 253, 250, 0.72)),
+      #ffffff;
+  }
+
+  .gradient-preset-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .gradient-preset-header strong {
+    display: block;
+    color: #0f172a;
+    font-size: 14px;
+  }
+
+  .gradient-preset-header p {
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .gradient-preset-header > span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 9px;
+  }
+
+  .gradient-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .gradient-preset-option {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+    min-height: 112px;
+    border: 1px solid #dbe4ef;
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.82);
+    cursor: pointer;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease,
+      background 0.18s ease;
+  }
+
+  .gradient-preset-option:hover {
+    border-color: rgba(37, 99, 235, 0.42);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .gradient-preset-option.active {
+    border-color: rgba(37, 99, 235, 0.72);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow:
+      0 0 0 3px rgba(37, 99, 235, 0.1),
+      0 14px 28px rgba(15, 23, 42, 0.1);
+  }
+
+  .gradient-preset-option input {
+    margin-top: 4px;
+    accent-color: #2563eb;
+  }
+
+  .preset-preview {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    height: 38px;
+  }
+
+  .preset-swatch,
+  .custom-preview span {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  }
+
+  .preset-swatch.light {
+    background: var(--preset-light-bg);
+  }
+
+  .preset-swatch.dark {
+    background: var(--preset-dark-bg);
+  }
+
+  .custom-preview span:first-child {
+    background:
+      linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+    background-color: #ffffff;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    background-size: 12px 12px;
+  }
+
+  .custom-preview span:last-child {
+    background:
+      linear-gradient(45deg, rgba(148, 163, 184, 0.22) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(148, 163, 184, 0.22) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.22) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.22) 75%);
+    background-color: #0f172a;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    background-size: 12px 12px;
+  }
+
+  .preset-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .preset-copy strong {
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .preset-copy small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
   .theme-background-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1382,6 +1628,14 @@
     }
 
     .theme-background-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .gradient-preset-header {
+      flex-direction: column;
+    }
+
+    .gradient-preset-grid {
       grid-template-columns: 1fr;
     }
 
