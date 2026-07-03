@@ -911,10 +911,10 @@
     min-height: 100dvh;
     height: 100dvh;
     box-sizing: border-box;
-    padding: 32px;
+    padding: 24px;
     display: grid;
     grid-template-rows: auto 1fr; /* header自动高度，内容占满剩余空间 */
-    gap: 24px;
+    gap: 16px;
     overflow: hidden;
     background:
       radial-gradient(circle at top left, var(--admin-page-ambient), transparent 28%),
@@ -971,8 +971,8 @@
 
   .admin-header-actions {
     position: fixed;
-    top: 32px;
-    right: 32px;
+    top: 24px;
+    right: 24px;
     z-index: 50;
     display: flex;
     gap: 0.5rem;
@@ -1017,7 +1017,15 @@
   }
 
   .page-header {
-    padding: 28px;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+  }
+
+  .page-header .eyebrow {
+    margin-bottom: 4px;
+    font-size: 11px;
   }
 
   /* 左侧菜单 + 右侧内容布局 */
@@ -1036,7 +1044,7 @@
     flex-direction: column;
     gap: 8px;
     position: sticky;
-    top: 32px;
+    top: 24px;
     padding: 10px;
     border: 1px solid var(--admin-sidebar-border);
     border-radius: 18px;
@@ -1139,8 +1147,9 @@
   }
 
   h1 {
-    font-size: 32px;
-    margin-bottom: 10px;
+    font-size: 24px;
+    line-height: 1.18;
+    margin-bottom: 0;
   }
 
   h2 {

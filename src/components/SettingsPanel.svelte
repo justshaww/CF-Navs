@@ -141,7 +141,9 @@
   }
 
   function normalizeBackgroundPresetId(input: unknown): BackgroundPresetId {
-    return input === 'clear-teal' || input === 'mist-slate' || input === 'custom' ? input : 'custom'
+    return input === 'custom' || gradientPresets.some((preset) => preset.id === input)
+      ? input as BackgroundPresetId
+      : 'custom'
   }
 
   function resolveBackgroundPresetId(
@@ -149,8 +151,9 @@
     lightBackground: BackgroundSetting | undefined,
     darkBackground: BackgroundSetting | undefined,
   ): BackgroundPresetId {
-    if (source?.background_preset_id === 'clear-teal' || source?.background_preset_id === 'mist-slate') {
-      return source.background_preset_id
+    const presetId = normalizeBackgroundPresetId(source?.background_preset_id)
+    if (presetId !== 'custom') {
+      return presetId
     }
 
     if (lightBackground && darkBackground) {
@@ -661,6 +664,7 @@
                       <option value={option.value}>{option.label}</option>
                     {/each}
                   </select>
+                  <small class="background-type-hint">{lightBackgroundHint}</small>
                 </label>
 
                 <div class="field background-value-field">
@@ -715,7 +719,6 @@
                   {/if}
                 </div>
 
-                <small class="background-type-hint">{lightBackgroundHint}</small>
               </div>
 
               <div class="background-range-grid">
@@ -730,20 +733,20 @@
                   <input bind:value={form.backgrounds.light.mask} type="range" min="0" max="1" step="0.05" on:input={markCustomGradientPreset} />
                   <small>叠加在背景上的遮罩，数值越大背景越淡。</small>
                 </label>
-              </div>
 
-              <div class="field">
-                <span>遮罩颜色</span>
-                <ColorAlphaInput
-                  bind:value={form.backgrounds.light.maskColor}
-                  bind:alpha={form.backgrounds.light.mask}
-                  on:change={markCustomGradientPreset}
-                  placeholder="#ffffff"
-                  inputLabel="浅色遮罩颜色值"
-                  swatchTitle="选择浅色遮罩颜色"
-                  alphaText="浅色遮罩透明度"
-                />
-                <small>浅色模式常用白色或浅灰遮罩。</small>
+                <div class="field background-mask-field">
+                  <span>遮罩颜色</span>
+                  <ColorAlphaInput
+                    bind:value={form.backgrounds.light.maskColor}
+                    bind:alpha={form.backgrounds.light.mask}
+                    on:change={markCustomGradientPreset}
+                    placeholder="#ffffff"
+                    inputLabel="浅色遮罩颜色值"
+                    swatchTitle="选择浅色遮罩颜色"
+                    alphaText="浅色遮罩透明度"
+                  />
+                  <small>浅色常用白色或浅灰。</small>
+                </div>
               </div>
             </div>
           </section>
@@ -765,6 +768,7 @@
                       <option value={option.value}>{option.label}</option>
                     {/each}
                   </select>
+                  <small class="background-type-hint">{darkBackgroundHint}</small>
                 </label>
 
                 <div class="field background-value-field">
@@ -819,7 +823,6 @@
                   {/if}
                 </div>
 
-                <small class="background-type-hint">{darkBackgroundHint}</small>
               </div>
 
               <div class="background-range-grid">
@@ -834,20 +837,20 @@
                   <input bind:value={form.backgrounds.dark.mask} type="range" min="0" max="1" step="0.05" on:input={markCustomGradientPreset} />
                   <small>叠加在背景上的遮罩，数值越大背景越淡。</small>
                 </label>
-              </div>
 
-              <div class="field">
-                <span>遮罩颜色</span>
-                <ColorAlphaInput
-                  bind:value={form.backgrounds.dark.maskColor}
-                  bind:alpha={form.backgrounds.dark.mask}
-                  on:change={markCustomGradientPreset}
-                  placeholder="#000000"
-                  inputLabel="深色遮罩颜色值"
-                  swatchTitle="选择深色遮罩颜色"
-                  alphaText="深色遮罩透明度"
-                />
-                <small>深色模式常用黑色或深蓝遮罩。</small>
+                <div class="field background-mask-field">
+                  <span>遮罩颜色</span>
+                  <ColorAlphaInput
+                    bind:value={form.backgrounds.dark.maskColor}
+                    bind:alpha={form.backgrounds.dark.mask}
+                    on:change={markCustomGradientPreset}
+                    placeholder="#000000"
+                    inputLabel="深色遮罩颜色值"
+                    swatchTitle="选择深色遮罩颜色"
+                    alphaText="深色遮罩透明度"
+                  />
+                  <small>深色常用黑色或深蓝。</small>
+                </div>
               </div>
             </div>
           </section>
@@ -1489,7 +1492,7 @@
 
   .gradient-preset-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
     gap: 10px;
   }
 
@@ -1629,17 +1632,17 @@
 
   .theme-background-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
   }
 
   .theme-background-card {
     display: grid;
-    gap: 14px;
+    gap: 12px;
     min-width: 0;
     border: 1px solid var(--sp-theme-card-border);
     border-radius: 14px;
-    padding: 16px;
+    padding: 14px;
     background: var(--sp-theme-card-bg);
   }
 
@@ -1666,21 +1669,22 @@
 
   .background-form {
     display: grid;
-    gap: 16px;
+    gap: 12px;
     min-width: 0;
   }
 
   .background-main-row {
     display: grid;
-    grid-template-columns: 128px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: minmax(112px, 0.34fr) minmax(0, 1fr);
+    gap: 12px;
     align-items: start;
   }
 
   .background-range-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    gap: 10px;
+    align-items: start;
   }
 
   .background-type-field,
@@ -1689,18 +1693,19 @@
     align-content: start;
   }
 
-  .background-type-field {
-    width: 128px;
-  }
-
   .background-type-field select {
-    width: 128px;
-    min-width: 128px;
+    width: 100%;
+    min-width: 0;
   }
 
   .background-type-hint {
-    grid-column: 1 / -1;
     display: block;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .background-mask-field {
     min-width: 0;
   }
 

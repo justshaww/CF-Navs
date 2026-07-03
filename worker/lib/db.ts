@@ -1,15 +1,16 @@
 // D1 查询封装：分类/书签 CRUD、批量排序、settings 聚合读取与部分更新
 
-import type {
-  AdminData,
-  Bookmark,
-  Category,
-  BookmarkUpsertReq,
-  CategoryUpsertReq,
-  PublicBookmark,
-  PublicCategory,
-  SiteConfig,
-  Settings,
+import {
+  BUILTIN_BACKGROUND_PRESET_IDS,
+  type AdminData,
+  type Bookmark,
+  type BookmarkUpsertReq,
+  type Category,
+  type CategoryUpsertReq,
+  type PublicBookmark,
+  type PublicCategory,
+  type Settings,
+  type SiteConfig,
 } from '../../shared/types'
 
 // ========== settings 默认值（与 schema.sql 的默认设置保持一致） ==========
@@ -84,7 +85,10 @@ function normalizeThemeBackgroundSettings(value: unknown, fallbackBackground: Se
 }
 
 function normalizeBackgroundPresetId(value: unknown): Settings['background_preset_id'] {
-  return value === 'clear-teal' || value === 'mist-slate' || value === 'custom' ? value : 'custom'
+  if (value === 'custom') return 'custom'
+  return BUILTIN_BACKGROUND_PRESET_IDS.includes(value as typeof BUILTIN_BACKGROUND_PRESET_IDS[number])
+    ? value as typeof BUILTIN_BACKGROUND_PRESET_IDS[number]
+    : 'custom'
 }
 
 // Settings 中属于强类型聚合视图的 key（不含 admin_* 等内部 key）

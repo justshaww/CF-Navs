@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { ErrCode, type Settings, type SettingsUpdateReq } from '../../shared/types'
+import { BUILTIN_BACKGROUND_PRESET_IDS, ErrCode, type Settings, type SettingsUpdateReq } from '../../shared/types'
 import { invalidatePublicDataCache, invalidateSiteConfigCache } from '../lib/cache'
 import { getSettings, settingsFromPatchDefaults, touchDataVersion, updateSettings, writeSettingsPatch } from '../lib/db'
 import { fail, ok } from '../lib/response'
@@ -88,7 +88,8 @@ settingsRoutes.put('/', async (c) => {
   }
   if (
     body.background_preset_id !== undefined &&
-    !['clear-teal', 'mist-slate', 'custom'].includes(body.background_preset_id)
+    body.background_preset_id !== 'custom' &&
+    !BUILTIN_BACKGROUND_PRESET_IDS.includes(body.background_preset_id)
   ) {
     return badRequest(c, 'invalid background_preset_id')
   }

@@ -41,7 +41,16 @@ export type IconSource = 'direct' | 'favicon_im' | 'logo_surf' | 'google' | 'ico
 // ========== 设置 ==========
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
-export type BackgroundPresetId = 'clear-teal' | 'mist-slate' | 'custom'
+export const BUILTIN_BACKGROUND_PRESET_IDS = [
+  'clear-teal',
+  'mist-slate',
+  'coral-sky',
+  'sage-graphite',
+  'lumen-amber',
+  'ember-night',
+] as const
+export type BuiltinBackgroundPresetId = typeof BUILTIN_BACKGROUND_PRESET_IDS[number]
+export type BackgroundPresetId = BuiltinBackgroundPresetId | 'custom'
 
 export interface BackgroundSetting {
   type: 'image' | 'color' | 'gradient'
