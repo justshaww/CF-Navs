@@ -24,6 +24,7 @@
   import { colorToRgbString } from './lib/color'
   import { prepareImportPayload, type ImportSource } from './lib/importData'
   import { clearCachedPublicData, readCachedPublicDataEntry, writeCachedPublicData } from './lib/publicDataCache'
+  import { createBookmarkIconCacheKey, writeBookmarkIconDataUri } from './lib/localBookmarkIconCache'
   import { adminStore, authStore, configStore, isAuthenticated, publicStore } from './lib/stores'
 
   type AppView = 'home' | 'admin' | 'login'
@@ -161,6 +162,7 @@
       icon: bookmark.icon,
       icon_source: bookmark.icon_source,
       icon_background_color: bookmark.icon_background_color,
+      icon_blob: bookmark.icon_blob,
       description: bookmark.description,
       open_method: bookmark.open_method,
       sort: bookmark.sort,
@@ -688,6 +690,29 @@
     updateAdminBookmarksLocally((bookmarks) => bookmarks.map((bookmark) => (
       bookmark.id === bookmarkId ? { ...bookmark, icon_blob: iconBlob } : bookmark
     )))
+
+    updatePublicDataLocally((data) => ({
+      ...data,
+      bookmarks: data.bookmarks.map((bookmark) => (
+        bookmark.id === bookmarkId ? { ...bookmark, icon_blob: iconBlob } : bookmark
+      )),
+    }))
+
+    if (iconBlob?.startsWith('data:image/')) {
+      const current =
+        get(adminStore).data.bookmarks.find((bookmark) => bookmark.id === bookmarkId) ??
+        get(publicStore).data?.bookmarks.find((bookmark) => bookmark.id === bookmarkId)
+      if (current) {
+        await writeBookmarkIconDataUri(
+          createBookmarkIconCacheKey({
+            id: current.id,
+            icon: current.icon ?? '',
+            iconSource: current.icon_source,
+          }),
+          iconBlob,
+        )
+      }
+    }
 
     await persistCurrentAdminData()
   }

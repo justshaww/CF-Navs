@@ -1,7 +1,59 @@
+<script context="module" lang="ts">
+  type IconVisibilityCallback = () => void
+
+  const iconVisibilityCallbacks = new WeakMap<Element, IconVisibilityCallback>()
+  let sharedIconObserver: IntersectionObserver | null = null
+
+  function getSharedIconObserver(): IntersectionObserver | null {
+    if (typeof IntersectionObserver === 'undefined') return null
+
+    if (!sharedIconObserver) {
+      sharedIconObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+
+          const callback = iconVisibilityCallbacks.get(entry.target)
+          iconVisibilityCallbacks.delete(entry.target)
+          sharedIconObserver?.unobserve(entry.target)
+          callback?.()
+        }
+      }, {
+        root: null,
+        rootMargin: '420px 0px',
+        threshold: 0,
+      })
+    }
+
+    return sharedIconObserver
+  }
+
+  function observeIconVisibility(element: Element, callback: IconVisibilityCallback): () => void {
+    const observer = getSharedIconObserver()
+    if (!observer) {
+      callback()
+      return () => undefined
+    }
+
+    iconVisibilityCallbacks.set(element, callback)
+    observer.observe(element)
+
+    return () => {
+      iconVisibilityCallbacks.delete(element)
+      observer.unobserve(element)
+    }
+  }
+</script>
+
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import type { CardStyle, PublicBookmark } from '../../shared/types'
-  import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
+  import { iconifyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
+  import {
+    createBookmarkIconCacheKey,
+    readCachedBookmarkIconDataUri,
+    readCachedBookmarkIconUrl,
+    revokeLocalIconUrl,
+  } from '../lib/localBookmarkIconCache'
 
   type AsyncVoid<T = void> = T | Promise<T>
   type IconStyleOptions = {
@@ -24,6 +76,13 @@
 
   let cachedIconFailed = false
   let fallbackFailed = false
+  let localCachedIconUrl = ''
+  let syncLocalCachedIconUrl = ''
+  let localCachePending = false
+  let localCacheRequestId = 0
+  let iconInView = false
+  let shellElement: HTMLDivElement | null = null
+  let stopIconVisibilityObserver: (() => void) | null = null
   let contextMenuOpen = false
   let modalOpen = false
   let iconStateKey = ''
@@ -37,6 +96,7 @@
   $: customTextIcon =
     rawIcon &&
     bookmark.icon_source !== 'logo_surf' &&
+    bookmark.icon_source !== 'iconify' &&
     !isIconifyIconUrl(rawIcon) &&
     !/^data:image\//i.test(rawIcon) &&
     !/^https?:\/\//i.test(rawIcon)
@@ -55,38 +115,58 @@
     customBackground: iconBackgroundColor,
   })
   $: tooltipText = bookmark.description ? `${bookmark.title}\n${bookmark.description}` : bookmark.title
-  $: nextIconStateKey = `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.icon_blob ?? ''}:${bookmark.title}:${bookmark.url}`
+  $: nextIconStateKey = `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.icon_blob ?? ''}:${bookmark.title}:${bookmark.url}:${iconInView}`
+  $: localCacheKey = createBookmarkIconCacheKey({
+    id: bookmark.id,
+    icon: rawIcon,
+    iconSource: bookmark.icon_source,
+  })
+  $: syncLocalCachedIconUrl = iconInView ? readCachedBookmarkIconDataUri(localCacheKey) ?? '' : ''
   $: cardShellStyle =
     style === 'info'
       ? `min-width: ${width}px; ${height > 0 ? `height: ${height}px;` : ''}`
       : `width: ${compactIconSize}px; height: ${compactIconSize}px;`
   $: cardLinkStyle = height > 0 ? `height: ${height}px;` : ''
-  $: iconifyProxyUrl =
+  $: iconifyRemoteUrl =
     bookmark.icon_source === 'iconify' || isIconifyIconUrl(rawIcon)
-      ? iconifyProxyIcon(rawIcon)
+      ? iconifyIcon(rawIcon)
       : ''
-  $: canUseIconProxy =
+  $: canUseRawHttpIconFallback =
     /^https?:\/\//i.test(rawIcon) &&
-    !iconifyProxyUrl &&
+    !iconifyRemoteUrl &&
     bookmark.icon_source !== 'logo_surf' &&
     !customTextIcon
-  $: proxiedIconUrl = canUseIconProxy
-    ? `/api/icon/${bookmark.id}?v=${createIconVersion(`${bookmark.id}:${rawIcon}:${bookmark.title}:${bookmark.url}`)}`
-    : ''
+  $: shouldReadLocalIconCache =
+    iconInView &&
+    Boolean(rawIcon) &&
+    !/^data:image\//i.test(cachedIcon) &&
+    bookmark.icon_source !== 'logo_surf' &&
+    !customTextIcon
+  $: shouldWaitForLocalIconCache = shouldReadLocalIconCache && canUseRawHttpIconFallback
   $: if (nextIconStateKey !== iconStateKey) {
     iconStateKey = nextIconStateKey
     cachedIconFailed = false
     fallbackFailed = false
+    resetLocalCachedIconUrl()
+    if (shouldReadLocalIconCache) {
+      void loadLocalCachedIcon(localCacheKey, shouldWaitForLocalIconCache)
+    } else {
+      localCachePending = false
+    }
   }
   $: syncWindowListeners(contextMenuOpen || modalOpen)
 
   $: iconUrl = (() => {
+    if (!iconInView) return ''
     if (bookmark.icon_source === 'logo_surf') return bookmark.icon || logoSurfIcon(bookmark.title, bookmark.url)
+    if (syncLocalCachedIconUrl) return syncLocalCachedIconUrl
+    if (localCachedIconUrl) return localCachedIconUrl
     if (!cachedIconFailed && /^data:image\//i.test(cachedIcon)) return cachedIcon
+    if (localCachePending && shouldWaitForLocalIconCache) return ''
     if (!rawIcon || customTextIcon) return ''
-    if (iconifyProxyUrl) return iconifyProxyUrl
+    if (iconifyRemoteUrl) return iconifyRemoteUrl
     if (/^data:image\//i.test(rawIcon)) return rawIcon
-    if (proxiedIconUrl) return proxiedIconUrl
+    if (canUseRawHttpIconFallback) return rawIcon
     return ''
   })()
   $: hasRenderableIcon = Boolean(iconUrl) && !fallbackFailed
@@ -119,15 +199,40 @@
     ].join(' ')
   }
 
-  function createIconVersion(input: string): string {
-    let hash = 0
-    for (let i = 0; i < input.length; i += 1) {
-      hash = Math.imul(31, hash) + input.charCodeAt(i) | 0
+  function resetLocalCachedIconUrl() {
+    if (localCachedIconUrl) {
+      revokeLocalIconUrl(localCachedIconUrl)
+      localCachedIconUrl = ''
     }
-    return Math.abs(hash).toString(36)
+  }
+
+  async function loadLocalCachedIcon(cacheKey: string, waitForLocalCache: boolean) {
+    const requestId = ++localCacheRequestId
+
+    if (waitForLocalCache) {
+      localCachePending = true
+    }
+
+    const cachedUrl = await readCachedBookmarkIconUrl(cacheKey)
+    if (requestId !== localCacheRequestId) {
+      if (cachedUrl) revokeLocalIconUrl(cachedUrl)
+      return
+    }
+
+    if (cachedUrl) {
+      resetLocalCachedIconUrl()
+      localCachedIconUrl = cachedUrl
+    }
+
+    localCachePending = false
   }
 
   function handleIconError() {
+    if (localCachedIconUrl) {
+      resetLocalCachedIconUrl()
+      return
+    }
+
     if (!cachedIconFailed && /^data:image\//i.test(cachedIcon)) {
       cachedIconFailed = true
       return
@@ -137,6 +242,7 @@
   }
 
   function handleIconLoad() {
+    localCachePending = false
     fallbackFailed = false
   }
 
@@ -197,6 +303,26 @@
     if (contextMenuOpen && event.key === 'Escape') closeContextMenu()
   }
 
+  function markIconInView() {
+    iconInView = true
+    disconnectIconObserver()
+  }
+
+  function disconnectIconObserver() {
+    stopIconVisibilityObserver?.()
+    stopIconVisibilityObserver = null
+  }
+
+  function setupIconObserver() {
+    disconnectIconObserver()
+
+    if (shellElement) {
+      stopIconVisibilityObserver = observeIconVisibility(shellElement, markIconInView)
+    } else {
+      iconInView = true
+    }
+  }
+
   function syncWindowListeners(active: boolean) {
     if (typeof window === 'undefined') return
 
@@ -216,7 +342,14 @@
     }
   }
 
+  onMount(() => {
+    setupIconObserver()
+  })
+
   onDestroy(() => {
+    localCacheRequestId += 1
+    disconnectIconObserver()
+    resetLocalCachedIconUrl()
     syncWindowListeners(false)
   })
 </script>
@@ -227,6 +360,7 @@
   class:is-icon={style !== 'info'}
   class:sort-mode={sortMode}
   style={cardShellStyle}
+  bind:this={shellElement}
 >
   {#if style === 'info'}
     <!-- 详情风格：水平布局 -->
