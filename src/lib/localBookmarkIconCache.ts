@@ -140,6 +140,25 @@ export async function readCachedBookmarkIconUrl(cacheKey: string): Promise<strin
   }
 }
 
+export async function deleteCachedBookmarkIcon(cacheKey: string): Promise<void> {
+  if (canUseLocalStorage()) {
+    try {
+      localStorage.removeItem(localStorageKey(cacheKey))
+    } catch {
+      // Best-effort cleanup.
+    }
+  }
+
+  if (!canUseCacheStorage()) return
+
+  try {
+    const cache = await caches.open(CACHE_NAME)
+    await cache.delete(cacheRequest(cacheKey))
+  } catch {
+    // Best-effort cleanup.
+  }
+}
+
 export async function writeBookmarkIconDataUri(cacheKey: string, dataUri: string): Promise<void> {
   if (!isDataImage(dataUri)) return
 

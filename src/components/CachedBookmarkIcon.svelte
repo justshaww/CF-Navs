@@ -2,11 +2,11 @@
   import { onDestroy } from 'svelte'
   import {
     createBookmarkIconCacheKey,
+    deleteCachedBookmarkIcon,
     isDataImage,
     readCachedBookmarkIconDataUri,
     readCachedBookmarkIconUrl,
     revokeLocalIconUrl,
-    writeBookmarkIconDataUri,
   } from '../lib/localBookmarkIconCache'
 
   export let id: string | number
@@ -59,7 +59,7 @@
 
     if (isDataImage(dataUri)) {
       cachePending = false
-      await writeBookmarkIconDataUri(key, dataUri)
+      await deleteCachedBookmarkIcon(key)
       return
     }
 
