@@ -8,11 +8,12 @@
 //  - 导航请求       网络优先，离线回退到缓存的 index.html
 //  - /assets/*等    缓存优先（构建产物带 hash，安全长期缓存）
 
-const CACHE = 'cf-navs-v11'
+const CACHE = 'cf-navs-v12'
 const RUNTIME_CACHE_PREFIX = 'cf-navs-v'
 const APP_SHELL = ['/index.html', '/manifest.webmanifest', '/icon.svg']
 const ICON_FALLBACK_TTL_MS = 5 * 60 * 1000
 const ICON_FALLBACK_CACHED_AT = 'X-CF-Navs-Fallback-Cached-At'
+const MAX_ICON_CACHE_BYTES = 512 * 1024
 
 function cacheResponse(request, response) {
   if (!response.ok) return
@@ -54,6 +55,10 @@ async function matchCachedIcon(request) {
 
 function cacheIconResponse(request, response) {
   if (!response.ok) return
+  if (response.type === 'opaque') return
+
+  const contentLength = Number(response.headers.get('Content-Length') || '0')
+  if (contentLength > MAX_ICON_CACHE_BYTES) return
 
   const copy = response.clone()
   const cached = isIconFallback(copy) ? fallbackResponseForCache(copy) : copy
@@ -99,10 +104,7 @@ self.addEventListener('fetch', (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok || response.type === 'opaque') {
-              const copy = response.clone()
-              caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined)
-            }
+            cacheIconResponse(request, response)
             return response
           }),
       ),
