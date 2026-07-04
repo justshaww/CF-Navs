@@ -121,7 +121,10 @@
     icon: rawIcon,
     iconSource: bookmark.icon_source,
   })
-  $: syncLocalCachedIconUrl = iconInView ? readCachedBookmarkIconDataUri(localCacheKey) ?? '' : ''
+  $: hasEmbeddedIcon = /^data:image\//i.test(cachedIcon)
+  $: syncLocalCachedIconUrl = iconInView && !hasEmbeddedIcon
+    ? readCachedBookmarkIconDataUri(localCacheKey) ?? ''
+    : ''
   $: cardShellStyle =
     style === 'info'
       ? `min-width: ${width}px; ${height > 0 ? `height: ${height}px;` : ''}`
@@ -139,7 +142,7 @@
   $: shouldReadLocalIconCache =
     iconInView &&
     Boolean(rawIcon) &&
-    !/^data:image\//i.test(cachedIcon) &&
+    !hasEmbeddedIcon &&
     bookmark.icon_source !== 'logo_surf' &&
     !customTextIcon
   $: shouldWaitForLocalIconCache = shouldReadLocalIconCache && canUseRawHttpIconFallback
@@ -159,9 +162,9 @@
   $: iconUrl = (() => {
     if (!iconInView) return ''
     if (bookmark.icon_source === 'logo_surf') return bookmark.icon || logoSurfIcon(bookmark.title, bookmark.url)
+    if (!cachedIconFailed && hasEmbeddedIcon) return cachedIcon
     if (syncLocalCachedIconUrl) return syncLocalCachedIconUrl
     if (localCachedIconUrl) return localCachedIconUrl
-    if (!cachedIconFailed && /^data:image\//i.test(cachedIcon)) return cachedIcon
     if (localCachePending && shouldWaitForLocalIconCache) return ''
     if (!rawIcon || customTextIcon) return ''
     if (iconifyRemoteUrl) return iconifyRemoteUrl
