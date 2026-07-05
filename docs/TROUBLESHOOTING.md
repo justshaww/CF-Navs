@@ -109,11 +109,23 @@ simple-icons:github
 https://icon-sets.iconify.design/mdi/home/
 ```
 
-新增/编辑弹窗和后台预览请求应走 `/api/iconify/*`；首页展示已保存的 Iconify 图标时可以直接请求 `api.iconify.design`，并由 Service Worker 和浏览器缓存复用，避免增加 Worker 请求数。
+新增/编辑弹窗和后台预览请求应走 `/api/iconify/*`；首页展示已保存的 Iconify 图标时可以直接请求 `api.iconify.design`，并由浏览器 HTTP 缓存复用，避免增加 Worker 请求数。Service Worker 不应把跨域 `opaque` Iconify 响应写入 Cache Storage。
 
 ### 部署新版后图标行为仍旧
 
 强制刷新页面，让新版 Service Worker 激活。必要时清理站点缓存后重试。
+
+### 浏览器缓存空间异常变大
+
+如果 DevTools 的 Application -> Storage 显示本站缓存空间明显大于 D1 数据量，先确认当前 Service Worker 已是最新版本，再清理站点数据后复测：首页完整滚动、刷新页面、进入后台书签列表翻页，缓存空间都不应持续线性增长。
+
+常见原因：
+
+- 旧 Service Worker 仍在缓存跨域 `opaque` Iconify 响应，Chrome 会对这类响应按较大配额计入 Cache Storage。
+- 后台书签列表预览把聚合数据里的 `icon_blob` 又复制到浏览器本地图标缓存。
+- 多次登录留下旧 `AdminData` 快照。
+
+当前实现会跳过跨域 `opaque` 响应、限制图标响应写入体积、清理旧登录态快照，并在后台已有 `icon_blob` 时清理同 key 的本地图标副本。
 
 ## 首页公开访问异常
 

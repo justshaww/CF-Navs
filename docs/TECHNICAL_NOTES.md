@@ -47,7 +47,7 @@ https://api.iconify.design/{set}/{name}.svg
 - `@iconify-icons/*`
 - `https://icon-sets.iconify.design/...`
 
-新增/编辑弹窗和后台预览会使用同源 `/api/iconify/*` 代理，便于 Service Worker、浏览器本地缓存和 Cloudflare edge cache 复用同一份图标资源。首页展示持久化 Iconify 图标时会优先使用浏览器对 `https://api.iconify.design/*.svg` 的本地缓存，避免把每个 Iconify 书签都变成 Worker 请求；Service Worker 仍会 cache-first 处理这些 Iconify SVG。
+新增/编辑弹窗和后台预览会使用同源 `/api/iconify/*` 代理，便于 Cloudflare edge cache 和同源 Service Worker 缓存复用同一份图标资源。首页展示持久化 Iconify 图标时可直接使用 `https://api.iconify.design/*.svg`，依赖浏览器 HTTP 缓存复用，避免把每个 Iconify 书签都变成 Worker 请求。Service Worker 不持久化跨域 `opaque` 响应，避免小 SVG 在 Cache Storage 中被浏览器按大配额填充。
 
 ## 首页数据读取
 
@@ -107,7 +107,9 @@ Worker 和前端共同承担缓存：
 - `/assets/*` 构建产物设置一年 immutable 缓存。
 - HTML 和 `sw.js` 使用 no-cache 重验证。
 - Service Worker 预缓存 `/index.html` 作为离线导航回退。
-- Service Worker 对图标代理、直接访问的 Iconify SVG 和构建资源采用 cache-first 策略。
+- Service Worker 对同源图标代理和构建资源采用 cache-first 策略；跨域 Iconify SVG 只在响应可读且不超过 512KB 时写入 Cache Storage，不缓存 `opaque` 响应。
+
+浏览器本地存储只保留必要副本：后台聚合数据快照会清理旧登录态对应的同源快照；后台书签列表已有 `icon_blob` 时直接展示并删除同 key 的本地图标副本，不在翻页预览时把 data URI 再复制到 `cf-navs-bookmark-icons-v1`。
 
 部署新版后，如果浏览器仍使用旧逻辑，可以强制刷新一次页面，让新版 Service Worker 接管。
 
