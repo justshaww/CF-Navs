@@ -124,9 +124,11 @@ const PUBLIC_DATA_SETTINGS_WITHOUT_SITE_CONFIG_KEYS = PUBLIC_DATA_SETTINGS_KEYS.
 const CATEGORY_LIST_SQL = 'SELECT id, title, icon, sort, created_at FROM categories ORDER BY sort ASC, id ASC'
 const BOOKMARK_LIST_SQL =
   'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort, created_at FROM bookmarks ORDER BY sort ASC, id ASC'
+const BOOKMARK_AGGREGATE_LIST_SQL =
+  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, NULL AS icon_blob, description, open_method, sort, created_at FROM bookmarks ORDER BY sort ASC, id ASC'
 const PUBLIC_CATEGORY_LIST_SQL = 'SELECT id, title, icon, sort FROM categories ORDER BY sort ASC, id ASC'
 const PUBLIC_BOOKMARK_LIST_SQL =
-  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, open_method, sort FROM bookmarks ORDER BY sort ASC, id ASC'
+  'SELECT id, category_id, title, url, icon, icon_source, icon_background_color, NULL AS icon_blob, description, open_method, sort FROM bookmarks ORDER BY sort ASC, id ASC'
 const SETTINGS_LIST_SQL = 'SELECT key, value FROM settings'
 const PUBLIC_DATA_SETTINGS_LIST_SQL = `SELECT key, value FROM settings WHERE key IN (${PUBLIC_DATA_SETTINGS_KEYS
   .map((key) => `'${key}'`)
@@ -284,7 +286,7 @@ export async function getAdminData(db: D1Database): Promise<AdminData> {
   return await withSchemaRetry(db, async () => {
     const [categoriesResult, bookmarksResult, settingsResult] = await db.batch([
       db.prepare(CATEGORY_LIST_SQL),
-      db.prepare(BOOKMARK_LIST_SQL),
+      db.prepare(BOOKMARK_AGGREGATE_LIST_SQL),
       db.prepare(SETTINGS_LIST_SQL),
     ])
 

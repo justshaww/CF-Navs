@@ -47,7 +47,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import type { CardStyle, PublicBookmark } from '../../shared/types'
-  import { iconifyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
+  import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
   import {
     createBookmarkIconCacheKey,
     readCachedBookmarkIconDataUri,
@@ -132,7 +132,7 @@
   $: cardLinkStyle = height > 0 ? `height: ${height}px;` : ''
   $: iconifyRemoteUrl =
     bookmark.icon_source === 'iconify' || isIconifyIconUrl(rawIcon)
-      ? iconifyIcon(rawIcon)
+      ? iconifyProxyIcon(rawIcon)
       : ''
   $: canUseRawHttpIconFallback =
     /^https?:\/\//i.test(rawIcon) &&
@@ -146,6 +146,9 @@
     bookmark.icon_source !== 'logo_surf' &&
     !customTextIcon
   $: shouldWaitForLocalIconCache = shouldReadLocalIconCache && canUseRawHttpIconFallback
+  $: proxiedHttpIconUrl = canUseRawHttpIconFallback
+    ? `/api/icon/${encodeURIComponent(String(bookmark.id))}?v=${createIconVersion(`${bookmark.id}:${rawIcon}:${bookmark.title}:${bookmark.url}`)}`
+    : ''
   $: if (nextIconStateKey !== iconStateKey) {
     iconStateKey = nextIconStateKey
     cachedIconFailed = false
@@ -169,7 +172,7 @@
     if (!rawIcon || customTextIcon) return ''
     if (iconifyRemoteUrl) return iconifyRemoteUrl
     if (/^data:image\//i.test(rawIcon)) return rawIcon
-    if (canUseRawHttpIconFallback) return rawIcon
+    if (canUseRawHttpIconFallback) return proxiedHttpIconUrl
     return ''
   })()
   $: hasRenderableIcon = Boolean(iconUrl) && !fallbackFailed
@@ -200,6 +203,14 @@
       `--bookmark-icon-font-size: ${iconFontSizeFor(size)}px;`,
       options.customBackground ? `background: ${options.customBackground};` : '',
     ].join(' ')
+  }
+
+  function createIconVersion(input: string): string {
+    let hash = 0
+    for (let i = 0; i < input.length; i += 1) {
+      hash = Math.imul(31, hash) + input.charCodeAt(i) | 0
+    }
+    return Math.abs(hash).toString(36)
   }
 
   function resetLocalCachedIconUrl() {
