@@ -1,14 +1,12 @@
-// CF-Navs Service Worker —— 离线 app shell + 静态资源缓存
-// 策略：
-//  - /api/icon/*   缓存优先（图标 blob，带 hash 版本号天然去重）
-//  - /api/category-icon/* 缓存优先（分类图标代理）
-//  - /api/iconify/* 缓存优先（新增/编辑弹窗的 Iconify 预览代理）
-//  - https://api.iconify.design/* 缓存优先（兼容旧版本或手动直连的 Iconify SVG）
-//  - /api/*        永不缓存（始终走网络）
-//  - 导航请求       网络优先，离线回退到缓存的 index.html
-//  - /assets/*等    缓存优先（构建产物带 hash，安全长期缓存）
+// CF-Navs service worker.
+// Strategy:
+// - App shell and hashed assets: cache first.
+// - Navigations: network first with cached index.html fallback.
+// - /api/category-icon/*: cache first because category icons are low volume.
+// - /api/icon/* and /api/iconify/*: do not write to Cache Storage; rely on HTTP and edge caching.
+// - Other /api/* requests: network only.
 
-const CACHE = 'cf-navs-v12'
+const CACHE = 'cf-navs-v13'
 const RUNTIME_CACHE_PREFIX = 'cf-navs-v'
 const APP_SHELL = ['/index.html', '/manifest.webmanifest', '/icon.svg']
 const ICON_FALLBACK_TTL_MS = 5 * 60 * 1000
@@ -114,12 +112,8 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return
 
-  // 图标代理缓存优先；其他 /api/* 不缓存
-  const isIconProxy =
-    url.pathname.startsWith('/api/icon/') ||
-    url.pathname.startsWith('/api/category-icon/') ||
-    url.pathname.startsWith('/api/iconify/')
-  if (isIconProxy) {
+  const isCategoryIconProxy = url.pathname.startsWith('/api/category-icon/')
+  if (isCategoryIconProxy) {
     event.respondWith(
       matchCachedIcon(request).then(
         (cached) =>
@@ -133,9 +127,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.pathname.startsWith('/api/')) return // 其他 API 不缓存
+  if (url.pathname.startsWith('/api/')) return
 
-  // 导航请求：网络优先，离线回退 app shell
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -150,7 +143,6 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 静态资源：缓存优先
   const isStatic = url.pathname.startsWith('/assets/') || APP_SHELL.includes(url.pathname)
   if (isStatic) {
     event.respondWith(

@@ -47,3 +47,17 @@ Observed:
 Fix:
 
 - `/api/icon/:id` now returns the existing cacheable fallback SVG when the remote icon fetch fails instead of returning 502.
+
+## 2026-07-05 Round 2
+
+Stress path: authenticated home, cold icon cache, full-page scroll sweep.
+
+Observed:
+
+- A full icon-heavy scroll left browser Cache Storage around 4.6 MB.
+- The Service Worker cached bookmark icons in Cache Storage even though `/api/icon/*` and `/api/iconify/*` already use same-origin URLs and cache headers.
+
+Fix:
+
+- Service Worker cache version bumped to `cf-navs-v13`.
+- Service Worker no longer writes bookmark icon proxy responses (`/api/icon/*` and `/api/iconify/*`) into browser Cache Storage. Category icons remain cached because the count is small.
