@@ -80,7 +80,7 @@
   let syncLocalCachedIconUrl = ''
   let localCachePending = false
   let localCacheRequestId = 0
-  let iconInView = false
+  let iconInView = true
   let shellElement: HTMLDivElement | null = null
   let stopIconVisibilityObserver: (() => void) | null = null
   let contextMenuOpen = false
@@ -142,12 +142,13 @@
     !customTextIcon
   $: shouldReadLocalIconCache =
     iconInView &&
-    (Boolean(rawIcon) || hasCachedRemoteIcon) &&
+    Boolean(rawIcon) &&
+    !iconifyRemoteUrl &&
     !hasEmbeddedIcon &&
     bookmark.icon_source !== 'logo_surf' &&
     !customTextIcon
   $: shouldUseIconProxy = canUseRawHttpIconFallback || hasCachedRemoteIcon
-  $: shouldWaitForLocalIconCache = shouldReadLocalIconCache && shouldUseIconProxy
+  $: shouldWaitForLocalIconCache = false
   $: proxiedHttpIconUrl = shouldUseIconProxy
     ? `/api/icon/${encodeURIComponent(String(bookmark.id))}?v=${createIconVersion(`${bookmark.id}:${rawIcon}:${bookmark.title}:${bookmark.url}`)}`
     : ''
@@ -331,6 +332,7 @@
 
   function setupIconObserver() {
     disconnectIconObserver()
+    if (iconInView) return
 
     if (shellElement) {
       stopIconVisibilityObserver = observeIconVisibility(shellElement, markIconInView)
