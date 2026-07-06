@@ -23,6 +23,8 @@
   } from '../lib/bookmarkFormIcons'
   import BookmarkCustomIconField from './BookmarkCustomIconField.svelte'
   import BookmarkIconCandidatePicker from './BookmarkIconCandidatePicker.svelte'
+  import BookmarkModalActions from './BookmarkModalActions.svelte'
+  import BookmarkModalHeader from './BookmarkModalHeader.svelte'
   import ColorAlphaInput from './ColorAlphaInput.svelte'
   import IconifySelector from './IconifySelector.svelte'
   import LogoSchemeSelector from './LogoSchemeSelector.svelte'
@@ -285,13 +287,7 @@
 {#if open}
   <div class="modal-backdrop">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bookmark-modal-title">
-      <div class="modal-header">
-        <div>
-          <p class="modal-eyebrow">书签管理</p>
-          <h2 id="bookmark-modal-title">{mode === 'create' ? '新增书签' : '编辑书签'}</h2>
-        </div>
-        <button type="button" class="ghost-button" on:click={handleCancel} disabled={loading || deleting}>取消</button>
-      </div>
+      <BookmarkModalHeader {mode} {loading} {deleting} onCancel={handleCancel} />
 
       <form class="modal-form" on:submit|preventDefault={handleSubmit}>
         <label class="field-compact">
@@ -383,32 +379,25 @@
           onOpenImageHost={openImageHost}
         />
 
-
         <label class="field-wide description-field">
           <span>描述</span>
           <textarea bind:value={form.description} rows="3" placeholder="补充说明，可选"></textarea>
         </label>
 
-
         {#if error}
           <p class="error-text">{error}</p>
         {/if}
 
-        <div class="modal-actions">
-          {#if mode === 'edit' && form.id && onDelete}
-            <button type="button" class="danger-button" on:click={handleDelete} disabled={loading || deleting}>
-              {#if deleting}删除中...{:else}删除{/if}
-            </button>
-          {/if}
-          <button type="button" class="ghost-button" on:click={handleCancel} disabled={loading}>取消</button>
-          <button
-            type="submit"
-            class="primary-button"
-            disabled={loading || deleting || categories.length === 0 || !form.title.trim() || !form.url.trim()}
-          >
-            {#if loading}保存中...{:else}保存{/if}
-          </button>
-        </div>
+        <BookmarkModalActions
+          {mode}
+          bookmarkId={form.id}
+          canDelete={Boolean(onDelete)}
+          {loading}
+          {deleting}
+          saveDisabled={loading || deleting || categories.length === 0 || !form.title.trim() || !form.url.trim()}
+          onCancel={handleCancel}
+          onDelete={handleDelete}
+        />
       </form>
     </div>
   </div>
@@ -454,29 +443,6 @@
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
     padding: 0;
     scrollbar-gutter: stable;
-  }
-
-  .modal-header {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 0;
-    padding: 12px 16px 9px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .modal-eyebrow {
-    margin: 0 0 4px;
-    font-size: 12px;
-    color: #64748b;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 20px;
-    color: #0f172a;
   }
 
   .modal-form {
@@ -546,53 +512,6 @@
     font-size: 13px;
   }
 
-  .modal-actions {
-    grid-column: 1 / -1;
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin: 0 -14px;
-    padding: 7px 14px 9px;
-    border-top: 1px solid #e2e8f0;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(10px);
-  }
-
-  .primary-button,
-  .ghost-button,
-  .danger-button {
-    border-radius: 10px;
-    padding: 7px 12px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: 0.18s ease;
-  }
-
-  .primary-button {
-    border: none;
-    background: #2563eb;
-    color: #ffffff;
-  }
-
-  .ghost-button {
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    color: #0f172a;
-  }
-
-  .danger-button {
-    margin-right: auto;
-    border: 1px solid #fecaca;
-    background: #fef2f2;
-    color: #dc2626;
-  }
-
-  .primary-button:disabled,
-  .ghost-button:disabled,
-  .danger-button:disabled,
   select:disabled {
     cursor: not-allowed;
     opacity: 0.6;
@@ -638,13 +557,6 @@
     .field-compact,
     .field-wide {
       grid-column: 1 / -1;
-    }
-
-    .modal-actions {
-      margin-right: -14px;
-      margin-left: -14px;
-      padding-right: 14px;
-      padding-left: 14px;
     }
   }
 </style>

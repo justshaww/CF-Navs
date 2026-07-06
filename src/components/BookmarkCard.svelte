@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import type { CardStyle, PublicBookmark } from '../../shared/types'
+  import BookmarkCardCompact from './BookmarkCardCompact.svelte'
+  import BookmarkCardInfo from './BookmarkCardInfo.svelte'
   import BookmarkContextMenu from './BookmarkContextMenu.svelte'
-  import BookmarkIcon from './BookmarkIcon.svelte'
   import BookmarkLinkModal from './BookmarkLinkModal.svelte'
   import { buildIconStyle, createIconVersion } from '../lib/bookmarkIconDisplay'
   import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from '../lib/icons'
@@ -300,73 +301,39 @@
   bind:this={shellElement}
 >
   {#if style === 'info'}
-    <!-- 详情风格：水平布局 -->
-    <a
-      class="bookmark-card bookmark-card-info"
-      href={bookmark.url}
-      target={openInNewTab ? '_blank' : undefined}
-      rel={openInNewTab ? 'noopener noreferrer' : undefined}
-      style={cardLinkStyle}
-      on:click={handleLinkClick}
-      on:contextmenu={handleContextMenu}
-    >
-      <BookmarkIcon
-        title={bookmark.title}
-        iconUrl={hasRenderableIcon ? iconUrl : ''}
-        {iconText}
-        size={infoIconSize}
-        iconStyle={infoIconStyle}
-        hasCustomBackground={hasCustomIconBackground}
-        variant="info"
-        onError={handleIconError}
-        onLoad={handleIconLoad}
-      />
-
-      <div class="bookmark-text">
-        <h3 class="bookmark-title">{bookmark.title}</h3>
-        {#if showDescription && bookmark.description}
-          <p class="bookmark-description">{bookmark.description}</p>
-        {/if}
-      </div>
-    </a>
+    <BookmarkCardInfo
+      {bookmark}
+      {openInNewTab}
+      {sortMode}
+      {cardLinkStyle}
+      {showDescription}
+      iconUrl={hasRenderableIcon ? iconUrl : ''}
+      {iconText}
+      {infoIconSize}
+      {infoIconStyle}
+      {hasCustomIconBackground}
+      onLinkClick={handleLinkClick}
+      onContextMenu={handleContextMenu}
+      onIconError={handleIconError}
+      onIconLoad={handleIconLoad}
+    />
   {:else}
-    <!-- 极简风格：垂直布局 -->
-    <a
-      class="bookmark-card bookmark-card-icon"
-      href={bookmark.url}
-      target={openInNewTab ? '_blank' : undefined}
-      rel={openInNewTab ? 'noopener noreferrer' : undefined}
-      style="width: {compactIconSize}px; height: {compactIconSize}px;"
-      title={tooltipText}
-      aria-label={tooltipText}
-      data-tooltip={tooltipText}
-      on:click={handleLinkClick}
-      on:contextmenu={handleContextMenu}
-    >
-      <BookmarkIcon
-        title={bookmark.title}
-        iconUrl={hasRenderableIcon ? iconUrl : ''}
-        {iconText}
-        size={compactIconSize}
-        iconStyle={compactIconStyle}
-        hasCustomBackground={hasCustomIconBackground}
-        variant="compact"
-        onError={handleIconError}
-        onLoad={handleIconLoad}
-      />
-    </a>
-    {#if showIconTitle}
-      <a
-        class="bookmark-icon-title"
-        href={bookmark.url}
-        target={openInNewTab ? '_blank' : undefined}
-        rel={openInNewTab ? 'noopener noreferrer' : undefined}
-        on:click={handleLinkClick}
-        on:contextmenu={handleContextMenu}
-      >
-        {bookmark.title}
-      </a>
-    {/if}
+    <BookmarkCardCompact
+      {bookmark}
+      {openInNewTab}
+      {sortMode}
+      {tooltipText}
+      {compactIconSize}
+      {compactIconStyle}
+      {showIconTitle}
+      iconUrl={hasRenderableIcon ? iconUrl : ''}
+      {iconText}
+      {hasCustomIconBackground}
+      onLinkClick={handleLinkClick}
+      onContextMenu={handleContextMenu}
+      onIconError={handleIconError}
+      onIconLoad={handleIconLoad}
+    />
   {/if}
 
   {#if contextMenuOpen}
@@ -392,190 +359,6 @@
   .bookmark-card-shell.is-icon {
     flex: 0 0 auto;
     aspect-ratio: 1 / 1;
-  }
-
-  /* 排序模式：整卡可拖动，禁用 hover 位移与点击导航，避免抖动 */
-  .bookmark-card-shell.sort-mode .bookmark-card {
-    cursor: move;
-    transform: none !important;
-    transition: none;
-    user-select: none;
-  }
-
-  .bookmark-card-shell.sort-mode .bookmark-card:hover {
-    transform: none !important;
-  }
-
-  .bookmark-card-shell.sort-mode .bookmark-card-icon::after {
-    display: none;
-  }
-
-  /* 通用卡片样式 */
-  .bookmark-card {
-    box-sizing: border-box;
-    text-decoration: none;
-    color: inherit;
-    border: 1px solid rgba(255, 255, 255, 0.42);
-    background:
-      linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.78)), rgba(255, 255, 255, 0.34)),
-      rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.62));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.46),
-      0 2px 8px rgba(15, 23, 42, 0.08);
-    transition:
-      transform 0.16s ease,
-      border-color 0.16s ease;
-  }
-
-  /* 详情风格 */
-  .bookmark-card-info {
-    display: flex;
-    align-items: center;
-    gap: 0.82rem;
-    width: 100%;
-    height: 70px; /* 默认高度，可被内联样式覆盖 */
-    padding: 0 0.95rem 0 0.55rem;
-    border-radius: 1.2rem;
-    overflow: hidden;
-  }
-
-  .bookmark-card-info:hover {
-    border-color: rgba(255, 255, 255, 0.62);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.58),
-      0 6px 16px rgba(15, 23, 42, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .bookmark-card-info .bookmark-text {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .bookmark-card-info .bookmark-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0;
-    line-height: 1.2;
-    color: var(--card-text-color, #0f172a);
-    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .bookmark-card-info .bookmark-description {
-    font-size: 0.75rem;
-    color: var(--card-text-color, rgba(71, 85, 105, 0.92));
-    opacity: 0.72;
-    margin: 0.25rem 0 0 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.2;
-  }
-
-  /* 极简风格 */
-  .bookmark-card-icon {
-    position: relative;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 1 / 1;
-    padding: 0;
-    border-radius: 1.2rem;
-    overflow: visible;
-  }
-
-  .bookmark-card-icon:hover {
-    border-color: rgba(255, 255, 255, 0.62);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.58),
-      0 6px 16px rgba(15, 23, 42, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .bookmark-card-icon::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 10px);
-    z-index: 20;
-    width: max-content;
-    max-width: 240px;
-    padding: 0.45rem 0.65rem;
-    border-radius: 0.55rem;
-    background: rgba(15, 23, 42, 0.95);
-    color: #ffffff;
-    font-size: 0.78rem;
-    line-height: 1.45;
-    text-align: left;
-    white-space: pre-line;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.24);
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, 4px);
-    transition: opacity 0.16s ease, transform 0.16s ease;
-  }
-
-  .bookmark-card-icon:hover::after,
-  .bookmark-card-icon:focus-visible::after {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-
-  .bookmark-icon-title {
-    display: block;
-    width: 100%;
-    margin-top: 0.45rem;
-    color: var(--card-text-color, #0f172a);
-    font-size: 0.82rem;
-    font-weight: 600;
-    line-height: 1.25;
-    text-align: center;
-    text-decoration: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* 暗色主题适配 */
-  :global([data-theme='dark']) .bookmark-card-info,
-  :global([data-theme='dark']) .bookmark-card-icon {
-    border-color: rgba(255, 255, 255, 0.1);
-    background:
-      linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.15) * 0.82)), rgba(15, 23, 42, 0.22)),
-      rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.15) * 0.7));
-    color: var(--card-text-color, #e2e8f0);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 4px 12px rgba(0, 0, 0, 0.18);
-  }
-
-  :global([data-theme='dark']) .bookmark-card-info:hover,
-  :global([data-theme='dark']) .bookmark-card-icon:hover {
-    border-color: rgba(255, 255, 255, 0.16);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 8px 18px rgba(0, 0, 0, 0.24);
-  }
-
-  :global([data-theme='dark']) .bookmark-card-info .bookmark-description {
-    color: var(--card-text-color, rgba(203, 213, 225, 0.92));
-  }
-
-  :global([data-theme='dark']) .bookmark-card-info .bookmark-title,
-  :global([data-theme='dark']) .bookmark-icon-title {
-    color: var(--card-text-color, #e2e8f0);
   }
 
 </style>
