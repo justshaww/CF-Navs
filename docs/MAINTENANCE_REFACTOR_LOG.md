@@ -179,12 +179,21 @@
 - `App.svelte` 继续保留 localStorage 读写、`matchMedia` 监听、DOM `data-theme` 写入和主题按钮事件编排。
 - 单元测试覆盖：无用户偏好时使用站点配置、用户偏好覆盖站点配置、auto 按系统偏好解析、切换按钮写入显式相反偏好；测试文件数从 31 增至 32，测试数从 150 增至 154。
 
+### Round 18: App 动态组件懒加载入口收敛
+
+- 新增懒加载组件 helper：
+  - `src/lib/appLazyComponent.ts`
+  - `tests/unit/appLazyComponent.test.ts`
+- 将 `App.svelte` 中 Admin、LoginModal、BookmarkEditModal 三个动态 import 的 pending promise 缓存逻辑收敛到同一 helper。
+- `App.svelte` 继续持有实际组件引用、弹窗打开状态和视图切换编排；分包路径、加载时机和渲染条件保持不变。
+- 单元测试覆盖：并发 ensure 只触发一次加载、组件已存在时不重复加载、加载失败后下一次可重试；测试文件数从 32 增至 33，测试数从 154 增至 157。
+
 ## 当前大文件分布
 
 截至本轮完成后，主要业务文件行数约为：
 
 ```text
-872   src/App.svelte
+864   src/App.svelte
 501   src/components/BookmarkEditModal.svelte
 459   src/components/SettingsPanel.svelte
 444   src/views/Home.svelte
@@ -202,9 +211,10 @@
 148   src/components/admin/AdminTabContent.svelte
 93    src/lib/adminListState.ts
 36    src/lib/appThemeState.ts
+33    src/lib/appLazyComponent.ts
 ```
 
-`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数；当前主题状态推导已经有 `appThemeState` 单元测试覆盖。`Home.svelte` 已降到约 444 行，section key、active fallback、intersection 最近项和滚动目标计算已有 `homeData` 单元测试覆盖；继续拆分应避免在缺少浏览器验证时大改 observer 生命周期。`Admin.svelte` 已降到约 322 行，页眉和 tab 内容外壳已拆出；`adminListPanels.css` 已从约 538 行降到约 310 行，剩余内容以共享列表壳、分页、状态卡片和排序样式为主；后台列表搜索、分页、排序 id 推导已有 `adminListState` 单元测试覆盖。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
+`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数；当前主题状态推导已有 `appThemeState` 单元测试覆盖，动态组件懒加载缓存已有 `appLazyComponent` 单元测试覆盖。`Home.svelte` 已降到约 444 行，section key、active fallback、intersection 最近项和滚动目标计算已有 `homeData` 单元测试覆盖；继续拆分应避免在缺少浏览器验证时大改 observer 生命周期。`Admin.svelte` 已降到约 322 行，页眉和 tab 内容外壳已拆出；`adminListPanels.css` 已从约 538 行降到约 310 行，剩余内容以共享列表壳、分页、状态卡片和排序样式为主；后台列表搜索、分页、排序 id 推导已有 `adminListState` 单元测试覆盖。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
 
 ## 最近部署与生产验证
 
@@ -289,7 +299,7 @@ https://navs.bjlius.com
 
 3. `src/App.svelte`
    - 建议按 use-case 拆分：bootstrap/refresh、local mutations、modal handlers、import/export、sort handlers。
-   - 已开始先抽无副作用的弹窗草稿/查找 helper、确认框状态/文案 helper、备份导出 payload/文件名/成功文案 helper、排序保存队列 helper、导入 JSON 文本解析 helper、首页访问判定 helper 和主题状态 helper；dataService 本地增量更新编排也已收敛。
+   - 已开始先抽无副作用的弹窗草稿/查找 helper、确认框状态/文案 helper、备份导出 payload/文件名/成功文案 helper、排序保存队列 helper、导入 JSON 文本解析 helper、首页访问判定 helper、主题状态 helper和动态组件懒加载 helper；dataService 本地增量更新编排也已收敛。
    - 继续拆 App 前应单独规划 modal handler/controller 边界，不建议零散移动事件处理函数。
 
 4. `worker/lib/db.ts`

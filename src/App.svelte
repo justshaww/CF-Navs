@@ -36,6 +36,7 @@
     toSettingsForm,
     type SettingsFormValue,
   } from './lib/appData'
+  import { createLazyComponentLoader } from './lib/appLazyComponent'
   import { buildOrderedBookmarkIdsForCategory } from './lib/appLocalData'
   import { createBookmarkDraft, createCategoryDraft, findBookmarkForEdit } from './lib/appModalState'
   import { canSeeHomeView, getHomeGateView, type AppView } from './lib/appNavigation'
@@ -71,11 +72,32 @@
   let AdminComponent: typeof import('./views/Admin.svelte').default | null = null
   let LoginModalComponent: typeof import('./components/LoginModal.svelte').default | null = null
   let BookmarkEditModalComponent: typeof import('./components/BookmarkEditModal.svelte').default | null = null
-  let adminComponentPromise: Promise<void> | null = null
-  let loginModalPromise: Promise<void> | null = null
-  let bookmarkEditModalPromise: Promise<void> | null = null
   let confirmDialog: ConfirmDialogState | null = null
   let confirmDialogResolver: ((confirmed: boolean) => void) | null = null
+
+  const ensureAdminComponent = createLazyComponentLoader({
+    load: () => import('./views/Admin.svelte'),
+    getCurrent: () => AdminComponent,
+    setCurrent: (component) => {
+      AdminComponent = component
+    },
+  })
+
+  const ensureLoginModalComponent = createLazyComponentLoader({
+    load: () => import('./components/LoginModal.svelte'),
+    getCurrent: () => LoginModalComponent,
+    setCurrent: (component) => {
+      LoginModalComponent = component
+    },
+  })
+
+  const ensureBookmarkEditModalComponent = createLazyComponentLoader({
+    load: () => import('./components/BookmarkEditModal.svelte'),
+    getCurrent: () => BookmarkEditModalComponent,
+    setCurrent: (component) => {
+      BookmarkEditModalComponent = component
+    },
+  })
 
   let loginModalOpen = false
   let categoryModalOpen = false
@@ -170,36 +192,6 @@
 
   function handleToggleTheme(): void {
     setPreferredThemeMode(getNextThemePreference(activeTheme))
-  }
-
-  function ensureAdminComponent(): Promise<void> {
-    if (AdminComponent) return Promise.resolve()
-    if (!adminComponentPromise) {
-      adminComponentPromise = import('./views/Admin.svelte').then((module) => {
-        AdminComponent = module.default
-      })
-    }
-    return adminComponentPromise
-  }
-
-  function ensureLoginModalComponent(): Promise<void> {
-    if (LoginModalComponent) return Promise.resolve()
-    if (!loginModalPromise) {
-      loginModalPromise = import('./components/LoginModal.svelte').then((module) => {
-        LoginModalComponent = module.default
-      })
-    }
-    return loginModalPromise
-  }
-
-  function ensureBookmarkEditModalComponent(): Promise<void> {
-    if (BookmarkEditModalComponent) return Promise.resolve()
-    if (!bookmarkEditModalPromise) {
-      bookmarkEditModalPromise = import('./components/BookmarkEditModal.svelte').then((module) => {
-        BookmarkEditModalComponent = module.default
-      })
-    }
-    return bookmarkEditModalPromise
   }
 
   function requestConfirmation(options: ConfirmDialogInput): Promise<boolean> {
