@@ -108,12 +108,21 @@
 - 分类/书签 upsert、删除和排序继续暴露原有函数名，`App.svelte` 调用面不变。
 - 扩展 `tests/unit/dataService.test.ts`，覆盖书签删除同步更新两个 store，以及排序队列路径下 `refreshMissing=false` 时只做乐观排序、不提前持久化。
 
+### Round 10: App 首页访问与启动落点判定下沉
+
+- 从 `src/App.svelte` 中抽出首页可见性与启动/退出落点的纯判定：
+  - `src/lib/appNavigation.ts`
+  - `tests/unit/appNavigation.test.ts`
+- `canSeeHomeView` 覆盖公开模式、私有模式和已登录状态下首页是否可见。
+- `getHomeGateView` 保持既有启动行为：仅在明确 `public_mode === false` 且未登录时落到 login；配置未知时仍先落到 home，再由后续 reactive gate 处理。
+- `App.svelte` 仍保留 auth 初始化、数据刷新、按需加载登录弹窗和视图切换副作用。
+
 ## 当前大文件分布
 
 截至本轮完成后，主要业务文件行数约为：
 
 ```text
-864   src/App.svelte
+869   src/App.svelte
 555   src/views/Home.svelte
 538   src/components/admin/adminListPanels.css
 527   src/views/Admin.svelte

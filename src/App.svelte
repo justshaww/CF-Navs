@@ -38,6 +38,7 @@
   } from './lib/appData'
   import { buildOrderedBookmarkIdsForCategory } from './lib/appLocalData'
   import { createBookmarkDraft, createCategoryDraft, findBookmarkForEdit } from './lib/appModalState'
+  import { canSeeHomeView, getHomeGateView, type AppView } from './lib/appNavigation'
   import { isLatestSortRequest, normalizeSortIds, queueSortSave } from './lib/appSortQueue'
   import type { ImportSource } from './lib/importData'
   import { pruneBookmarkIconCacheStorageBackedByLocalStorage } from './lib/localBookmarkIconCache'
@@ -60,8 +61,6 @@
     refreshLoggedInData,
     refreshPublicData,
   } from './lib/dataService'
-
-  type AppView = 'home' | 'admin' | 'login'
 
   type SettingsSubset = SettingsFormValue
 
@@ -116,7 +115,7 @@
   $: config = $configStore.data
   $: publicData = $publicStore.data
   $: adminData = $adminStore.data
-  $: canSeeHome = Boolean(config?.public_mode || $isAuthenticated)
+  $: canSeeHome = canSeeHomeView({ publicMode: config?.public_mode, authenticated: $isAuthenticated })
   $: homeTitle = publicData?.settings.site_title ?? config?.site_title ?? 'CF-Navs'
 
   $: adminCategories = toAdminCategories(adminData.categories, adminData.bookmarks)
@@ -279,7 +278,10 @@
       await refreshPublicData()
     }
 
-    const nextView: AppView = get(configStore).data?.public_mode === false && !isLoggedIn() ? 'login' : 'home'
+    const nextView = getHomeGateView({
+      publicMode: get(configStore).data?.public_mode,
+      authenticated: isLoggedIn(),
+    })
     if (nextView === 'login') {
       await ensureLoginModalComponent()
       loginModalOpen = true
@@ -371,7 +373,10 @@
         applyConfigFromSettings(previousSettings)
       }
       await refreshPublicData()
-      const nextView: AppView = get(configStore).data?.public_mode === false ? 'login' : 'home'
+      const nextView = getHomeGateView({
+        publicMode: get(configStore).data?.public_mode,
+        authenticated: false,
+      })
       if (nextView === 'login') {
         await ensureLoginModalComponent()
         loginModalOpen = true
