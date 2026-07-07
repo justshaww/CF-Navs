@@ -54,21 +54,43 @@
 - `db.ts` 继续作为 worker 路由的数据库入口，并 re-export `settingsFromPatchDefaults`，避免扩大路由改动面。
 - 增加 `tests/unit/settingsData.test.ts` 覆盖默认值、原始 settings 行解析、背景预设与旧数据兼容归一化。
 
+### Round 7: 书签卡片与编辑弹窗状态逻辑下沉
+
+- 从 `src/components/BookmarkCard.svelte` 中抽出图标状态推导：
+  - `src/lib/bookmarkCardIconState.ts`
+  - `tests/unit/bookmarkCardIconState.test.ts`
+- 从 `BookmarkCard.svelte` 中抽出交互决策和右键菜单事件常量：
+  - `src/lib/bookmarkCardInteractions.ts`
+  - `tests/unit/bookmarkCardInteractions.test.ts`
+- 从 `src/components/BookmarkEditModal.svelte` 中抽出 Iconify 搜索、确认和候选选择 controller：
+  - `src/lib/bookmarkIconifyController.ts`
+  - `tests/unit/bookmarkIconifyController.test.ts`
+- 从 `BookmarkEditModal.svelte` 中拆出基础表单字段展示组件：
+  - `src/components/BookmarkBaseFields.svelte`
+- 为 `src/lib/localBookmarkIconCache.ts` 增加单元测试：
+  - `tests/unit/localBookmarkIconCache.test.ts`
+- 父组件仍保留浏览器副作用和生命周期边界：本地图标缓存异步读取、observer、窗口事件监听、右键菜单状态、当前页弹层和弹窗提交流程没有迁移到隐藏 controller。
+
 ## 当前大文件分布
 
 截至本轮完成后，主要业务文件行数约为：
 
 ```text
-1116  src/App.svelte
-575   src/components/BookmarkEditModal.svelte
-521   src/components/BookmarkCard.svelte
-506   worker/lib/db.ts
-480   src/views/Home.svelte
-476   src/views/Admin.svelte
-459   src/components/admin/adminListPanels.css
+915   src/App.svelte
+555   src/views/Home.svelte
+538   src/components/admin/adminListPanels.css
+527   src/views/Admin.svelte
+501   src/components/BookmarkEditModal.svelte
+459   src/components/SettingsPanel.svelte
+416   src/components/Sidebar.svelte
+396   src/app.css
+389   src/components/CategorySection.svelte
+388   src/lib/api.ts
+387   src/components/settings/CardSettingsSection.svelte
+372   src/lib/dataService.ts
 ```
 
-`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。
+`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
 
 ## 每轮验证标准
 
@@ -111,6 +133,8 @@ https://navs.bjlius.com
 - PowerShell/curl 直接拼 JSON 登录体容易引号转义失败，导致 `invalid request body`。处理方式：在 Node 页面上下文或 Node `fetch` 中发送登录请求。
 - 使用 `element.dispatchEvent(new MouseEvent('contextmenu'))` 不能完全代表真实右键。处理方式：用 CDP `Input.dispatchMouseEvent` 发送 `mousePressed/mouseReleased` 的 right button 事件。
 - 拆出 Svelte 子组件后，父组件中迁出的 CSS 选择器可能变成 unused warning。处理方式：移动对应 media query 和局部样式到子组件，保证 `svelte-check` 0 warning。
+- Svelte reactive 依赖顺序很敏感。抽出 Iconify controller 时如果把 preview URL、selected 状态和确认重置塞进同一个 reactive 对象，可能触发循环依赖；处理方式是把输入 URL 推导和 selected 判断分成独立 helper。
+- 拆基础字段组件时，字段相关 scoped CSS 必须随组件一起迁移，否则父组件里的 `input/select/textarea` 选择器不会作用到子组件内部，也可能产生视觉回归。
 - `AGENTS.md` 是本地-only 指令文件，不应加入 Git 提交。公开维护记录写入 `docs/`，本地 agent 操作经验写入 `AGENTS.md`。
 
 ## 后续拆分建议
@@ -124,5 +148,9 @@ https://navs.bjlius.com
    - 需要保持现有 `db.ts` re-export 入口，减少 worker route import churn。
 
 3. `BookmarkEditModal.svelte` / `BookmarkCard.svelte`
-   - 目前已拆出展示子组件，剩余主要是状态机。
-   - 后续可把 Iconify 搜索状态或图标 URL 决策提到单独 hook/helper，并用单元测试覆盖。
+   - 已完成展示子组件、图标状态、交互决策、Iconify 搜索 controller、基础字段组件和本地图标缓存测试。
+   - 后续可在有浏览器运行时验证时做 scoped CSS 去重和视觉清理；暂不建议把整个组件改成 controller/store 模式。
+
+4. 图标缓存消费者
+   - `BookmarkCard.svelte` 与 `CachedBookmarkIcon.svelte` 目前仍是两个场景不同的消费者。
+   - 已补 `localBookmarkIconCache` 纯 helper 测试；是否抽 cache reader 应在确认两个消费者实际重复逻辑和运行时行为后再定。
