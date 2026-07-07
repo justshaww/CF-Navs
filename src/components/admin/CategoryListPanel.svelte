@@ -180,3 +180,118 @@
     </button>
   </div>
 {/if}
+
+<style>
+  .admin-category-list-panel {
+    grid-template-rows: auto minmax(0, auto) auto;
+  }
+
+  .admin-list-stack {
+    display: grid;
+    gap: 8px;
+  }
+
+  .admin-compact-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--admin-card-border);
+    border-radius: 12px;
+    background: var(--admin-card-bg);
+    transition: border-color 0.15s ease;
+  }
+
+  .admin-compact-card:hover {
+    border-color: var(--admin-card-hover-border);
+  }
+
+  .admin-compact-card.sortable {
+    cursor: grab;
+    user-select: none;
+    border-color: var(--admin-sort-highlight-border);
+    background: var(--admin-sort-highlight-bg);
+  }
+
+  .admin-compact-card.sortable:active {
+    cursor: grabbing;
+  }
+
+  .admin-list-stack.is-sorting .admin-compact-card {
+    transition: none;
+  }
+
+  .admin-compact-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-compact-info h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--admin-text);
+  }
+
+  .admin-count-badge {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: var(--admin-badge-bg);
+    color: var(--admin-badge-text);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .admin-sm-button {
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.15s ease;
+    border: 1px solid var(--admin-input-border);
+    background: var(--admin-card-bg);
+    color: var(--admin-text);
+    white-space: nowrap;
+  }
+
+  .admin-sm-button:hover:not(:disabled) {
+    border-color: var(--admin-input-hover-border);
+    background: var(--admin-nav-hover-bg);
+  }
+
+  .admin-sm-button.danger {
+    border-color: var(--admin-danger-border);
+    background: var(--admin-danger-bg);
+    color: var(--admin-danger);
+  }
+
+  .admin-sm-button.danger:hover:not(:disabled) {
+    background: var(--admin-danger-hover-bg);
+  }
+
+  .admin-sm-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 960px) {
+    .admin-compact-card {
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px 10px;
+    }
+
+    .admin-compact-info {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+  }
+</style>

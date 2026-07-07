@@ -261,3 +261,128 @@
     </button>
   </div>
 {/if}
+
+<style>
+  .admin-bookmark-list-panel {
+    grid-template-rows: auto auto minmax(0, auto) auto;
+    min-width: 0;
+  }
+
+  .admin-table-scroll-body {
+    padding: 0;
+    overflow: auto;
+  }
+
+  .admin-inline-actions.compact {
+    justify-content: flex-end;
+  }
+
+  .admin-table-wrap {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .admin-bookmark-search-bar {
+    margin: 0;
+  }
+
+  .admin-bookmark-search-bar input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--admin-input-border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--admin-text);
+    background: var(--admin-input-bg);
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .admin-bookmark-search-bar input:focus {
+    outline: none;
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .admin-bookmark-search-bar input::placeholder {
+    color: var(--admin-input-placeholder);
+  }
+
+  .admin-bookmark-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+  }
+
+  .admin-bookmark-table th,
+  .admin-bookmark-table td {
+    padding: 10px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--admin-divider);
+    vertical-align: middle;
+    font-size: 13px;
+  }
+
+  .admin-bookmark-table th {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    background: var(--admin-th-bg);
+    font-size: 12px;
+    color: var(--admin-subtle);
+    font-weight: 600;
+  }
+
+  .admin-bookmark-table tr.is-sorting {
+    background: var(--admin-sort-highlight-bg);
+  }
+
+  .admin-bookmark-table td a {
+    color: var(--admin-link);
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .admin-bookmark-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-bookmark-cell p {
+    color: var(--admin-subtle);
+    line-height: 1.5;
+  }
+
+  .admin-cat-cell,
+  .admin-method-cell {
+    white-space: nowrap;
+    color: var(--admin-muted);
+  }
+
+  .admin-url-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-url-cell a {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 960px) {
+    .admin-table-scroll-body {
+      padding: 0;
+    }
+
+    .admin-inline-actions.compact {
+      justify-content: flex-start;
+    }
+  }
+</style>

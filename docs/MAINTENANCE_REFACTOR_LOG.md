@@ -142,27 +142,38 @@
 - `Admin.svelte` 继续保留 active tab 切换、SettingsPanel/CategoryEditModal 懒加载、modal 渲染位置和所有业务回调编排。
 - 本轮只迁移模板分发与包裹结构，不改变列表面板内部搜索/分页/排序、设置保存、备份导入导出或认证流程。
 
+### Round 14: Admin 列表面板私有样式回迁
+
+- 将只属于分类列表的 compact card、计数徽标和分类操作小按钮样式迁回：
+  - `src/components/admin/CategoryListPanel.svelte`
+- 将只属于书签列表的表格、搜索框、URL 单元格、书签描述和 compact 操作区样式迁回：
+  - `src/components/admin/BookmarkListPanel.svelte`
+- `src/components/admin/adminListPanels.css` 保留共享的列表外壳、状态卡片、header/toolbar/footer、分页、排序条、拖拽 handle 和通用按钮样式。
+- 本轮不改动面板 DOM、搜索/分页/排序状态或 Sortable 配置，只调整 CSS 所属边界；`svelte-check` 验证 scoped selector 0 warning。
+
 ## 当前大文件分布
 
 截至本轮完成后，主要业务文件行数约为：
 
 ```text
 869   src/App.svelte
-538   src/components/admin/adminListPanels.css
 501   src/components/BookmarkEditModal.svelte
 459   src/components/SettingsPanel.svelte
 457   src/views/Home.svelte
 416   src/components/Sidebar.svelte
 396   src/app.css
 389   src/components/CategorySection.svelte
+388   src/components/admin/BookmarkListPanel.svelte
 388   src/lib/api.ts
 387   src/components/settings/CardSettingsSection.svelte
 385   src/lib/dataService.ts
 322   src/views/Admin.svelte
+310   src/components/admin/adminListPanels.css
+297   src/components/admin/CategoryListPanel.svelte
 148   src/components/admin/AdminTabContent.svelte
 ```
 
-`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。`Home.svelte` 已降到约 457 行，继续拆分应优先考虑 section tracking/search controller 或分类列表展示边界。`Admin.svelte` 已降到约 322 行，页眉和 tab 内容外壳已拆出；下一步更适合梳理 `adminListPanels.css` 私有样式，或先为后台列表的搜索/分页/排序纯逻辑补测试。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
+`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。`Home.svelte` 已降到约 457 行，继续拆分应优先考虑 section tracking/search controller 或分类列表展示边界。`Admin.svelte` 已降到约 322 行，页眉和 tab 内容外壳已拆出；`adminListPanels.css` 已从约 538 行降到约 310 行，剩余内容以共享列表壳、分页、状态卡片和排序样式为主。下一步更适合为后台列表的搜索/分页/排序纯逻辑补测试。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
 
 ## 最近部署与生产验证
 
@@ -235,8 +246,8 @@ https://navs.bjlius.com
 
 1. `src/views/Admin.svelte` / `src/components/admin/adminListPanels.css`
    - 已拆出后台页眉与认证操作按钮，以及 tab 内容外壳。
-   - 下一步建议处理列表面板共享样式，或先补后台列表纯逻辑 helper 测试。
-   - `adminListPanels.css` 已较大，应优先移动只属于分类面板或书签面板的私有样式；共享分页、toolbar、status card 样式可以保留在公共 CSS，避免一次性全局化。
+   - 已将分类/书签列表的私有样式迁回对应组件，公共 CSS 保留共享外壳、分页、状态卡片和排序样式。
+   - 下一步建议补后台列表纯逻辑 helper 测试，例如搜索过滤、分页 clamp、排序进入/取消/保存 id 推导。
 
 2. `src/views/Home.svelte`
    - 已拆出顶部搜索、浮动操作、内容统计条和空状态面板。
