@@ -134,6 +134,14 @@
 - 顺手清理 `Admin.svelte` 中不再使用的本地类型/函数，并整理 settings 分支缩进与重复 `.panel` 样式。
 - 本轮只迁移无状态页眉展示和认证操作按钮，不改变后台 tab、列表面板、设置面板、备份面板或 modal 生命周期。
 
+### Round 13: Admin tab 内容外壳拆分
+
+- 从 `src/views/Admin.svelte` 中拆出后台 tab 内容分发和右侧内容滚动外壳：
+  - `src/components/admin/AdminTabContent.svelte`
+- `AdminTabContent.svelte` 负责分类、书签、设置、备份四个 tab 的展示分支，并承接 `.admin-content`、settings loading 面板和备份面板的局部样式。
+- `Admin.svelte` 继续保留 active tab 切换、SettingsPanel/CategoryEditModal 懒加载、modal 渲染位置和所有业务回调编排。
+- 本轮只迁移模板分发与包裹结构，不改变列表面板内部搜索/分页/排序、设置保存、备份导入导出或认证流程。
+
 ## 当前大文件分布
 
 截至本轮完成后，主要业务文件行数约为：
@@ -147,13 +155,14 @@
 416   src/components/Sidebar.svelte
 396   src/app.css
 389   src/components/CategorySection.svelte
-388   src/views/Admin.svelte
 388   src/lib/api.ts
 387   src/components/settings/CardSettingsSection.svelte
 385   src/lib/dataService.ts
+322   src/views/Admin.svelte
+148   src/components/admin/AdminTabContent.svelte
 ```
 
-`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。`Home.svelte` 已降到约 457 行，继续拆分应优先考虑 section tracking/search controller 或分类列表展示边界。`Admin.svelte` 已降到约 388 行，下一步适合拆后台 tab 内容外壳或继续梳理列表面板 CSS。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
+`App.svelte` 仍是最大文件。它承担全局状态编排，包括登录、缓存、导入导出、CRUD 后本地增量更新、弹窗协调和排序回写。后续如果继续拆分，应按应用 use-case 或 controller 边界单独规划，不建议零散移动函数。`Home.svelte` 已降到约 457 行，继续拆分应优先考虑 section tracking/search controller 或分类列表展示边界。`Admin.svelte` 已降到约 322 行，页眉和 tab 内容外壳已拆出；下一步更适合梳理 `adminListPanels.css` 私有样式，或先为后台列表的搜索/分页/排序纯逻辑补测试。`BookmarkCard.svelte` 已降到约 333 行，`BookmarkEditModal.svelte` 已降到约 501 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
 
 ## 最近部署与生产验证
 
@@ -225,8 +234,8 @@ https://navs.bjlius.com
 ## 后续拆分建议
 
 1. `src/views/Admin.svelte` / `src/components/admin/adminListPanels.css`
-   - 已拆出后台页眉与认证操作按钮。
-   - 下一步建议拆 tab 内容外壳，最后处理列表面板共享样式。
+   - 已拆出后台页眉与认证操作按钮，以及 tab 内容外壳。
+   - 下一步建议处理列表面板共享样式，或先补后台列表纯逻辑 helper 测试。
    - `adminListPanels.css` 已较大，应优先移动只属于分类面板或书签面板的私有样式；共享分页、toolbar、status card 样式可以保留在公共 CSS，避免一次性全局化。
 
 2. `src/views/Home.svelte`

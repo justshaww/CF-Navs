@@ -14,10 +14,8 @@
 <script lang="ts">
   import type { ChangePasswordReq } from '../../shared/types'
   import AdminSidebar from '../components/AdminSidebar.svelte'
-  import BackupPanel from '../components/BackupPanel.svelte'
   import AdminPageHeader from '../components/admin/AdminPageHeader.svelte'
-  import BookmarkListPanel from '../components/admin/BookmarkListPanel.svelte'
-  import CategoryListPanel from '../components/admin/CategoryListPanel.svelte'
+  import AdminTabContent from '../components/admin/AdminTabContent.svelte'
   import type { ImportSource } from '../lib/importData'
   import type { SettingsFormValue } from '../lib/appData'
   import type { AdminTab } from '../lib/adminTypes'
@@ -132,66 +130,38 @@
       onSelect={handleSelectTab}
     />
 
-    <!-- 右侧内容区 -->
-    <div class="admin-content">
-      {#if activeTab === 'categories'}
-        <CategoryListPanel
-          {isAuthenticated}
-          {authLoading}
-          {categories}
-          {bookmarks}
-          {categoriesLoading}
-          {deletingCategoryId}
-          {onOpenCreateCategory}
-          {onEditCategory}
-          {onDeleteCategory}
-          {onOpenCreateBookmark}
-          {onSortCategories}
-        />
-      {:else if activeTab === 'bookmarks'}
-        <BookmarkListPanel
-          {isAuthenticated}
-          {authLoading}
-          {categories}
-          {bookmarks}
-          {bookmarksLoading}
-          {deletingBookmarkId}
-          {onOpenCreateBookmark}
-          {onEditBookmark}
-          {onDeleteBookmark}
-          {onSortBookmarks}
-        />
-      {:else if activeTab === 'settings'}
-        <!-- 站点设置 -->
-        <section class="settings-panel-wrap">
-          {#if SettingsPanelComponent}
-            <svelte:component
-              this={SettingsPanelComponent}
-              value={settingsValue}
-              loading={settingsLoading}
-              saving={settingsSaving}
-              error={settingsError}
-              onSubmit={onSubmitSettings}
-              onChangePassword={onChangePassword}
-            />
-          {:else}
-            <section class="panel">
-              <p class="empty-text" style="padding: 24px 0; text-align: center;">Loading settings...</p>
-            </section>
-          {/if}
-        </section>
-      {:else if activeTab === 'backup'}
-        <BackupPanel
-          {isAuthenticated}
-          {importing}
-          {backupError}
-          {backupMessage}
-          bind:importSource
-          onExportData={onExportData}
-          onImportData={onImportData}
-        />
-      {/if}
-    </div>
+    <AdminTabContent
+      {activeTab}
+      {isAuthenticated}
+      {authLoading}
+      {categories}
+      {bookmarks}
+      {categoriesLoading}
+      {bookmarksLoading}
+      {deletingCategoryId}
+      {deletingBookmarkId}
+      settingsPanelComponent={SettingsPanelComponent}
+      {settingsLoading}
+      {settingsSaving}
+      {settingsError}
+      {settingsValue}
+      {importing}
+      {backupError}
+      {backupMessage}
+      bind:importSource
+      {onOpenCreateCategory}
+      {onEditCategory}
+      {onDeleteCategory}
+      {onOpenCreateBookmark}
+      {onEditBookmark}
+      {onDeleteBookmark}
+      {onSubmitSettings}
+      {onChangePassword}
+      {onSortCategories}
+      {onSortBookmarks}
+      {onExportData}
+      {onImportData}
+    />
   </div>
 
 </div>
@@ -330,14 +300,6 @@
     --admin-ok-border: rgba(74, 222, 128, 0.32);
   }
 
-  .panel {
-    border: 1px solid var(--admin-border);
-    border-radius: 18px;
-    padding: 18px;
-    background: var(--admin-surface);
-    box-shadow: var(--admin-shadow);
-  }
-
   /* 左侧菜单 + 右侧内容布局 */
   .admin-layout {
     display: flex;
@@ -347,40 +309,12 @@
     overflow: hidden;
   }
 
-  .admin-content {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    min-height: 0;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding-right: 4px;
-  }
-
-  .empty-text {
-    margin: 0;
-    color: var(--admin-subtle);
-    line-height: 1.5;
-  }
-
-  .settings-panel-wrap {
-    min-width: 0;
-    width: min(100%, 1320px);
-    margin: 0 auto 24px;
-  }
-
   @media (max-width: 960px) {
     .admin-page {
       padding: 20px;
     }
 
     .admin-layout {
-      gap: 16px;
-    }
-
-    .admin-content {
       gap: 16px;
     }
 
