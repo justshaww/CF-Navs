@@ -7,6 +7,14 @@
   import BookmarkLinkModal from './BookmarkLinkModal.svelte'
   import { buildIconStyle } from '../lib/bookmarkIconDisplay'
   import {
+    BOOKMARK_CONTEXT_MENU_OPEN_EVENT,
+    canOpenBookmarkContextMenu,
+    createBookmarkContextMenuOpenEvent,
+    isExternalContextMenuOpenEvent,
+    shouldBlockCardNavigation,
+    shouldOpenBookmarkModal,
+  } from '../lib/bookmarkCardInteractions'
+  import {
     deriveBookmarkCardIconBase,
     deriveBookmarkCardIconUrl,
   } from '../lib/bookmarkCardIconState'
@@ -18,8 +26,6 @@
   } from '../lib/localBookmarkIconCache'
 
   type AsyncVoid<T = void> = T | Promise<T>
-
-  const CONTEXT_MENU_OPEN_EVENT = 'cf-navs-bookmark-context-menu-open'
 
   export let bookmark: PublicBookmark
   export let style: CardStyle = 'info'
@@ -48,7 +54,6 @@
   let contextMenuInstanceId = Math.random().toString(36).slice(2)
 
   $: openInNewTab = bookmark.open_method === 1
-  $: openInModal = bookmark.open_method === 3
   $: iconBaseState = deriveBookmarkCardIconBase({
     bookmark,
     iconInView,
@@ -155,24 +160,21 @@
   }
 
   function notifyContextMenuOpen() {
-    window.dispatchEvent(new CustomEvent(CONTEXT_MENU_OPEN_EVENT, {
-      detail: contextMenuInstanceId,
-    }))
+    window.dispatchEvent(createBookmarkContextMenuOpenEvent(contextMenuInstanceId))
   }
 
   function handleContextMenuOpenEvent(event: Event) {
-    const sourceId = (event as CustomEvent<string>).detail
-    if (sourceId !== contextMenuInstanceId) {
+    if (isExternalContextMenuOpenEvent(event, contextMenuInstanceId)) {
       closeContextMenu()
     }
   }
 
   function handleContextMenu(event: MouseEvent) {
-    if (sortMode) {
+    if (shouldBlockCardNavigation(sortMode)) {
       event.preventDefault()
       return
     }
-    if (!canEdit || !onEdit) return
+    if (!canOpenBookmarkContextMenu({ sortMode, canEdit, hasEditHandler: Boolean(onEdit) })) return
     event.preventDefault()
     event.stopPropagation()
     notifyContextMenuOpen()
@@ -185,11 +187,11 @@
   }
 
   function handleLinkClick(event: MouseEvent) {
-    if (sortMode) {
+    if (shouldBlockCardNavigation(sortMode)) {
       event.preventDefault()
       return
     }
-    if (!openInModal) return
+    if (!shouldOpenBookmarkModal({ sortMode, openMethod: bookmark.open_method })) return
     event.preventDefault()
     modalOpen = true
   }
@@ -234,7 +236,7 @@
     if (active && !windowListenersAttached) {
       window.addEventListener('click', handleWindowClick)
       window.addEventListener('keydown', handleDocumentKeydown)
-      window.addEventListener(CONTEXT_MENU_OPEN_EVENT, handleContextMenuOpenEvent)
+      window.addEventListener(BOOKMARK_CONTEXT_MENU_OPEN_EVENT, handleContextMenuOpenEvent)
       windowListenersAttached = true
       return
     }
@@ -242,7 +244,7 @@
     if (!active && windowListenersAttached) {
       window.removeEventListener('click', handleWindowClick)
       window.removeEventListener('keydown', handleDocumentKeydown)
-      window.removeEventListener(CONTEXT_MENU_OPEN_EVENT, handleContextMenuOpenEvent)
+      window.removeEventListener(BOOKMARK_CONTEXT_MENU_OPEN_EVENT, handleContextMenuOpenEvent)
       windowListenersAttached = false
     }
   }
