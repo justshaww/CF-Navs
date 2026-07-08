@@ -16,11 +16,9 @@
   import type { BookmarkFormValue, CategoryFormValue } from './lib/adminTypes'
   import { toBookmarkForm, toBookmarkPayload, toCategoryForm, toCategoryPayload } from './lib/adminFormAdapters'
   import {
-    createBackupExportMessage,
-    createBackupFileName,
-    createBackupPayload,
     createImportSuccessMessage,
   } from './lib/appBackup'
+  import { createBackupExportArtifact } from './lib/appBackup'
   import {
     createConfirmDialogState,
     createDeleteBookmarkConfirmation,
@@ -634,17 +632,17 @@
     backupMessage = ''
 
     try {
-      const payload = createBackupPayload(adminData)
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const artifact = createBackupExportArtifact(adminData)
+      const blob = new Blob([artifact.json], { type: 'application/json' })
       const href = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = href
-      anchor.download = createBackupFileName(new Date(payload.exported_at))
+      anchor.download = artifact.fileName
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
       URL.revokeObjectURL(href)
-      backupMessage = createBackupExportMessage(payload)
+      backupMessage = artifact.message
     } catch (error) {
       backupError = getErrorMessage(error)
     }

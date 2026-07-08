@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AdminData, Bookmark, Category } from '../../shared/types'
 import {
   BACKUP_VERSION,
+  createBackupExportArtifact,
   createBackupExportMessage,
   createBackupFileName,
   createBackupPayload,
@@ -58,5 +59,21 @@ describe('app backup helpers', () => {
       .toBe('已导出 1 个分类、2 个书签。')
 
     expect(createImportSuccessMessage({ categories: 3, bookmarks: 9 })).toBe('导入成功：3 个分类、9 个书签。')
+  })
+
+  it('bundles export artifacts for direct download without extra assembly in the view', () => {
+    const adminData: AdminData = {
+      categories: [category],
+      bookmarks: [bookmark],
+      settings: null,
+    }
+
+    const artifact = createBackupExportArtifact(adminData, 12345)
+
+    expect(artifact.payload.version).toBe(BACKUP_VERSION)
+    expect(artifact.payload.exported_at).toBe(12345)
+    expect(artifact.json).toBe(JSON.stringify(artifact.payload, null, 2))
+    expect(artifact.fileName).toBe('cf-navs-backup-1970-01-01.json')
+    expect(artifact.message).toBe('已导出 1 个分类、1 个书签。')
   })
 })

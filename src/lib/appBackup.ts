@@ -2,6 +2,13 @@ import type { AdminData, BackupData, ImportResp } from '../../shared/types'
 
 export const BACKUP_VERSION = 1
 
+export type BackupExportArtifact = {
+  payload: BackupData
+  json: string
+  fileName: string
+  message: string
+}
+
 export function createBackupPayload(
   data: Pick<AdminData, 'categories' | 'bookmarks' | 'settings'>,
   exportedAt = Date.now(),
@@ -22,6 +29,19 @@ export function createBackupFileName(date = new Date()): string {
 
 export function createBackupExportMessage(payload: Pick<BackupData, 'categories' | 'bookmarks'>): string {
   return `已导出 ${payload.categories.length} 个分类、${payload.bookmarks.length} 个书签。`
+}
+
+export function createBackupExportArtifact(
+  data: Pick<AdminData, 'categories' | 'bookmarks' | 'settings'>,
+  exportedAt = Date.now(),
+): BackupExportArtifact {
+  const payload = createBackupPayload(data, exportedAt)
+  return {
+    payload,
+    json: JSON.stringify(payload, null, 2),
+    fileName: createBackupFileName(new Date(payload.exported_at)),
+    message: createBackupExportMessage(payload),
+  }
 }
 
 export function createImportSuccessMessage(result: Pick<ImportResp, 'categories' | 'bookmarks'>): string {
