@@ -258,3 +258,22 @@ export async function fetchAndCacheBookmarkIconUrl(cacheKey: string, url: string
     return null
   }
 }
+
+export interface FetchCachedIconResult {
+  url: string | null
+  stale: boolean
+}
+
+export async function fetchCachedBookmarkIconUrl(
+  cacheKey: string,
+  requestSeq: { current: number },
+): Promise<FetchCachedIconResult> {
+  const seq = ++requestSeq.current
+  const url = await readCachedBookmarkIconUrl(cacheKey)
+  if (seq !== requestSeq.current) {
+    if (url) revokeLocalIconUrl(url)
+    return { url: null, stale: true }
+  }
+  return { url, stale: false }
+}
+

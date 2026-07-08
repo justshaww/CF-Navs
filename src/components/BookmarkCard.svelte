@@ -20,8 +20,8 @@
   } from '../lib/bookmarkCardIconState'
   import { observeIconVisibility } from '../lib/iconVisibility'
   import {
+    fetchCachedBookmarkIconUrl,
     readCachedBookmarkIconDataUri,
-    readCachedBookmarkIconUrl,
     revokeLocalIconUrl,
   } from '../lib/localBookmarkIconCache'
 
@@ -116,23 +116,16 @@
   }
 
   async function loadLocalCachedIcon(cacheKey: string, waitForLocalCache: boolean) {
-    const requestId = ++localCacheRequestId
-
     if (waitForLocalCache) {
       localCachePending = true
     }
 
-    const cachedUrl = await readCachedBookmarkIconUrl(cacheKey)
-    if (requestId !== localCacheRequestId) {
-      if (cachedUrl) revokeLocalIconUrl(cachedUrl)
-      return
-    }
-
-    if (cachedUrl) {
+    const result = await fetchCachedBookmarkIconUrl(cacheKey, { current: localCacheRequestId })
+    if (result.stale) return
+    if (result.url) {
       resetLocalCachedIconUrl()
-      localCachedIconUrl = cachedUrl
+      localCachedIconUrl = result.url
     }
-
     localCachePending = false
   }
 

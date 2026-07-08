@@ -3,6 +3,7 @@
 import { type Bookmark, type Category, type Settings } from '../../../shared/types'
 import { ensureSchema } from './schema'
 import { settingsPatchStatement } from './settings'
+import { normalizeImportCategory, normalizeImportBookmark } from './importHelpers'
 
 export async function importData(
   db: D1Database,
@@ -19,13 +20,7 @@ export async function importData(
   stmts.push(db.prepare('DELETE FROM categories'))
 
   for (const c of data.categories) {
-    const category: Category = {
-      id: c.id,
-      title: c.title,
-      icon: c.icon ?? null,
-      sort: Number.isFinite(c.sort) ? c.sort : 0,
-      created_at: c.created_at || now,
-    }
+    const category = normalizeImportCategory(c, now)
     importedCategories.push(category)
     stmts.push(
       db
@@ -35,21 +30,7 @@ export async function importData(
   }
 
   for (const b of data.bookmarks) {
-    const openMethod = b.open_method === 2 ? 2 : b.open_method === 3 ? 3 : 1
-    const bookmark: Bookmark = {
-      id: b.id,
-      category_id: b.category_id,
-      title: b.title,
-      url: b.url,
-      icon: b.icon ?? null,
-      icon_source: (b as unknown as Record<string, Bookmark['icon_source']>).icon_source ?? null,
-      icon_background_color: (b as unknown as Record<string, string | null | undefined>).icon_background_color ?? null,
-      icon_blob: (b as unknown as Record<string, string | null | undefined>).icon_blob ?? null,
-      description: b.description ?? null,
-      open_method: openMethod,
-      sort: Number.isFinite(b.sort) ? b.sort : 0,
-      created_at: b.created_at || now,
-    }
+    const bookmark = normalizeImportBookmark(b, now)
     importedBookmarks.push(bookmark)
     stmts.push(
       db

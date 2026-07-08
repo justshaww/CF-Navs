@@ -8,6 +8,7 @@ import {
   settingsFromRawMap,
 } from '../settingsData'
 import { SETTINGS_LIST_SQL, DATA_VERSION_KEY } from './sql'
+import { createDataVersion, buildSettingsPatchParams } from './settingsHelpers'
 
 async function readRawSettings(db: D1Database): Promise<Map<string, unknown>> {
   const { results } = await db.prepare(SETTINGS_LIST_SQL).all<{ key: string; value: string | null }>()
@@ -84,12 +85,6 @@ export async function setSettingValue(db: D1Database, key: string, value: unknow
     .run()
 }
 
-function createDataVersion(): string {
-  const random = new Uint32Array(2)
-  crypto.getRandomValues(random)
-  return `${Date.now().toString(36)}-${random[0].toString(36)}${random[1].toString(36)}`
-}
-
 export async function getDataVersion(db: D1Database): Promise<string> {
   const row = await db
     .prepare('SELECT value FROM settings WHERE key = ?')
@@ -115,24 +110,13 @@ export async function touchDataVersion(db: D1Database): Promise<string> {
 }
 
 export function settingsPatchStatement(db: D1Database, patch: Partial<Settings>): D1PreparedStatement | null {
-  const placeholders: string[] = []
-  const params: unknown[] = []
-
-  for (const key of SETTINGS_KEYS) {
-    if (key in patch && patch[key] !== undefined) {
-      placeholders.push('(?, ?)')
-      params.push(key, JSON.stringify(patch[key]))
-    }
-  }
-
-  if (placeholders.length === 0) return null
+  const built = buildSettingsPatchParams(patch)
+  if (!built) return null
 
   return db
-    .prepare(
-      `INSERT INTO settings (key, value) VALUES ${placeholders.join(', ')}
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    )
-    .bind(...params)
+    .prepare(`INSERT INTO settings (key, value) VALUES ${built.placeholders}
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+    .bind(...built.params)
 }
 
 // 部分更新 Settings（只更新传入的 key），batch 提交后返回全量

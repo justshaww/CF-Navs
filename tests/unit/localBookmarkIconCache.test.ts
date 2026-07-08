@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createBookmarkIconCacheKey,
   deleteCachedBookmarkIcon,
+  fetchCachedBookmarkIconUrl,
   isDataImage,
   readCachedBookmarkIconDataUri,
   readCachedBookmarkIconUrl,
+  revokeLocalIconUrl,
   writeBookmarkIconDataUri,
 } from '../../src/lib/localBookmarkIconCache'
 
@@ -123,3 +125,61 @@ describe('local bookmark icon cache', () => {
     await expect(readCachedBookmarkIconUrl('missing-cache-key')).resolves.toBeNull()
   })
 })
+
+describe('fetchCachedBookmarkIconUrl', () => {
+  beforeEach(() => {
+    setupLocalStorage()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns the cached URL and marks it as fresh when no race occurs', async () => {
+    const cacheKey = createBookmarkIconCacheKey({ id: 1, icon: 'data:image/png;base64,a', iconSource: 'custom' })
+    await writeBookmarkIconDataUri(cacheKey, 'data:image/png;base64,a')
+
+    const seq = { current: 0 }
+    const result = await fetchCachedBookmarkIconUrl(cacheKey, seq)
+
+    expect(result.stale).toBe(false)
+    expect(result.url).toBe('data:image/png;base64,a')
+    expect(seq.current).toBe(1)
+  })
+
+  it('returns stale=true and revokes URL when request counter has changed', async () => {
+    const cacheKey = createBookmarkIconCacheKey({ id: 2, icon: 'data:image/png;base64,b', iconSource: 'custom' })
+    await writeBookmarkIconDataUri(cacheKey, 'data:image/png;base64,b')
+
+    const seq = { current: 0 }
+
+    // Simulate a race: start fetch, then change seq externally
+    const fetchPromise = fetchCachedBookmarkIconUrl(cacheKey, seq)
+    seq.current = 999  // Simulate a newer request invalidating this one
+
+    const result = await fetchPromise
+
+    expect(result.stale).toBe(true)
+    expect(result.url).toBeNull()
+  })
+
+  it('returns url=null, stale=false when no cache entry exists and request is fresh', async () => {
+    const seq = { current: 0 }
+    const result = await fetchCachedBookmarkIconUrl('nonexistent-key', seq)
+
+    expect(result.stale).toBe(false)
+    expect(result.url).toBeNull()
+    expect(seq.current).toBe(1)
+  })
+
+  it('increments the request sequence counter', async () => {
+    const cacheKey = createBookmarkIconCacheKey({ id: 3, icon: 'data:image/png;base64,c', iconSource: 'custom' })
+    await writeBookmarkIconDataUri(cacheKey, 'data:image/png;base64,c')
+
+    const seq = { current: 5 }
+    await fetchCachedBookmarkIconUrl(cacheKey, seq)
+
+    expect(seq.current).toBe(6)
+  })
+})
+

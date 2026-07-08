@@ -3,9 +3,9 @@
   import {
     createBookmarkIconCacheKey,
     deleteCachedBookmarkIcon,
+    fetchCachedBookmarkIconUrl,
     isDataImage,
     readCachedBookmarkIconDataUri,
-    readCachedBookmarkIconUrl,
     revokeLocalIconUrl,
   } from '../lib/localBookmarkIconCache'
 
@@ -55,9 +55,8 @@
   }
 
   async function loadCachedIcon(key: string, dataUri: string, waitForLocalCache: boolean) {
-    const currentRequest = ++requestId
-
     if (isDataImage(dataUri)) {
+      ++requestId
       cachePending = false
       await deleteCachedBookmarkIcon(key)
       return
@@ -67,25 +66,16 @@
       cachePending = true
     }
 
-    const cached = await readCachedBookmarkIconUrl(key)
-    if (currentRequest !== requestId) {
-      if (cached) revokeLocalIconUrl(cached)
-      return
-    }
-
-    if (cached) {
+    const result = await fetchCachedBookmarkIconUrl(key, { current: requestId })
+    if (result.stale) return
+    if (result.url) {
       resetLocalUrl()
-      localUrl = cached
+      localUrl = result.url
       cachePending = false
       return
     }
 
-    if (!cached) {
-      if (currentRequest === requestId) {
-        cachePending = false
-      }
-      return
-    }
+    cachePending = false
   }
 
   function handleError() {
