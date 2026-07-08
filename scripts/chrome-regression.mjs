@@ -793,6 +793,125 @@ function summarizeNetwork() {
   }
 }
 
+
+async function runSecurityChecks() {
+  return pageFunction(async function securityChecks(baseUrl, adminUser, adminPass) {
+    const fetchJson = async (url, options = {}) => {
+      const resp = await fetch(url, options)
+      let body = null
+      try { body = await resp.json() } catch { /* no json body */ }
+      return { status: resp.status, code: body?.code, msg: body?.msg, data: body?.data }
+    }
+
+    // 1. Invalid token -> 401 / 1002
+    const invalidResp = await fetchJson(`${baseUrl}/api/admin/data`, {
+      headers: { authorization: "Bearer NOT_A_REAL_TOKEN_DEADBEEF" },
+    })
+    const invalidTokenOk = invalidResp.status === 401 || invalidResp.code === 1002
+
+    // 2. Anonymous access -> 401 / 1002
+    const anonResp = await fetchJson(`${baseUrl}/api/admin/data`)
+    const anonymousOk = anonResp.status === 401 || anonResp.code === 1002
+
+    // 3. Password change invalidates old sessions (with guaranteed restore)
+    let pwChangeOk = false
+    let pwCleanupOk = false
+    const tempPass = "SecT_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8)
+
+    try {
+      // Login to get a fresh token
+      const l1 = await fetchJson(`${baseUrl}/api/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: adminUser, password: adminPass }),
+      })
+      const oldToken = l1.data?.token
+      if (!oldToken) throw new Error("login1 failed: " + JSON.stringify(l1))
+
+      // Change password
+      const change = await fetchJson(`${baseUrl}/api/password`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer " + oldToken,
+        },
+        body: JSON.stringify({ current_password: adminPass, new_password: tempPass }),
+      })
+      if (change.code !== 0) throw new Error("pw change failed: " + JSON.stringify(change))
+
+      // Old token should be rejected
+      const oldCheck = await fetchJson(`${baseUrl}/api/admin/data`, {
+        headers: { authorization: "Bearer " + oldToken },
+      })
+      pwChangeOk = oldCheck.status === 401 || oldCheck.code === 1002
+
+      // Login with new password
+      const l2 = await fetchJson(`${baseUrl}/api/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: adminUser, password: tempPass }),
+      })
+      const newToken = l2.data?.token
+      if (!newToken) throw new Error("login2 failed: " + JSON.stringify(l2))
+
+      // Restore original password
+      const restore = await fetchJson(`${baseUrl}/api/password`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer " + newToken,
+        },
+        body: JSON.stringify({ current_password: tempPass, new_password: adminPass }),
+      })
+      pwCleanupOk = restore.code === 0
+
+      // Verify original password works
+      const l3 = await fetchJson(`${baseUrl}/api/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: adminUser, password: adminPass }),
+      })
+      if (l3.code !== 0) throw new Error("restore verify failed: " + JSON.stringify(l3))
+    } catch (e) {
+      // Emergency restore via temp password if possible
+      try {
+        const emerg = await fetchJson(`${baseUrl}/api/login`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ username: adminUser, password: tempPass }),
+        })
+        if (emerg.code === 0 && emerg.data?.token) {
+          await fetchJson(`${baseUrl}/api/password`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: "Bearer " + emerg.data.token,
+            },
+            body: JSON.stringify({ current_password: tempPass, new_password: adminPass }),
+          })
+          pwCleanupOk = true
+        }
+      } catch { /* unrecoverable */ }
+    }
+
+    // Restore localStorage session for subsequent regression checks
+    const finalLogin = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: adminUser, password: adminPass }),
+    })
+    if (finalLogin.code === 0 && finalLogin.data) {
+      localStorage.setItem("cf-navs.auth", JSON.stringify(finalLogin.data))
+    }
+
+    return {
+      invalidToken: { ok: invalidTokenOk, status: invalidResp.status, code: invalidResp.code },
+      anonymousAccess: { ok: anonymousOk, status: anonResp.status, code: anonResp.code },
+      passwordChange: { ok: pwChangeOk, cleanupOk: pwCleanupOk },
+    }
+  }, TARGET_ORIGIN, ADMIN_USER, ADMIN_PASS)
+}
+
 function check(name, passed, actual, expected) {
   return { name, passed, actual, expected }
 }
@@ -820,6 +939,10 @@ function collectChecks(result) {
     check('backup tab rendered', result.admin.backup.rendered && result.admin.backup.sourceSelect && result.admin.backup.importInput, result.admin.backup, 'backup controls'),
     check('bookmark context edit modal works', result.contextMenu.ok, result.contextMenu, 'right-click edit open/cancel'),
     check('logout clears auth', result.logout.logoutButtonFound && result.logout.authCleared, result.logout, 'auth cleared'),
+    check('invalid token returns 401/1002', result.security.invalidToken.ok, result.security.invalidToken, 'HTTP 401 or code 1002'),
+    check('anonymous access returns 401/1002', result.security.anonymousAccess.ok, result.security.anonymousAccess, 'HTTP 401 or code 1002'),
+    check('password change invalidates old session', result.security.passwordChange.ok, result.security.passwordChange, 'old token rejected after pw change'),
+    check('password restored after test', result.security.passwordChange.cleanupOk, result.security.passwordChange, 'original password restored'),
   ]
 }
 
@@ -893,6 +1016,7 @@ async function main() {
     const openAdmin = await openAdminFromHome()
     const admin = await runAdminChecks()
     const contextMenu = await runContextMenuChecks()
+    const security = await runSecurityChecks()
     const logout = await runLogoutCheck()
     await waitForNetworkIdle()
 
@@ -909,6 +1033,7 @@ async function main() {
       openAdmin,
       admin,
       contextMenu,
+      security,
       logout,
       network: summarizeNetwork(),
       consoleErrors: consoleMessages,
