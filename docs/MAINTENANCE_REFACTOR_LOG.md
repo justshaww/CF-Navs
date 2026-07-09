@@ -1,4 +1,4 @@
-# 维护性重构记录
+﻿# 维护性重构记录
 
 本文记录 2026-07 的多轮解耦调整、验证方式和后续维护建议。目标是降低大文件职责密度，让前端组件、worker 路由和纯逻辑 helper 更容易维护和扩展。
 
@@ -223,6 +223,18 @@
 
 ## 当前大文件分布
 
+### Round 22: App Auth Controller 提取与测试（2026‑07‑09）
+
+- 从 `src/App.svelte` 中抽出认证相关 UI 转换纯逻辑（登录/退出/改密后的目标视图与弹窗状态）：
+  - `src/lib/appAuthController.ts`（93 行）
+  - `tests/unit/appAuthController.test.ts`（105 行）
+- 提取的函数：`targetAfterLoginOpen`、`targetAfterLoginClose`、`targetAfterLoginSuccess`、`targetAfterLogout`、`targetAfterPasswordChange`、`applyAuthUIRegion`、`getAuthResetMask`。
+- `targetAfterLogout` 复用 `appNavigation.createHomeGateState`，不再重复 inline homeGate 推导。
+- 单元测试覆盖：公开/私有站点登录入口、登录弹窗关闭、登录成功跳转、退出后落点（公开/私有/unknown）、改密后弹窗、UI 状态应用与 reset mask 结构。
+- `unknown` publicMode 边界对齐 `appNavigation` 既有行为（视为 public assumption，不强制弹窗）。
+- 本轮 controller 与测试已完成，但 `App.svelte` 中的 `handleOpenLogin`/`handleCloseLogin`/`handleLogin`/`handleLogout`/`handleChangePassword` 尚未切换到 controller 调用；下一轮优先完成集成。
+- 测试文件数：34 → 40（新增本轮 1 套），测试数：160 → 234（新增前述各轮 74 tests + 本轮 7 tests）。
+
 截至本轮完成后，主要业务文件行数约为：
 
 ```text
@@ -246,9 +258,10 @@
 79    src/lib/adminListState.ts
 30    src/lib/appThemeState.ts
 28    src/lib/appLazyComponent.ts
+93    src/lib/appAuthController.ts
 ```
 
-`App.svelte` 仍是最大文件，但导入/导出 controller 和乐观排序编排已经下沉到 `appImportExport` 与 `appSortQueue`，当前主要承担登录、缓存、CRUD 后本地增量更新、弹窗协调和视图切换。后续如果继续拆分，应按 auth flow、CRUD/local mutation 或 modal controller 边界单独规划，不建议零散移动函数；当前主题状态推导已有 `appThemeState` 单元测试覆盖，动态组件懒加载缓存已有 `appLazyComponent` 单元测试覆盖。`Home.svelte` 已降到约 385 行，section key、active fallback、intersection 最近项和滚动目标计算已有 `homeData` 单元测试覆盖；继续拆分应避免在缺少浏览器验证时大改 observer 生命周期。`Admin.svelte` 已降到约 293 行，页眉和 tab 内容外壳已拆出；`adminListPanels.css` 已从约 538 行降到约 309 行，剩余内容以共享列表壳、分页、状态卡片和排序样式为主；后台列表搜索、分页、排序 id 推导已有 `adminListState` 单元测试覆盖。`BookmarkCard.svelte` 已降到约 290 行，`BookmarkEditModal.svelte` 已降到约 449 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
+`App.svelte` 仍是最大文件，但认证 UI 转换逻辑已下沉到 `appAuthController`（待集成），导入/导出 controller 和乐观排序编排已下沉到 `appImportExport` 与 `appSortQueue`，当前主要承担登录副作用、缓存、CRUD 后本地增量更新、弹窗协调和视图切换。后续如果继续拆分，应按 auth flow（副作用侧）、CRUD/local mutation 或 modal controller 边界单独规划，不建议零散移动函数；认证 UI 转换已有 `appAuthController` 单元测试覆盖，主题状态推导已有 `appThemeState` 单元测试覆盖，动态组件懒加载缓存已有 `appLazyComponent` 单元测试覆盖。`Home.svelte` 已降到约 385 行，section key、active fallback、intersection 最近项和滚动目标计算已有 `homeData` 单元测试覆盖；继续拆分应避免在缺少浏览器验证时大改 observer 生命周期。`Admin.svelte` 已降到约 293 行，页眉和 tab 内容外壳已拆出；`adminListPanels.css` 已从约 538 行降到约 309 行，剩余内容以共享列表壳、分页、状态卡片和排序样式为主；后台列表搜索、分页、排序 id 推导已有 `adminListState` 单元测试覆盖。`BookmarkCard.svelte` 已降到约 290 行，`BookmarkEditModal.svelte` 已降到约 449 行；二者后续更适合做运行时验证驱动的小步清理，而不是继续无边界拆分。
 
 ## 最近部署与生产验证
 
@@ -346,7 +359,7 @@ https://navs.bjlius.com
 3. `src/App.svelte`
    - 建议按 use-case 拆分：bootstrap/refresh、auth flow、CRUD/local mutations、modal handlers。
    - 已抽出弹窗草稿/查找 helper、确认框状态/文案 helper、备份导出 payload/文件名/成功文案 helper、导入/导出 controller、排序保存队列与乐观排序编排、首页访问判定、主题状态 helper 和动态组件懒加载 helper；dataService 本地增量更新编排也已收敛。
-   - 继续拆 App 前应单独规划 modal handler/controller 边界，不建议零散移动事件处理函数；短期更适合继续收敛 auth flow 或 CRUD/local mutation controller。
+   - 认证 UI 转换纯逻辑已下沉到 `appAuthController`，下一轮优先完成 `App.svelte` 集成。继续拆 App 前应单独规划 modal handler/controller 或 CRUD/local mutation 边界，不建议零散移动事件处理函数。
 
 4. `worker/lib/db.ts`
    - `db.ts` 已是重导出入口，category/bookmark/settings/import 等数据域已拆到 `worker/lib/db/*`。
