@@ -153,4 +153,9 @@
   :global([data-theme='dark']) .bookmark-card-info:hover {
     border-color: rgba(125, 211, 252, 0.26);
   }
+
+  :global([data-theme='dark']) .bookmark-card-info .bookmark-description {
+    color: var(--card-text-color, #cbd5e1);
+    opacity: 0.92;
+  }
 </style>

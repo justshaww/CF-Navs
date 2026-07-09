@@ -151,11 +151,13 @@
   let mediaQuery: MediaQueryList | null = null
   let handleSystemThemeChange: ((event: MediaQueryListEvent) => void) | null = null
 
-  $: activeTheme = resolveAppThemeState({
+  $: resolvedThemeState = resolveAppThemeState({
     preferredThemeMode,
     configuredThemeMode: publicData?.settings.theme,
     systemPrefersDark,
-  }).activeTheme
+  })
+  $: themeMode = resolvedThemeState.themeMode
+  $: activeTheme = resolvedThemeState.activeTheme
 
   $: homeBackgroundStyle = buildHomeBackground(publicData?.settings ?? null, activeTheme)
 
@@ -187,7 +189,7 @@
   }
 
   function handleToggleTheme(): void {
-    setPreferredThemeMode(getNextThemePreference(activeTheme))
+    setPreferredThemeMode(getNextThemePreference(themeMode))
   }
 
   function requestConfirmation(options: ConfirmDialogInput): Promise<boolean> {
@@ -696,6 +698,7 @@
           onLogout={handleLogout}
           onOpenLogin={handleOpenLogin}
           activeTheme={activeTheme}
+          activeThemeMode={themeMode}
           onToggleTheme={handleToggleTheme}
         />
       </div>

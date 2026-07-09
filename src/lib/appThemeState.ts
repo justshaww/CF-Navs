@@ -31,6 +31,8 @@ export function resolveAppThemeState({
   }
 }
 
-export function getNextThemePreference(activeTheme: ActiveTheme): ThemeMode {
-  return activeTheme === 'dark' ? 'light' : 'dark'
+export function getNextThemePreference(themeMode: ThemeMode): ThemeMode {
+  if (themeMode === 'light') return 'dark'
+  if (themeMode === 'dark') return 'auto'
+  return 'light'
 }

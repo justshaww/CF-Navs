@@ -43,8 +43,9 @@ describe('app theme state helpers', () => {
     })
   })
 
-  it('toggles to an explicit opposite preference', () => {
-    expect(getNextThemePreference('dark')).toBe('light')
+  it('cycles through explicit light, explicit dark, and system theme preferences', () => {
     expect(getNextThemePreference('light')).toBe('dark')
+    expect(getNextThemePreference('dark')).toBe('auto')
+    expect(getNextThemePreference('auto')).toBe('light')
   })
 })

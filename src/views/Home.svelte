@@ -6,7 +6,7 @@
   import HomeEmptyPanel from '../components/HomeEmptyPanel.svelte'
   import HomeFloatingActions from '../components/HomeFloatingActions.svelte'
   import HomeHeroSearch from '../components/HomeHeroSearch.svelte'
-  import type { PublicBookmark, PublicCategory, PublicSettings } from '../../shared/types'
+  import type { PublicBookmark, PublicCategory, PublicSettings, ThemeMode } from '../../shared/types'
   import {
     bookmarkMatchesSearch,
     clampTitleFontSize,
@@ -38,6 +38,7 @@
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
   export let activeTheme: 'light' | 'dark' = 'light'
+  export let activeThemeMode: ThemeMode = 'auto'
   export let onToggleTheme: (() => AsyncVoid) | undefined = undefined
 
   let categoryBookmarks = new Map<number, PublicBookmark[]>()
@@ -282,6 +283,7 @@
     {isAuthenticated}
     {authLoading}
     {activeTheme}
+    {activeThemeMode}
     {onToggleTheme}
     {onSwitchToAdmin}
     {onLogout}

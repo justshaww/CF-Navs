@@ -1,13 +1,25 @@
 <script lang="ts">
+  import type { ThemeMode } from '../../shared/types'
+
   type AsyncVoid<T = void> = T | Promise<T>
 
   export let isAuthenticated = false
   export let authLoading = false
   export let activeTheme: 'light' | 'dark' = 'light'
+  export let activeThemeMode: ThemeMode = 'auto'
   export let onToggleTheme: (() => AsyncVoid) | undefined = undefined
   export let onSwitchToAdmin: (() => AsyncVoid) | undefined = undefined
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
+
+  $: currentThemeLabel = activeThemeMode === 'auto'
+    ? `跟随系统，当前${activeTheme === 'dark' ? '暗色' : '浅色'}`
+    : activeThemeMode === 'dark' ? '暗色模式' : '浅色模式'
+  $: nextThemeLabel = activeThemeMode === 'light'
+    ? '暗色模式'
+    : activeThemeMode === 'dark' ? '跟随系统' : '浅色模式'
+  $: themeToggleLabel = `当前${currentThemeLabel}，点击切换到${nextThemeLabel}`
+  $: themeToggleIcon = activeThemeMode === 'auto' ? 'A' : activeTheme === 'dark' ? '☾' : '☀'
 
   function handleToggleTheme() {
     void onToggleTheme?.()
@@ -32,12 +44,12 @@
     class="icon-button theme-toggle-button"
     data-testid="home-theme-toggle"
     class:is-dark={activeTheme === 'dark'}
+    class:is-auto={activeThemeMode === 'auto'}
     on:click={handleToggleTheme}
-    title={activeTheme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
-    aria-label={activeTheme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
-    aria-pressed={activeTheme === 'dark'}
+    title={themeToggleLabel}
+    aria-label={themeToggleLabel}
   >
-    {activeTheme === 'dark' ? '☾' : '☀'}
+    {themeToggleIcon}
   </button>
   {#if isAuthenticated}
     <button
@@ -109,11 +121,26 @@
 
   .theme-toggle-button {
     color: #0f172a;
+    font-weight: 700;
   }
 
   .theme-toggle-button.is-dark {
     background: rgba(15, 23, 42, 0.82);
     color: #e5eefb;
+  }
+
+  .theme-toggle-button.is-auto {
+    background: rgba(14, 165, 233, 0.16);
+    border-color: rgba(14, 165, 233, 0.42);
+    color: #075985;
+    font-size: 0.95rem;
+    letter-spacing: 0;
+  }
+
+  :global([data-theme='dark']) .theme-toggle-button.is-auto {
+    background: rgba(14, 165, 233, 0.22);
+    border-color: rgba(125, 211, 252, 0.46);
+    color: #bae6fd;
   }
 
   .icon-button:disabled {
