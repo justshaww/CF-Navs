@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { get } from 'svelte/store'
-import { createToastStore, toastStore } from '../../src/lib/toast'
+import { createToastStore, TOAST_DURATIONS, type ToastType } from '../../src/lib/toast'
 
 describe('toast store', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
   it('starts with an empty list', () => {
     const store = createToastStore()
     expect(get(store)).toEqual([])
@@ -46,6 +55,27 @@ describe('toast store', () => {
     const store = createToastStore()
     store.addToast('only')
     store.dismissToast('nonexistent')
+    expect(get(store)).toHaveLength(1)
+  })
+
+  it.each(['success', 'info', 'error'] as ToastType[])('auto-dismisses %s toasts after the default duration', (type) => {
+    const store = createToastStore()
+    const duration = TOAST_DURATIONS[type]
+
+    store.addToast('message', type)
+    vi.advanceTimersByTime(duration - 1)
+    expect(get(store)).toHaveLength(1)
+
+    vi.advanceTimersByTime(1)
+    expect(get(store)).toEqual([])
+  })
+
+  it('keeps persistent toasts when duration is zero', () => {
+    const store = createToastStore()
+
+    store.addToast('persistent', 'success', { duration: 0 })
+    vi.advanceTimersByTime(TOAST_DURATIONS.success)
+
     expect(get(store)).toHaveLength(1)
   })
 })
