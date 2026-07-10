@@ -7,6 +7,8 @@
 ![Svelte](https://img.shields.io/badge/Svelte-4-ff3e00.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lbjxr/CF-Navs)
+
 [核心特性](#-核心特性) • [效果预览](#-效果预览) • [快速部署](#-快速部署) • [本地开发](#-本地开发) • [环境变量说明](#-环境变量说明) • [贡献](#-贡献) • [致谢](#-致谢)
 
 ---
@@ -179,32 +181,31 @@ npm run deploy
 
 部署成功后，访问 Wrangler 返回的 Workers URL。首次登录用户名 `admin`，密码为 `INIT_ADMIN_PASSWORD`。
 
-### 方式二：Cloudflare 控制台在线部署
+### 方式二：Cloudflare 一键部署
 
-适合不想在本地运行 CLI、直接从 GitHub Fork 在线部署的用户。
+适合不想在本地运行 CLI、希望直接从 GitHub 完成在线部署的用户。
 
-1. Fork 本仓库到你的 GitHub 账号。
-2. 进入 Cloudflare 控制台 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择你的 fork。
-3. 项目名建议使用 `cf-navs`，Deploy command 填写 `npm run build && npx wrangler deploy`。
-4. 保存并完成首次部署。（此时尚未绑定数据库，页面不可用是正常的）
-5. 在 Cloudflare 控制台创建 D1 数据库 `cf-navs-db`，打开 SQL Console，执行 [schema.sql](schema.sql)。
-6. 创建 KV 命名空间 `SESSION`。
-7. 在 Worker 的 **Settings → Bindings** 中添加绑定：
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lbjxr/CF-Navs)
+
+1. 点击上方按钮，登录 Cloudflare 并按提示复制仓库到你的 GitHub 账号。
+2. 保持部署命令为 `npm run deploy`。
+3. 在环境变量/Secrets 步骤中设置：
+
+```text
+INIT_ADMIN_PASSWORD = 你的管理员密码
+```
+
+4. Cloudflare 会根据 `wrangler.toml` 识别并创建/绑定 D1 与 KV，部署脚本会自动执行 [schema.sql](schema.sql) 初始化数据库。
+5. 部署成功后访问 Cloudflare 返回的 Workers URL。首次登录用户名 `admin`，密码为 `INIT_ADMIN_PASSWORD`。
+
+资源绑定名必须保持如下配置：
 
 | 类型 | 绑定名 | 选择 |
 |---|---|---|
 | D1 database | `DB` | `cf-navs-db` |
 | KV namespace | `SESSION` | 你的会话 KV 命名空间 |
 
-8. 在 Worker 的 **Settings → Variables & Secrets** 中添加 Secret：
-
-```text
-INIT_ADMIN_PASSWORD = 你的管理员密码
-```
-
-9. 重新部署或重试最近一次部署，然后访问 Workers URL。
-
-> ⚠️ 绑定名必须为 `DB` 和 `SESSION`。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`）。
+> ⚠️ 如果你选择手动导入仓库而不是使用一键按钮，请在 Cloudflare 控制台的 **Workers & Pages → Create application → Import a repository** 中导入仓库，部署命令同样填写 `npm run deploy`，并确保绑定名为 `DB` 和 `SESSION`。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`）。
 
 ---
 
@@ -276,7 +277,13 @@ npx wrangler tail       # 查看 Worker 日志
 
 ## ⭐ Star 趋势
 
-[![GitHub stars](https://img.shields.io/github/stars/lbjxr/CF-Navs?style=social)](https://github.com/lbjxr/CF-Navs)
+<a href="https://www.star-history.com/#lbjxr/CF-Navs&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=default" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=default" />
+ </picture>
+</a>
 
 [查看 Star History](https://www.star-history.com/#lbjxr/CF-Navs&Date)
 

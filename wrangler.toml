@@ -17,3 +17,12 @@ INIT_ADMIN_USER = "admin"
 #   wrangler secret put INIT_ADMIN_PASSWORD
 # Token 有效期（秒），默认 7 天
 SESSION_TTL = "604800"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cf-navs-db"
+database_id = "replace-with-your-d1-database-id"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "replace-with-your-kv-namespace-id"

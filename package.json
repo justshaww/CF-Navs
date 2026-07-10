@@ -13,9 +13,28 @@
     "setup:wrangler": "node scripts/create-wrangler-local.mjs",
     "wrangler": "node scripts/wrangler-config.mjs",
     "dev": "node scripts/wrangler-config.mjs dev",
-    "deploy": "npm run build && node scripts/wrangler-config.mjs deploy",
-    "db:init": "node scripts/wrangler-config.mjs d1 execute cf-navs-db --local --file=./schema.sql",
-    "db:init:remote": "node scripts/wrangler-config.mjs d1 execute cf-navs-db --remote --file=./schema.sql"
+    "deploy": "npm run build && npm run db:init:remote && node scripts/wrangler-config.mjs deploy",
+    "db:init": "node scripts/wrangler-config.mjs d1 execute DB --local --file=./schema.sql",
+    "db:init:remote": "node scripts/wrangler-config.mjs d1 execute DB --remote --file=./schema.sql"
+  },
+  "cloudflare": {
+    "label": "CF-Navs",
+    "products": [
+      "Workers",
+      "D1",
+      "KV"
+    ],
+    "bindings": {
+      "DB": {
+        "description": "D1 database for categories, bookmarks, settings, and admin bootstrap data."
+      },
+      "SESSION": {
+        "description": "KV namespace for HttpOnly admin session tokens."
+      },
+      "INIT_ADMIN_PASSWORD": {
+        "description": "Initial admin password used only during first bootstrap. Change it after login."
+      }
+    }
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
