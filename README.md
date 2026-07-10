@@ -7,64 +7,141 @@
 ![Svelte](https://img.shields.io/badge/Svelte-4-ff3e00.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)
 
-[特性](#-核心特性) • [快速部署](#-快速部署) • [本地开发](#-本地开发) • [环境变量说明](#-环境变量说明) • [贡献](#-贡献) • [致谢](#-致谢)
-
----
-
-## 🖼️ 效果预览
-
-**桌面端 · 亮色 & 暗色**
-
-![桌面端亮色](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-light.jpg)
-![桌面端暗色](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-dark.jpg)
-
-**分类视图 & 小卡片样式**
-
-![分类视图](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-tag.jpg)
-![小卡片样式](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-bookmark-small.jpg)
-
-**移动端 · 亮色 & 暗色**
-
-![移动端亮色](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-light-mobile.jpg)
-![移动端暗色](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-dark-mobile.jpg)
-
-**书签编辑 & 加载性能**
-
-![书签编辑弹窗](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-bookmarkedit.jpg)
-![加载性能](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-loadtime.jpg)
-
-**后台管理 · 分类 & 书签**
-
-![后台分类管理](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-tag.jpg)
-![后台书签管理](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-bookmark.jpg)
-
-**后台 · 设置 & 备份**
-
-![后台设置](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-setting.jpg)
-![后台备份](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-backup.jpg)
-
-**首次加载过渡动画**
-
-![加载动画](https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-loading.jpg)
-
-> 💡 支持亮色/暗色/跟随系统三种主题模式，桌面端和移动端自适应。
+[核心特性](#-核心特性) • [效果预览](#-效果预览) • [快速部署](#-快速部署) • [本地开发](#-本地开发) • [环境变量说明](#-环境变量说明) • [贡献](#-贡献) • [致谢](#-致谢)
 
 ---
 
 ## ✨ 核心特性
 
-| 特性 | 说明 |
-|---|---|
-| ☁️ **轻量部署** | 全栈运行在 Cloudflare Workers + D1 + KV，无需自建服务器 |
-| 🧭 **清爽首页** | 分类分区、响应式布局、玻璃质感分类快速选择栏；详情/极简两种卡片样式 |
-| 🛠️ **顺手管理** | 分类和书签支持新增、编辑、删除、搜索、分页和拖拽排序 |
-| 🎨 **图标省心** | 支持 favicon、文字图标、Iconify、自定义图片 URL、文字或表情；首页优先使用聚合数据和浏览器本地缓存展示图标 |
-| 🌓 **主题完整** | 亮色、暗色、跟随系统；内置渐变方案保存选中状态，背景、遮罩、卡片尺寸和图标大小都可配置 |
-| 🔎 **搜索实用** | 首页输入直接筛选本地书签（匹配标题、描述、URL 和分类），也可切换外部搜索引擎 |
-| 💾 **数据可控** | 支持 JSON 导出、导入、恢复；兼容 Sun-Panel 数据迁移 |
-| 🔐 **安全可靠** | 密码 PBKDF2 哈希存储、HttpOnly Session Cookie、CSRF 防护；登录失败限流、默认 7 天会话有效期 |
-| 📱 **PWA 支持** | 生产构建提供基础 PWA app shell，Service Worker 离线回退 |
-| ⚡ **性能优化** | 边缘缓存、图标懒加载、代码分割、聚合数据批量读取、浏览器本地快照增量更新 |
+<table>
+  <colgroup>
+    <col width="190">
+    <col>
+  </colgroup>
+  <thead>
+    <tr>
+      <th align="left">特性</th>
+      <th align="left">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td width="190">☁️ <strong>轻量部署</strong></td>
+      <td>全栈运行在 Cloudflare Workers + D1 + KV，无需自建服务器</td>
+    </tr>
+    <tr>
+      <td width="190">🧭 <strong>清爽首页</strong></td>
+      <td>分类分区、响应式布局、玻璃质感分类快速选择栏；详情/极简两种卡片样式</td>
+    </tr>
+    <tr>
+      <td width="190">🛠️ <strong>顺手管理</strong></td>
+      <td>分类和书签支持新增、编辑、删除、搜索、分页和拖拽排序</td>
+    </tr>
+    <tr>
+      <td width="190">🎨 <strong>图标省心</strong></td>
+      <td>支持 favicon、文字图标、Iconify、自定义图片 URL、文字或表情；首页优先使用聚合数据和浏览器本地缓存展示图标</td>
+    </tr>
+    <tr>
+      <td width="190">🌓 <strong>主题完整</strong></td>
+      <td>亮色、暗色、跟随系统；内置渐变方案保存选中状态，背景、遮罩、卡片尺寸和图标大小都可配置</td>
+    </tr>
+    <tr>
+      <td width="190">🔎 <strong>搜索实用</strong></td>
+      <td>首页输入直接筛选本地书签（匹配标题、描述、URL 和分类），也可切换外部搜索引擎</td>
+    </tr>
+    <tr>
+      <td width="190">💾 <strong>数据可控</strong></td>
+      <td>支持 JSON 导出、导入、恢复；兼容 Sun-Panel 数据迁移</td>
+    </tr>
+    <tr>
+      <td width="190">🔐 <strong>安全可靠</strong></td>
+      <td>密码 PBKDF2 哈希存储、HttpOnly Session Cookie、CSRF 防护；登录失败限流、默认 7 天会话有效期</td>
+    </tr>
+    <tr>
+      <td width="190">📱 <strong>PWA 支持</strong></td>
+      <td>生产构建提供基础 PWA app shell，Service Worker 离线回退</td>
+    </tr>
+    <tr>
+      <td width="190">⚡ <strong>极致加载</strong></td>
+      <td>边缘缓存、图标懒加载、代码分割、聚合数据批量读取、浏览器本地快照增量更新，畅享本地化的速度感</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 🖼️ 效果预览
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>桌面端亮色</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-light.jpg" alt="桌面端亮色" width="420">
+    </td>
+    <td align="center" width="50%">
+      <strong>桌面端暗色</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-dark.jpg" alt="桌面端暗色" width="420">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>分类视图</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-tag.jpg" alt="分类视图" width="420">
+    </td>
+    <td align="center" width="50%">
+      <strong>小卡片样式</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-bookmark-small.jpg" alt="小卡片样式" width="420">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>移动端亮色</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-light-mobile.jpg" alt="移动端亮色" width="260">
+    </td>
+    <td align="center" width="50%">
+      <strong>移动端暗色</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-dark-mobile.jpg" alt="移动端暗色" width="260">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>浏览器网络耗时</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-loadtime.jpg" alt="浏览器网络耗时" width="420">
+    </td>
+    <td align="center" width="50%">
+      <strong>首次加载过渡动画</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-loading.jpg" alt="首次加载过渡动画" width="420">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>书签编辑弹窗</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-bookmarkedit.jpg" alt="书签编辑弹窗" width="420">
+    </td>
+    <td align="center" width="50%">
+      <strong>后台分类管理</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-tag.jpg" alt="后台分类管理" width="420">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>后台书签管理</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-bookmark.jpg" alt="后台书签管理" width="420">
+    </td>
+    <td align="center" width="50%">
+      <strong>后台设置</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-setting.jpg" alt="后台设置" width="420">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>后台备份</strong><br>
+      <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-navs-admin-backup.jpg" alt="后台备份" width="420">
+    </td>
+  </tr>
+</table>
+
+> 💡 支持亮色/暗色/跟随系统三种主题模式，桌面端和移动端自适应。
 
 ---
 
@@ -199,13 +276,9 @@ npx wrangler tail       # 查看 Worker 日志
 
 ## ⭐ Star 趋势
 
-<a href="https://star-history.com/#lbjxr/CF-Navs&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=default" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=lbjxr/CF-Navs&type=Date&theme=default" />
- </picture>
-</a>
+[![GitHub stars](https://img.shields.io/github/stars/lbjxr/CF-Navs?style=social)](https://github.com/lbjxr/CF-Navs)
+
+[查看 Star History](https://www.star-history.com/#lbjxr/CF-Navs&Date)
 
 ---
 
