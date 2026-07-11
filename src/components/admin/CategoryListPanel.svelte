@@ -120,7 +120,22 @@
 
     <div class="admin-panel-scroll-body">
       {#if categoriesLoading}
-        <div class="admin-empty-state">`n        <span class="admin-empty-state-icon">📁</span>`n        <h3>正在加载分类…</h3>`n      </div>`n    {:else if categories.length === 0}`n      <div class="admin-empty-state">`n        <span class="admin-empty-state-icon">📁</span>`n        <h3>暂无分类</h3>`n        <p>点击右上角「新增分类」创建第一个分类，然后就可以往里添加书签了。</p>`n        <div class="admin-empty-action">`n          <button type="button" class="admin-primary-button" on:click={() => onOpenCreateCategory?.()} disabled={!isAuthenticated}>`n            新增分类`n          </button>`n        </div>`n      </div>`n    {:else}
+        <div class="admin-empty-state">
+          <span class="admin-empty-state-icon">📁</span>
+          <h3>正在加载分类…</h3>
+        </div>
+      {:else if categories.length === 0}
+        <div class="admin-empty-state">
+          <span class="admin-empty-state-icon">📁</span>
+          <h3>暂无分类</h3>
+          <p>点击右上角「新增分类」创建第一个分类，然后就可以往里添加书签了。</p>
+          <div class="admin-empty-action">
+            <button type="button" class="admin-primary-button" on:click={() => onOpenCreateCategory?.()} disabled={!isAuthenticated}>
+              新增分类
+            </button>
+          </div>
+        </div>
+      {:else}
         <div
           class="admin-list-stack"
           class:is-sorting={sortMode}

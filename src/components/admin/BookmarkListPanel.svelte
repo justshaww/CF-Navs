@@ -126,9 +126,25 @@
 
     <div class="admin-panel-scroll-body admin-table-scroll-body">
       {#if bookmarksLoading}
-        <div class="admin-empty-state">`n        <span class="admin-empty-state-icon">📑</span>`n        <h3>正在加载书签…</h3>`n      </div>
+        <div class="admin-empty-state">
+          <span class="admin-empty-state-icon">📑</span>
+          <h3>正在加载书签…</h3>
+        </div>
       {:else if bookmarks.length === 0}
-        <div class="admin-empty-state">`n        <span class="admin-empty-state-icon">📑</span>`n        <h3>暂无书签</h3>`n        {#if categories.length === 0}`n          <p>请先在分类面板中创建至少一个分类，再添加书签。</p>`n        {:else}`n          <p>点击右上角「新增书签」开始添加第一个书签。</p>`n          <div class="admin-empty-action">`n            <button type="button" class="admin-primary-button" on:click={() => onOpenCreateBookmark?.()} disabled={!isAuthenticated}>`n              新增书签`n            </button>`n          </div>`n        {/if}`n      </div>
+        <div class="admin-empty-state">
+          <span class="admin-empty-state-icon">📑</span>
+          <h3>暂无书签</h3>
+          {#if categories.length === 0}
+            <p>请先在分类面板中创建至少一个分类，再添加书签。</p>
+          {:else}
+            <p>点击右上角「新增书签」开始添加第一个书签。</p>
+            <div class="admin-empty-action">
+              <button type="button" class="admin-primary-button" on:click={() => onOpenCreateBookmark?.()} disabled={!isAuthenticated}>
+                新增书签
+              </button>
+            </div>
+          {/if}
+        </div>
       {:else}
         <div class="admin-table-wrap">
           <table class="admin-bookmark-table" class:is-sorting={sortMode}>
@@ -226,7 +242,11 @@
             </tbody>
           </table>
           {#if !sortMode && filteredBookmarks.length === 0}
-            <div class="admin-empty-state" style="min-height: 120px;">`n          <span class="admin-empty-state-icon">🔍</span>`n          <h3>未找到匹配的书签</h3>`n          <p>换个关键词试试，或检查分类、链接是否匹配。</p>`n        </div>
+            <div class="admin-empty-state" style="min-height: 120px;">
+              <span class="admin-empty-state-icon">🔍</span>
+              <h3>未找到匹配的书签</h3>
+              <p>换个关键词试试，或检查分类、链接是否匹配。</p>
+            </div>
           {/if}
         </div>
       {/if}
