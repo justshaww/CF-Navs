@@ -207,3 +207,16 @@ Fix:
 - App startup schedules an idle-time prune that removes Cache Storage icon entries already backed by valid `localStorage` data URIs.
 - The change is local-browser storage maintenance only; it does not alter Cloudflare request paths, data update writes, or version freshness checks.
 - Retest after deployment showed all audit checks still passed with no request increase: zero failed requests, 337 home bookmark cards, zero broken images, zero pre-settle rapid-search DOM mutations, `/api/admin/data` transfer at 38,629 bytes, 228 bookmark icon requests, and Cache Storage bytes at 2,182,910. Existing cache did not drop immediately, which indicates the current entries are mostly not duplicate localStorage-backed data URIs, but future duplicate writes are avoided.
+
+## 2026-07-11 Weak-Network Snapshot Recovery
+
+Test path: isolated headless Chrome profile, local production build, real production admin aggregate payload, one online load to establish a snapshot, followed by a reload with `/api/data/version` deliberately failed as offline.
+
+Observed and verified:
+
+- The online load rendered 348 bookmark cards across 11 categories and persisted exactly one authenticated aggregate snapshot.
+- The offline reload restored all 348 cards and removed the startup splash in about 100 ms, without waiting for the failed version request.
+- A non-blocking toast then explained that cached content was being shown and advised refreshing or checking the network.
+- The aggregate snapshot occupied about 159 KB in localStorage, below the new 1.5 MB per-snapshot ceiling.
+- No page exceptions were recorded. The deliberate version failure was the expected weak-network signal.
+- Local preview returned 500 for Worker-only `/api/icon/*` routes; these icon-proxy limitations were isolated from the aggregate-data recovery assertions.
