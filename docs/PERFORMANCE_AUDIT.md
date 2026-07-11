@@ -256,3 +256,10 @@ The public runtime-error endpoint was bounded to prevent abusive Worker and logg
 - Persisted icons continue to use local/D1-backed sources; only uncached HTTP icons now fall back to their original URL instead of entering `/api/icon/:id`.
 - On the same full-scroll audit, bookmark proxy requests fell from 160 to 141 (about 11.9%), while total requests fell from 253 to 232.
 - Broken images, failed requests, Iconify request count, aggregate transfer size, and Cache Storage remained within the previous contract.
+
+## 2026-07-11 Final Audit Reliability Pass
+
+- Browser regression now treats a theme-mode label change as a valid toggle even when the resolved light/dark theme remains the same.
+- Performance audit uses stable test IDs and semantic labels for admin navigation and bookmark search.
+- Final browser regression passed every check with zero unexpected failed requests, console errors, or page exceptions.
+- Final performance audit passed 9/9 checks: 350 cards, zero broken images, admin search 5 rows, `/api/admin/data` 39,627 bytes, 142 bookmark proxy requests, and 273,252 Cache Storage bytes.
