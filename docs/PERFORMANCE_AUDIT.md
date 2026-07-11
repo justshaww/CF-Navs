@@ -220,3 +220,14 @@ Observed and verified:
 - The aggregate snapshot occupied about 159 KB in localStorage, below the new 1.5 MB per-snapshot ceiling.
 - No page exceptions were recorded. The deliberate version failure was the expected weak-network signal.
 - Local preview returned 500 for Worker-only `/api/icon/*` routes; these icon-proxy limitations were isolated from the aggregate-data recovery assertions.
+
+### Production confirmation
+
+After `npm run deploy`, the same recovery path was verified against `https://navs.bjlius.com` on Worker version `d0743c00-a881-4c58-9421-0f782fddf0a4` using a separate headless Chrome profile.
+
+- The online production load rendered 348 cards and stored exactly one authenticated snapshot at about 159 KB.
+- With `/api/data/version` deliberately failed as `ERR_INTERNET_DISCONNECTED`, reload restored all 348 cards and removed the splash in about 398 ms.
+- The cached-content/network-check toast appeared as expected.
+- Page exceptions and unexpected HTTP 4xx/5xx responses were zero.
+- The one console error and one failed request were both the deliberately disconnected version request.
+- The wider production regression passed 24 of 25 checks. The only failure was the pre-existing theme-toggle state assertion; all loading, data, admin, search, icon, context-menu, authentication, security, and error checks passed.
