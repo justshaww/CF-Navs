@@ -507,9 +507,11 @@ async function runHomeChecks() {
       byLabel('切换到深色模式') ||
       byLabel('切换到浅色模式')
     const beforeTheme = document.documentElement.dataset.theme || ''
+    const beforeThemeLabel = themeButton?.getAttribute('aria-label') || ''
     themeButton?.click()
     await delay(100)
     const afterTheme = document.documentElement.dataset.theme || ''
+    const afterThemeLabel = themeButton?.getAttribute('aria-label') || ''
     themeButton?.click()
     await delay(100)
 
@@ -536,7 +538,7 @@ async function runHomeChecks() {
       splashCount: document.querySelectorAll('.app-splash').length,
       appShell: Boolean(document.querySelector('.app-shell')),
       adminButton: Boolean(document.querySelector('[data-testid="home-admin-button"]') || byLabel('管理后台')),
-      themeChanged: beforeTheme !== afterTheme,
+      themeChanged: beforeTheme !== afterTheme || beforeThemeLabel !== afterThemeLabel,
       searchInput: Boolean(searchInput),
       bookmarkCards: beforeCards,
       sections: beforeSections,

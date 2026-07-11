@@ -338,9 +338,9 @@ async function runAdminSearch() {
   return evaluate(
     `(${async function searchAdmin() {
       const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-      const buttons = Array.from(document.querySelectorAll('button'))
-      const iconButtons = buttons.filter((button) => String(button.className).includes('icon-button'))
-      const adminButton = iconButtons[1]
+      const adminButton =
+        document.querySelector('[data-testid="home-admin-button"]') ||
+        document.querySelector('[aria-label="管理后台"], [title="管理后台"]')
       if (!adminButton) return { error: 'admin button not found' }
 
       adminButton.click()
@@ -352,8 +352,10 @@ async function runAdminSearch() {
         return { error: 'admin page did not open' }
       }
 
-      const tabs = Array.from(document.querySelectorAll('.admin-sidebar button'))
-      tabs[1]?.click()
+      const bookmarkTab =
+        document.querySelector('[data-testid="admin-tab-bookmarks"]') ||
+        Array.from(document.querySelectorAll('.admin-sidebar button')).find((button) => button.textContent?.includes('书签管理'))
+      bookmarkTab?.click()
       await delay(300)
 
       const input = document.querySelector('.bookmark-search-bar input')
