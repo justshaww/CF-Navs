@@ -1,47 +1,43 @@
 import type { Env } from '../types'
 
-const PREFIX = 'rl:error-report:'
 const MAX_REQUESTS = 12
-const WINDOW_SECONDS = 60
-const MEMORY_MAX_ENTRIES = 512
-type RateState = { count: number; resetAt: number }
-const memoryStates = new Map<string, RateState>()
+const WINDOW_MS = 60_000
+const BLOCKED_MEMORY_MAX = 512
+const blockedUntil = new Map<string, number>()
 
-function pruneMemory(now: number): void {
-  for (const [key, state] of memoryStates) {
-    if (state.resetAt <= now) memoryStates.delete(key)
+function pruneBlocked(now: number): void {
+  for (const [ip, expiresAt] of blockedUntil) {
+    if (expiresAt <= now) blockedUntil.delete(ip)
   }
-  while (memoryStates.size > MEMORY_MAX_ENTRIES) {
-    const oldest = memoryStates.keys().next().value as string | undefined
+  while (blockedUntil.size > BLOCKED_MEMORY_MAX) {
+    const oldest = blockedUntil.keys().next().value as string | undefined
     if (!oldest) break
-    memoryStates.delete(oldest)
+    blockedUntil.delete(oldest)
   }
 }
 
 export function clearErrorReportRateLimitMemory(): void {
-  memoryStates.clear()
+  blockedUntil.clear()
 }
 
 export async function consumeErrorReportQuota(env: Env, ip: string, now = Date.now()): Promise<boolean> {
-  const storageKey = `${PREFIX}${encodeURIComponent(ip || 'unknown')}`
-  pruneMemory(now)
-  const memoryState = memoryStates.get(storageKey)
-  if (memoryState && memoryState.resetAt > now && memoryState.count >= MAX_REQUESTS) return false
+  const clientKey = ip || 'unknown'
+  pruneBlocked(now)
+  if ((blockedUntil.get(clientKey) ?? 0) > now) return false
 
-  const raw = await env.SESSION.get(storageKey)
-  let state: RateState | null = null
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as Partial<RateState>
-      if (typeof parsed.count === 'number' && typeof parsed.resetAt === 'number') state = { count: parsed.count, resetAt: parsed.resetAt }
-    } catch { state = null }
+  const resetAt = now + WINDOW_MS
+  const row = await env.DB.prepare(`
+    INSERT INTO error_report_rate_limits (client_key, count, reset_at)
+    VALUES (?, 1, ?)
+    ON CONFLICT(client_key) DO UPDATE SET
+      count = CASE WHEN reset_at <= ? THEN 1 ELSE count + 1 END,
+      reset_at = CASE WHEN reset_at <= ? THEN excluded.reset_at ELSE reset_at END
+    RETURNING count, reset_at
+  `).bind(clientKey, resetAt, now, now).first<{ count: number; reset_at: number }>()
+
+  if (!row || row.count > MAX_REQUESTS) {
+    blockedUntil.set(clientKey, row?.reset_at ?? resetAt)
+    return false
   }
-  const current = memoryState && memoryState.resetAt > now
-    ? memoryState
-    : state && state.resetAt > now ? state : null
-  if (current && current.count >= MAX_REQUESTS) return false
-  const next = current ? { count: current.count + 1, resetAt: current.resetAt } : { count: 1, resetAt: now + WINDOW_SECONDS * 1000 }
-  memoryStates.set(storageKey, next)
-  await env.SESSION.put(storageKey, JSON.stringify(next), { expirationTtl: Math.max(1, Math.ceil((next.resetAt - now) / 1000)) })
   return true
 }
