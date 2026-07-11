@@ -242,3 +242,10 @@ The public runtime-error endpoint was bounded to prevent abusive Worker and logg
 - Production probes returned HTTP 400 for invalid JSON, 413 for a 17 KB payload, 200 for the first twelve valid requests, and 429 for the thirteenth.
 - A KV-only counter and an isolate-memory counter were both rejected after production probes demonstrated their consistency/scope limitations.
 - Fresh-profile production regression completed with zero failed requests, console errors, or page exceptions after the deployment asset propagation window. The existing theme-toggle assertion remained the only unrelated failed check.
+
+## 2026-07-11 Shared Snapshot Storage
+
+- Public and authenticated snapshot persistence now share a business-agnostic storage helper while keeping existing keys and payloads compatible.
+- The refactor removed 138 net lines and reduced the main bundle from about 138.22 KB to 137.26 KB without changing startup requests.
+- Fresh-profile production regression rendered 350 cards with zero failed requests, broken images, console errors, or page exceptions.
+- A fully offline production reload restored all 350 cards from one approximately 161 KB authenticated snapshot in about 613 ms, removed the splash, and displayed the expected network hint.
