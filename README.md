@@ -291,9 +291,9 @@ npx wrangler tail       # 查看 Worker 日志
 
 <a href="https://www.star-history.com/?repos=lbjxr%2FCF-Navs&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left&sealed_token=3u1elg0WVeO4tkl5Irrnzjn7pUjbwO1BdV2rkTbMSArMuuoDc42CKMZP6alsRqSJ63HhjrtWUQFDSK7D-EVxb5kLAvdPi4U7cRe6vC0r5AvE3_nVBilsEA" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=3u1elg0WVeO4tkl5Irrnzjn7pUjbwO1BdV2rkTbMSArMuuoDc42CKMZP6alsRqSJ63HhjrtWUQFDSK7D-EVxb5kLAvdPi4U7cRe6vC0r5AvE3_nVBilsEA" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=3u1elg0WVeO4tkl5Irrnzjn7pUjbwO1BdV2rkTbMSArMuuoDc42CKMZP6alsRqSJ63HhjrtWUQFDSK7D-EVxb5kLAvdPi4U7cRe6vC0r5AvE3_nVBilsEA" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left&sealed_token=6mAWQI_bgIV9cyQ6JnxYF5QmVg9ZvNizZ40Hi6lX-kvUxq2-OjtELOgZHg6U9ABe2zp-9QHGCZ1XYs5rTrc4DhijU85vm1Tfd2D2GwW8Z6jPOEM6gpR6U-Aitym0wWsgqZdb6Wg9HfZJi4ozLiFsAooRvksaD45Nc279bc9bMythzHjrBUzGmDLPl7uR" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=6mAWQI_bgIV9cyQ6JnxYF5QmVg9ZvNizZ40Hi6lX-kvUxq2-OjtELOgZHg6U9ABe2zp-9QHGCZ1XYs5rTrc4DhijU85vm1Tfd2D2GwW8Z6jPOEM6gpR6U-Aitym0wWsgqZdb6Wg9HfZJi4ozLiFsAooRvksaD45Nc279bc9bMythzHjrBUzGmDLPl7uR" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=6mAWQI_bgIV9cyQ6JnxYF5QmVg9ZvNizZ40Hi6lX-kvUxq2-OjtELOgZHg6U9ABe2zp-9QHGCZ1XYs5rTrc4DhijU85vm1Tfd2D2GwW8Z6jPOEM6gpR6U-Aitym0wWsgqZdb6Wg9HfZJi4ozLiFsAooRvksaD45Nc279bc9bMythzHjrBUzGmDLPl7uR" />
  </picture>
 </a>
 
