@@ -7,7 +7,7 @@
 ![Svelte](https://img.shields.io/badge/Svelte-4-ff3e00.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lbjxr/CF-Navs)
+[![Fork on GitHub](https://img.shields.io/badge/Fork%20on%20GitHub-181717?logo=github&logoColor=white)](https://github.com/lbjxr/CF-Navs/fork)
 
 [核心特性](#-核心特性) • [效果预览](#-效果预览) • [快速部署](#-快速部署) • [项目文档](docs/README.md) • [本地开发](#-本地开发) • [环境变量说明](#-环境变量说明) • [贡献](#-贡献) • [致谢](#-致谢)
 
@@ -181,22 +181,23 @@ npm run deploy
 
 部署成功后，访问 Wrangler 返回的 Workers URL。首次登录用户名 `admin`，密码为 `INIT_ADMIN_PASSWORD`。
 
-### 方式二：Cloudflare 一键部署（推荐）
+### 方式二：Fork 后通过 Cloudflare 部署（推荐）
 
-适合不想在本地运行 CLI、希望直接从 GitHub 完成在线部署的用户。
+适合不想在本地运行 CLI、希望从自己的 GitHub 仓库完成在线部署的用户。
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lbjxr/CF-Navs)
+[![Fork on GitHub](https://img.shields.io/badge/Fork%20on%20GitHub-181717?logo=github&logoColor=white)](https://github.com/lbjxr/CF-Navs/fork)
 
-1. 点击上方按钮，登录 Cloudflare 并按提示复制仓库到你的 GitHub 账号。
-2. 保持部署命令为 `npm run deploy`。
-3. 在环境变量/Secrets 步骤中设置：
+1. 点击上方按钮，在 GitHub 中 Fork 本项目。请确认 Fork 后的仓库归属于你的 GitHub 账号。
+2. 进入 Cloudflare 控制台的 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择你 Fork 后的 `CF-Navs` 仓库。不要选择上游仓库，也不要使用会自动创建新 GitHub 项目的 Cloudflare Deploy Button。
+3. 保持生产分支为 `main`，部署命令填写 `npm run deploy`。
+4. 在环境变量/Secrets 步骤中设置：
 
 ```text
 INIT_ADMIN_PASSWORD = 你的管理员密码
 ```
 
-4. Cloudflare 会根据 `wrangler.toml` 识别并创建/绑定 D1 与 KV，部署脚本会自动执行 [schema.sql](schema.sql) 初始化数据库。
-5. 部署成功后访问 Cloudflare 返回的 Workers URL。首次登录用户名 `admin`，密码为在环境变量/Secrets 步骤中设置的 `INIT_ADMIN_PASSWORD` 的值（如果忘记，可以去 Worker 项目的设置中修改）。
+5. Cloudflare 会根据 `wrangler.toml` 识别并创建/绑定 D1 与 KV，部署脚本会自动执行 [schema.sql](schema.sql) 初始化数据库。
+6. 部署成功后访问 Cloudflare 返回的 Workers URL。首次登录用户名 `admin`，密码为在环境变量/Secrets 步骤中设置的 `INIT_ADMIN_PASSWORD` 的值（如果忘记，可以去 Worker 项目的设置中修改）。
 
 资源绑定名必须保持如下配置：
 
@@ -205,7 +206,7 @@ INIT_ADMIN_PASSWORD = 你的管理员密码
 | D1 database | `DB` | `cf-navs-db` |
 | KV namespace | `SESSION` | 你的会话 KV 命名空间 |
 
-> ⚠️ 如果你选择手动导入仓库而不是使用一键按钮，请在 Cloudflare 控制台的 **Workers & Pages → Create application → Import a repository** 中导入仓库，部署命令同样填写 `npm run deploy`，并确保绑定名为 `DB` 和 `SESSION`。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`）。
+> ⚠️ 这个部署方式必须使用你 Fork 后的仓库。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`），并确保绑定名为 `DB` 和 `SESSION`。
 
 ---
 
