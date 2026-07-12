@@ -10,4 +10,12 @@ describe('admin settings layout', () => {
     expect(settingsRule).toContain('margin: 0 0 24px')
     expect(settingsRule).not.toContain('margin: 0 auto')
   })
+
+  it('associates the public mode label with its checkbox', () => {
+    const source = readFileSync('src/components/settings/BasicSettingsSection.svelte', 'utf8')
+
+    expect(source).toContain('<label class="toggle-copy" for="settings-public-mode">')
+    expect(source).toContain('id="settings-public-mode"')
+    expect(source).toContain('on:change={() => void syncForm()}')
+  })
 })

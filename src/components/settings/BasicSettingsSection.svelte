@@ -14,7 +14,7 @@
   }
 </script>
 
-<fieldset class="group group-wide group-base" disabled={saving} on:input={() => void syncForm()} on:change={() => void syncForm()}>
+<fieldset class="group group-wide group-base" disabled={saving}>
   <legend>基础</legend>
   <div class="form-grid base-grid">
     <label class="field field-title">
@@ -25,6 +25,7 @@
         placeholder="例如：CF-Navs 导航站"
         maxlength="80"
         required
+        on:input={() => void syncForm()}
       />
       <small>将显示在页面标题与管理界面中。</small>
     </label>
@@ -44,13 +45,20 @@
 
     <label class="field field-range">
       <span>标题文字大小 <em>{form.site_title_font_size}px</em></span>
-      <input bind:value={form.site_title_font_size} type="range" min="16" max="72" step="1" />
+      <input
+        bind:value={form.site_title_font_size}
+        type="range"
+        min="16"
+        max="72"
+        step="1"
+        on:input={() => void syncForm()}
+      />
       <small>控制首页标题字号，建议 28-44px。</small>
     </label>
 
     <label class="field field-select">
       <span>主题模式</span>
-      <select bind:value={form.theme}>
+      <select bind:value={form.theme} on:change={() => void syncForm()}>
         {#each themeOptions as option}
           <option value={option.value}>{option.label}</option>
         {/each}
@@ -60,17 +68,27 @@
 
     <label class="field field-url">
       <span>图床地址</span>
-      <input bind:value={form.image_host_url} type="url" placeholder="https://img.example.com" />
+      <input
+        bind:value={form.image_host_url}
+        type="url"
+        placeholder="https://img.example.com"
+        on:input={() => void syncForm()}
+      />
       <small>可留空。用于背景/图标的“打开图床上传”跳转。</small>
     </label>
 
-    <label class="toggle-field field-toggle">
-      <div class="toggle-copy">
+    <div class="toggle-field field-toggle">
+      <label class="toggle-copy" for="settings-public-mode">
         <span>公开模式</span>
         <p>开启后，未登录用户也可以访问首页内容。</p>
-      </div>
-      <input bind:checked={form.public_mode} type="checkbox" />
-    </label>
+      </label>
+      <input
+        id="settings-public-mode"
+        bind:checked={form.public_mode}
+        on:change={() => void syncForm()}
+        type="checkbox"
+      />
+    </div>
   </div>
 </fieldset>
 
@@ -204,6 +222,7 @@
       border-color 0.18s ease,
       background 0.18s ease,
       transform 0.18s ease;
+    cursor: pointer;
   }
 
   .toggle-field:hover {
@@ -221,6 +240,7 @@
     height: 18px;
     margin: 0;
     accent-color: var(--sp-accent);
+    cursor: pointer;
   }
 
   @media (max-width: 960px) {
