@@ -289,13 +289,11 @@ npx wrangler tail       # 查看 Worker 日志
 
 ## ⭐ Star 趋势
 
-## Star History
-
 <a href="https://www.star-history.com/?repos=lbjxr%2FCF-Navs&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left&sealed_token=cqEnKCBp74XhCC7dFiPydZj1f_bL39m3_jIU0oNVIG6SF6FfjuZibL0f6p-7Le2JCUatRzcR8gRkCGUf46xBGVb1uiXFLMB5aP2gLcX0ItfoNbtfkP0HwtcMWAhPK_oKg5Cy1U9FHhssTnfQRbmKYkNBFaWbq2kfpcpmqiY92-InIcDrBYCL2d0uwdX5" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=cqEnKCBp74XhCC7dFiPydZj1f_bL39m3_jIU0oNVIG6SF6FfjuZibL0f6p-7Le2JCUatRzcR8gRkCGUf46xBGVb1uiXFLMB5aP2gLcX0ItfoNbtfkP0HwtcMWAhPK_oKg5Cy1U9FHhssTnfQRbmKYkNBFaWbq2kfpcpmqiY92-InIcDrBYCL2d0uwdX5" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=cqEnKCBp74XhCC7dFiPydZj1f_bL39m3_jIU0oNVIG6SF6FfjuZibL0f6p-7Le2JCUatRzcR8gRkCGUf46xBGVb1uiXFLMB5aP2gLcX0ItfoNbtfkP0HwtcMWAhPK_oKg5Cy1U9FHhssTnfQRbmKYkNBFaWbq2kfpcpmqiY92-InIcDrBYCL2d0uwdX5" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa" />
  </picture>
 </a>
 
