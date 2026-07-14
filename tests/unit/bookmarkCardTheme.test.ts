@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-describe('compact bookmark card theme styles', () => {
+describe('bookmark card theme styles', () => {
+  it('uses backdrop blur on both card variants for the glass surface', () => {
+    const compact = readFileSync('src/components/BookmarkCardCompact.svelte', 'utf8')
+    const info = readFileSync('src/components/BookmarkCardInfo.svelte', 'utf8')
+
+    expect(compact).toContain('backdrop-filter: blur(18px) saturate(135%);')
+    expect(info).toContain('backdrop-filter: blur(18px) saturate(135%);')
+  })
+
   it('keeps compact card titles readable in dark mode', () => {
     const source = readFileSync('src/components/BookmarkCardCompact.svelte', 'utf8')
 

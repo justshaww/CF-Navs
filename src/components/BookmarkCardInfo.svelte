@@ -67,6 +67,8 @@
     background:
       linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.78)), rgba(255, 255, 255, 0.34)),
       rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.62));
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.46),
       0 2px 8px rgba(15, 23, 42, 0.08);
