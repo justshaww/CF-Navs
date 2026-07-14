@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import type { ThemeMode } from '../../shared/types'
 
   type AsyncVoid<T = void> = T | Promise<T>
+  const BACK_TO_TOP_VISIBILITY_OFFSET = 320
 
   export let isAuthenticated = false
   export let authLoading = false
@@ -12,6 +14,8 @@
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
   export let topNavigation = false
+
+  let showBackToTop = false
 
   $: currentThemeLabel = activeThemeMode === 'auto'
     ? `跟随系统，当前${activeTheme === 'dark' ? '暗色' : '浅色'}`
@@ -37,6 +41,22 @@
   function handleOpenLogin() {
     void onOpenLogin?.()
   }
+
+  function updateBackToTopVisibility() {
+    showBackToTop = window.scrollY > BACK_TO_TOP_VISIBILITY_OFFSET
+  }
+
+  function handleBackToTop() {
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    window.scrollTo({ top: 0, behavior })
+  }
+
+  onMount(() => {
+    updateBackToTopVisibility()
+    window.addEventListener('scroll', updateBackToTopVisibility, { passive: true })
+
+    return () => window.removeEventListener('scroll', updateBackToTopVisibility)
+  })
 </script>
 
 <div class="floating-actions" class:below-top-navigation={topNavigation}>
@@ -88,6 +108,21 @@
   {/if}
 </div>
 
+{#if showBackToTop}
+  <button
+    type="button"
+    class="icon-button back-to-top-button"
+    data-testid="home-back-to-top"
+    on:click={handleBackToTop}
+    title="回到顶部"
+    aria-label="回到顶部"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 14.5 12 9l5.5 5.5" />
+    </svg>
+  </button>
+{/if}
+
 <style>
   .floating-actions {
     position: fixed;
@@ -100,6 +135,25 @@
 
   .floating-actions.below-top-navigation {
     top: 4.75rem;
+  }
+
+  .back-to-top-button {
+    position: fixed;
+    right: max(1.25rem, env(safe-area-inset-right));
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    z-index: 50;
+    color: #2563eb;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  }
+
+  .back-to-top-button svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .icon-button {
@@ -163,6 +217,11 @@
     background: rgba(15, 23, 42, 0.85);
   }
 
+  :global([data-theme='dark']) .back-to-top-button {
+    color: #7dd3fc;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
   @media (max-width: 720px) {
     .floating-actions {
       top: 1rem;
@@ -177,6 +236,11 @@
       width: 2.2rem;
       height: 2.2rem;
       font-size: 1rem;
+    }
+
+    .back-to-top-button {
+      right: max(1rem, env(safe-area-inset-right));
+      bottom: max(1rem, env(safe-area-inset-bottom));
     }
   }
 </style>
