@@ -170,7 +170,7 @@ npx wrangler d1 create cf-navs-db
 # 4. 创建 KV 命名空间
 npx wrangler kv namespace create SESSION
 
-# 5. 生成本地 Wrangler 配置（保存真实资源 ID，已加入 .gitignore）
+# 5. 生成本地 Wrangler 配置（保存真实资源 ID）
 npm run setup:wrangler
 
 # 6. 设置管理员密码
@@ -197,7 +197,6 @@ npm run deploy
 npx wrangler deploy
 ```
 
-`wrangler.toml` 只声明 `DB` 和 `SESSION` 绑定，不提交真实资源 ID。Cloudflare 首次部署时会自动创建并绑定对应的 D1 数据库和 KV 命名空间。
 4. 在环境变量/Secrets 步骤中设置：
 
 ```text
@@ -216,7 +215,7 @@ INIT_ADMIN_PASSWORD = 你的管理员密码
 | D1 database | `DB` | `cf-navs-db` |
 | KV namespace | `SESSION` | 你的会话 KV 命名空间 |
 
-> ⚠️ 这个部署方式必须使用你 Fork 后的仓库。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`），并确保绑定名为 `DB` 和 `SESSION`。不要把 `wrangler.local.toml`、真实资源 ID 或密码提交到 GitHub。
+> ⚠️ 这个部署方式必须使用你 Fork 后的仓库。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`），并确保绑定名为 `DB` 和 `SESSION`。
 
 ---
 
