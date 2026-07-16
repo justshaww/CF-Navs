@@ -41,13 +41,13 @@
 <section class="panel backup-panel">
   <div class="panel-header">
     <div>
-      <p class="panel-eyebrow">数据备份</p>
+      <p class="panel-eyebrow">数据备份与导入</p>
       <h2>导入 / 导出</h2>
     </div>
   </div>
   <p class="backup-desc">
-    导出会把当前全部分类、书签与站点设置保存为一个 JSON 文件；导入会用所选文件
-    <strong>覆盖</strong>现有的分类与书签（管理员账号不受影响）。
+    导出会把当前全部分类、书签与站点设置保存为一个 JSON 文件；导入时可选择
+    <strong>追加合并</strong>或<strong>覆盖现有数据</strong>，管理员账号不受影响。
   </p>
 
   {#if backupError}
@@ -69,7 +69,7 @@
 
     <section class="backup-operation" aria-labelledby="import-backup-title" on:dragover|preventDefault on:drop={handleDrop}>
       <div class="backup-operation-copy">
-        <h3 id="import-backup-title">导入备份数据</h3>
+        <h3 id="import-backup-title">导入数据</h3>
         <p>支持点击或拖放 JSON、HTML、HTM 文件，格式会自动识别。</p>
       </div>
       <div class="import-actions">

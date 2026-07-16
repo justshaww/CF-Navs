@@ -10,7 +10,7 @@
     { tab: 'categories', icon: '📁', label: '分类管理' },
     { tab: 'bookmarks', icon: '🔖', label: '书签管理' },
     { tab: 'settings', icon: '⚙️', label: '站点设置' },
-    { tab: 'backup', icon: '💾', label: '数据备份' },
+    { tab: 'backup', icon: '💾', label: '数据备份与导入' },
   ]
 </script>
 
