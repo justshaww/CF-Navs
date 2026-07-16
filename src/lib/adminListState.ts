@@ -50,6 +50,15 @@ export function filterAdminBookmarks(
   })
 }
 
+export function filterAdminCategories(
+  categories: AdminCategorySummary[],
+  search: string,
+): AdminCategorySummary[] {
+  const normalizedSearch = search.trim().toLowerCase()
+  if (!normalizedSearch) return categories
+  return categories.filter((category) => category.title.toLowerCase().includes(normalizedSearch))
+}
+
 export function createAdminListPage<T>(
   items: T[],
   requestedPage: number,
