@@ -195,10 +195,10 @@
           <table class="admin-bookmark-table" class:is-sorting={sortMode}>
             <colgroup>
               {#if sortMode}<col style="width: 44px;" />{/if}
-              <col />
-              <col style="width: 88px;" />
-              <col style="width: 280px;" />
-              <col style="width: 114px;" />
+              <col style="width: 30%;" />
+              <col style="width: 15%;" />
+              <col style="width: 40%;" />
+              <col style="width: 15%;" />
               {#if !sortMode}<col style="width: 122px;" />{/if}
             </colgroup>
             <thead>
@@ -378,6 +378,7 @@
     width: 100%;
     min-width: 760px;
     border-collapse: collapse;
+    table-layout: fixed;
   }
 
   .admin-bookmark-table th,
@@ -445,16 +446,12 @@
   }
 
   .admin-cat-cell {
-    width: 88px;
-    max-width: 88px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .admin-url-cell {
-    width: 280px;
-    min-width: 220px;
-    max-width: 420px;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
