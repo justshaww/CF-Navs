@@ -48,7 +48,7 @@
   </select>
 </label>
 
-<label class="field-wide">
+<label class="field-compact">
   <span>描述</span>
   <textarea bind:value={description} rows="3" placeholder="补充说明，可选"></textarea>
 </label>
@@ -70,10 +70,6 @@
     gap: 4px;
     color: #334155;
     font-size: 13px;
-  }
-
-  .field-wide {
-    grid-column: 1 / -1;
   }
 
   .field-compact {
@@ -113,8 +109,7 @@
   }
 
   @media (max-width: 500px) {
-    .field-compact,
-    .field-wide {
+    .field-compact {
       grid-column: 1 / -1;
     }
   }

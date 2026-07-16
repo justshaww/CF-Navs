@@ -80,6 +80,7 @@
   }
 
   .bookmark-card-info {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.82rem;
@@ -87,7 +88,7 @@
     height: 70px;
     padding: 0 0.95rem 0 0.55rem;
     border-radius: 1.2rem;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .bookmark-card-info:hover {
@@ -135,22 +136,38 @@
   }
 
   .bookmark-card-info .bookmark-description.is-hover-description {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    z-index: 20;
+    width: max-content;
+    max-width: min(320px, calc(100vw - 32px));
+    min-height: 0;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 0.7rem;
+    background: rgb(var(--card-bg-rgb, 255 255 255) / 0.96);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    white-space: normal;
+    text-align: left;
     visibility: hidden;
     opacity: 0;
-    transform: translateY(3px);
+    transform: translate(-50%, -4px);
+    pointer-events: none;
   }
 
   .bookmark-card-info:hover .bookmark-description.is-hover-description,
   .bookmark-card-info:focus-visible .bookmark-description.is-hover-description {
     visibility: visible;
     opacity: 0.88;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 
   @media (hover: none) {
     .bookmark-card-info .bookmark-description.is-hover-description {
       visibility: hidden;
       opacity: 0;
+      pointer-events: none;
     }
   }
 
@@ -194,5 +211,11 @@
   :global([data-theme='dark']) .bookmark-card-info .bookmark-description {
     color: var(--card-text-color, #cbd5e1);
     opacity: 0.92;
+  }
+
+  :global([data-theme='dark']) .bookmark-card-info .bookmark-description.is-hover-description {
+    background: rgb(15 23 42 / 0.96);
+    border-color: rgba(148, 163, 184, 0.34);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
   }
 </style>

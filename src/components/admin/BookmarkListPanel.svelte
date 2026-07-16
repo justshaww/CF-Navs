@@ -197,7 +197,7 @@
               {#if sortMode}<col style="width: 44px;" />{/if}
               <col />
               <col style="width: 88px;" />
-              <col />
+              <col style="width: 280px;" />
               <col style="width: 114px;" />
               {#if !sortMode}<col style="width: 122px;" />{/if}
             </colgroup>
@@ -444,8 +444,17 @@
     color: var(--admin-muted);
   }
 
+  .admin-cat-cell {
+    width: 88px;
+    max-width: 88px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .admin-url-cell {
-    max-width: 260px;
+    width: 280px;
+    min-width: 220px;
+    max-width: 420px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
