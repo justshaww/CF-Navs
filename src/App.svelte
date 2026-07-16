@@ -85,6 +85,11 @@
   let installState: InstallScreenState = { type: 'checking' }
   let rootError = ''
   let currentView: AppView = 'home'
+
+  function isAdminPath(): boolean {
+    if (typeof window === 'undefined') return false
+    return window.location.pathname === '/admin' || window.location.pathname === '/admin/'
+  }
   let AdminComponent: typeof import('./views/Admin.svelte').default | null = null
   let LoginModalComponent: typeof import('./components/LoginModal.svelte').default | null = null
   let BookmarkEditModalComponent: typeof import('./components/BookmarkEditModal.svelte').default | null = null
@@ -404,7 +409,13 @@
       await ensureLoginModalComponent()
     }
     loginModalOpen = homeGate.loginModalOpen
-    currentView = homeGate.view
+    if (isAdminPath() && isLoggedIn()) {
+      await ensureAdminComponent()
+      currentView = 'admin'
+      loginModalOpen = false
+    } else {
+      currentView = homeGate.view
+    }
     booting = false
   }
 
@@ -475,6 +486,7 @@
     }
 
     await ensureAdminComponent()
+    replaceBrowserPath('/admin')
     currentView = 'admin'
   }
 
@@ -484,7 +496,12 @@
       loginModalOpen = false
       rootError = ''
       await refreshLoggedInData(true)
-      currentView = 'home'
+      if (isAdminPath()) {
+        await ensureAdminComponent()
+        currentView = 'admin'
+      } else {
+        currentView = 'home'
+      }
     } catch {
       // authStore 已经记录错误
     }
@@ -916,7 +933,7 @@
         canSeeHome={canSeeHome}
         onOpenLogin={handleOpenLogin}
         onLogout={handleLogout}
-        onSwitchToHome={() => { currentView = 'home' }}
+      onSwitchToHome={() => { replaceBrowserPath('/'); currentView = 'home' }}
         onOpenCreateCategory={handleOpenCreateCategory}
         onEditCategory={handleEditCategory}
         onDeleteCategory={handleDeleteCategory}
