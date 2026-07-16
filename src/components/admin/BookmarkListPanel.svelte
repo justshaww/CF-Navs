@@ -131,7 +131,7 @@
     <div class="admin-list-panel-header">
       <div>
         <p class="admin-panel-eyebrow">书签</p>
-        <h2>书签列表</h2>
+        <div class="admin-title-row"><h2>书签列表</h2><div class="admin-bookmark-search-bar"><input type="text" data-testid="admin-bookmark-search" placeholder="搜索标题、链接或分类…" value={search} on:input={handleSearchInput} /></div></div>
       </div>
       <div class="admin-header-actions-row">
         <button
@@ -282,13 +282,6 @@
           {/if}
         </div>
       {/if}
-      {#if !sortMode && !bookmarksLoading && bookmarks.length > 0}
-        <div class="admin-list-toolbar">
-          <div class="admin-bookmark-search-bar">
-            <input type="text" data-testid="admin-bookmark-search" placeholder="搜索标题、链接或分类…" value={search} on:input={handleSearchInput} />
-          </div>
-        </div>
-      {/if}
     </div>
 
     {#if bookmarks.length > 0}
@@ -327,6 +320,8 @@
     min-width: 0;
   }
 
+  .admin-title-row { display: flex; align-items: center; gap: 14px; }
+
   .admin-table-scroll-body {
     padding: 0;
     overflow: auto;
@@ -343,6 +338,12 @@
 
   .admin-bookmark-search-bar {
     margin: 0;
+    width: min(360px, 32vw);
+  }
+
+  @media (max-width: 760px) {
+    .admin-title-row { align-items: flex-start; flex-direction: column; gap: 8px; }
+    .admin-bookmark-search-bar { width: min(100%, 360px); }
   }
 
   .admin-bookmark-search-bar input {

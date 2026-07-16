@@ -126,7 +126,7 @@
     <div class="admin-list-panel-header">
       <div>
         <p class="admin-panel-eyebrow">分类</p>
-        <h2>分类列表</h2>
+        <div class="admin-title-row"><h2>分类列表</h2><div class="admin-bookmark-search-bar"><input type="text" data-testid="admin-category-search" placeholder="搜索分类…" value={search} on:input={handleSearchInput} /></div></div>
       </div>
       <div class="admin-header-actions-row">
         {#if !sortMode}
@@ -220,13 +220,6 @@
           {/each}
         </div>
       {/if}
-      {#if !sortMode && !categoriesLoading && categories.length > 0}
-        <div class="admin-list-toolbar">
-          <div class="admin-bookmark-search-bar">
-            <input type="text" data-testid="admin-category-search" placeholder="搜索分类…" value={search} on:input={handleSearchInput} />
-          </div>
-        </div>
-      {/if}
     </div>
 
     {#if categories.length > 0}
@@ -263,14 +256,10 @@
     grid-template-rows: auto minmax(0, auto) auto;
   }
 
-  .admin-list-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 10px;
-  }
+  .admin-title-row { display: flex; align-items: center; gap: 14px; }
 
   .admin-bookmark-search-bar {
-    width: min(100%, 360px);
+    width: min(280px, 32vw);
   }
 
   .admin-bookmark-search-bar input {
@@ -287,6 +276,11 @@
   .admin-bookmark-search-bar input:focus {
     outline: 2px solid color-mix(in srgb, var(--admin-accent) 32%, transparent);
     outline-offset: 1px;
+  }
+
+  @media (max-width: 760px) {
+    .admin-title-row { align-items: flex-start; flex-direction: column; gap: 8px; }
+    .admin-bookmark-search-bar { width: min(100%, 360px); }
   }
 
   .admin-list-stack {
