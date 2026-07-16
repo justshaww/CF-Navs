@@ -9,6 +9,7 @@ export interface Env {
   INIT_ADMIN_USER: string
   INIT_ADMIN_PASSWORD: string
   RESET_ADMIN_CREDENTIALS?: string
+  SETUP_TOKEN?: string
   SESSION_TTL: string
 }
 

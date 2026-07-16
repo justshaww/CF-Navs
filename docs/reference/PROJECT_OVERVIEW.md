@@ -142,6 +142,11 @@ name = "cf-navs"                    # Worker 名称
 main = "worker/index.ts"            # Worker 入口
 compatibility_date = "2025-06-01"   # 兼容性日期
 
+[[rules]]                           # 将安装 schema 作为文本模块打包
+type = "Text"
+globs = ["**/schema.sql"]
+fallthrough = true
+
 [assets]                            # 静态资源配置
 directory = "./dist"
 binding = "ASSETS"
@@ -157,7 +162,7 @@ binding = "SESSION"
 # id omitted for Cloudflare Git automatic provisioning
 
 [vars]
-INIT_ADMIN_USER = "admin"          # 管理员初始化用户名
+INIT_ADMIN_USER = "admin"          # 仅用于旧数据库升级/凭据恢复
 SESSION_TTL = "604800"             # 会话有效期（7天）
 ```
 
@@ -292,10 +297,10 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 5. 本地验证或测试完成后，在对应终端按 `Ctrl+C` 停止 Worker 和 Vite 服务，避免端口被长期占用
 
 ### 生产环境
-1. 配置 Cloudflare 资源（D1/KV）
-2. 设置 Secret（管理员密码）
-3. 初始化数据库
-4. `npm run deploy` - 部署
+
+- **Cloudflare Git（推荐新安装）**：Fork 仓库后在 Dashboard 使用 **Import a repository** 选择现有 Fork；通用 Deploy Button 只能创建新仓库。保留无 ID 的 `DB`/`SESSION` 声明，让 Git 引导流程创建绑定；添加加密 `SETUP_TOKEN`，部署后访问 `/install` 初始化 schema 和管理员。确认安装成功后建议删除或轮换该 Secret；公开状态检查不依赖它，安装锁由 D1 中的管理员凭据和完成标记判定。正常路径不需要 API Token、GitHub Actions 或手动 SQL。
+- **Wrangler CLI**：创建 D1/KV，运行 `npm run setup:wrangler`，设置加密 Secret `SETUP_TOKEN`，运行 `npm run deploy`，再访问 `/install` 初始化 schema 和管理员。`db:init:remote` 仅用于安装器失败后的恢复。
+- `/install` 自动初始化失败时，才在 D1 SQL Console 执行 `schema.sql` 作为恢复手段。
 
 ## 📚 文档结构
 

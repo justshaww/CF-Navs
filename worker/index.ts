@@ -10,6 +10,7 @@ import categoriesRoutes from './routes/categories'
 import dataRoutes from './routes/data'
 import errorReportRoutes from './routes/errorReport'
 import faviconRoutes from './routes/favicon'
+import installRoutes from './routes/install'
 import { iconRoutes } from './routes/icon'
 import publicRoutes from './routes/public'
 import settingsRoutes from './routes/settings'
@@ -20,6 +21,7 @@ const app = new Hono<HonoEnv>()
 app.get('/api/health', (c) => c.json(ok({ status: 'ok' })))
 
 app.route('/api', authRoutes)
+app.route('/api', installRoutes)
 app.route('/api', publicRoutes)
 app.route('/api', errorReportRoutes) // 公开错误上报，无需认证
 

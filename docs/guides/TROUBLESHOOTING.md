@@ -20,11 +20,22 @@ npx wrangler login
 npm run build && npx wrangler deploy
 ```
 
-首次部署成功后，在 Cloudflare 控制台找到 `DB` 绑定对应的 D1 数据库，执行一次 [schema.sql](../../schema.sql)。本地 CLI 部署则运行 `npm run setup:wrangler` 生成被 Git 忽略的 `wrangler.local.toml`。
+首次部署后访问 `/install`，输入 `SETUP_TOKEN` 并创建管理员账号。Cloudflare Git 引导流程负责创建并绑定 `DB`/`SESSION`；本地 CLI 部署则运行 `npm run setup:wrangler` 生成被 Git 忽略的 `wrangler.local.toml`，执行 `npx wrangler secret put SETUP_TOKEN` 后运行 `npm run deploy`，同样通过 `/install` 初始化。
 
 ### 日志路径包含 `/workers/scripts/.../versions`
 
 这通常表示 Cloudflare 正在执行预览分支的 `wrangler versions upload`。首次创建 D1/KV 资源时，请确认 Cloudflare Workers Builds 的生产分支是 `main`，Build command 为 `npm run build`，Deploy command 为 `npx wrangler deploy`，然后从 `main` 重新触发部署。资源创建完成后再按需开启预览分支部署。
+
+### `/install` 提示安装令牌无效
+
+1. 确认 Worker 的 **Settings → Variables & Secrets** 中存在加密 Secret `SETUP_TOKEN`，名称大小写完全一致。
+2. 确认输入值没有前后空格，修改 Secret 后重新部署。
+3. 不要把管理员密码填到 `SETUP_TOKEN`；安装令牌仅用于授权一次安装，管理员密码在 `/install` 页面另行设置。
+4. 如果站点已经安装完成，则不再需要 `SETUP_TOKEN`。`GET /api/install/status` 可公开检查安装状态，删除 Secret 不影响运行；后续安装请求仍会被永久拒绝。
+
+### `/install` 提示数据库初始化失败
+
+先确认 Worker 的 `DB` D1 和 `SESSION` KV 绑定存在。正常安装由 `/install` 自动初始化 schema；如果安装器仍失败，可在 D1 SQL Console 手动执行 [schema.sql](../../schema.sql) 后返回 `/install` 重试。手动 SQL 是恢复手段，不是正常部署步骤。
 
 ### Missing binding
 
@@ -36,7 +47,7 @@ npm run build && npx wrangler deploy
 
 ### Database not found
 
-确认远程数据库已经初始化：
+`npm run db:init:remote` 只用于 `/install` 无法应用 schema 时的恢复。执行前检查 `wrangler.local.toml` 中的 `database_id` 是否对应当前 Cloudflare 账号下的 `cf-navs-db`：
 
 ```bash
 npm run db:init:remote
@@ -50,7 +61,7 @@ npm run db:init:remote
 
 如果仍能登录后台，进入 **站点设置 → 账号安全**，输入当前密码后更新管理员密码。修改成功后，现有登录会话会失效，需要使用新密码重新登录。
 
-如果已经无法登录，修改 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD` 后重新部署，下一次登录会自动用新值覆盖 D1 中的管理员凭据。确认当前 Wrangler 指向正确的 Worker、D1 和账号后再执行：
+如果已经无法登录，以下 `INIT_ADMIN_*` 流程仅用于已完成初始化的旧数据库升级或凭据恢复，不适用于全新部署。修改 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD` 后重新部署，下一次登录会自动用新值覆盖 D1 中的管理员凭据。确认当前 Wrangler 指向正确的 Worker、D1 和账号后再执行：
 
 ```bash
 npx wrangler secret put INIT_ADMIN_PASSWORD
@@ -80,9 +91,9 @@ npx wrangler tail
 数据保存依赖 D1 数据库。请检查：
 
 1. D1 数据库是否已创建。
-2. 是否已执行 `npm run db:init:remote`。
-3. `wrangler.local.toml` 中的 D1 `database_id` 是否正确。
-4. Worker 日志是否有 SQL 或 binding 错误。
+2. `wrangler.local.toml` 中的 D1 `database_id` 是否正确。
+3. Worker 日志是否有 SQL 或 binding 错误。
+4. 全新安装是否已通过 `/install` 完成；仅在安装器 schema 初始化失败时执行 `npm run db:init:remote` 恢复。
 
 ## 页面无法加载
 

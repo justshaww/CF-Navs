@@ -13,7 +13,7 @@
     "setup:wrangler": "node scripts/create-wrangler-local.mjs",
     "wrangler": "node scripts/wrangler-config.mjs",
     "dev": "node scripts/wrangler-config.mjs dev",
-    "deploy": "npm run build && npm run db:init:remote && node scripts/wrangler-config.mjs deploy",
+    "deploy": "npm run build && node scripts/wrangler-config.mjs deploy",
     "db:init": "node scripts/wrangler-config.mjs d1 execute DB --local --file=./schema.sql",
     "db:init:remote": "node scripts/wrangler-config.mjs d1 execute DB --remote --file=./schema.sql"
   },
@@ -26,13 +26,16 @@
     ],
     "bindings": {
       "DB": {
-        "description": "D1 database for categories, bookmarks, settings, and admin bootstrap data."
+        "description": "D1 database for categories, bookmarks, settings, and installer-managed schema initialization."
       },
       "SESSION": {
-        "description": "KV namespace for HttpOnly admin session tokens."
+        "description": "KV namespace for HttpOnly administrator sessions; the installer also verifies this required binding before setup."
+      },
+      "SETUP_TOKEN": {
+        "description": "One-time encrypted secret required to authorize POST /api/install initialization of the database and administrator."
       },
       "INIT_ADMIN_PASSWORD": {
-        "description": "Admin initialization password. A changed value is applied on the next login; normal password changes should use the admin settings page."
+        "description": "Legacy upgrade/recovery bootstrap secret. New Cloudflare Git and Wrangler CLI deployments use SETUP_TOKEN and /install instead."
       }
     }
   },

@@ -97,6 +97,45 @@ describe('admin bootstrap', () => {
     await expect(verifyPassword('changed-in-backend', unchanged.passwordHash)).resolves.toBe(true)
   })
 
+  it('does not let legacy INIT credentials overwrite a web-installed administrator', async () => {
+    const webPasswordHash = await hashPassword('web-password')
+    const { db, values } = createFakeDb({
+      admin_username: 'web-admin',
+      admin_password: webPasswordHash,
+      admin_bootstrap_username: 'web-admin',
+      admin_bootstrap_password: webPasswordHash,
+      installation_schema_version: 1,
+    })
+
+    const result = await ensureAdminBootstrap(createEnv(db, 'legacy-admin', 'legacy-password'))
+
+    expect(result.username).toBe('web-admin')
+    expect(result.resetApplied).toBeUndefined()
+    await expect(verifyPassword('web-password', result.passwordHash)).resolves.toBe(true)
+    expect(JSON.parse(values.get('admin_username') ?? 'null')).toBe('web-admin')
+    expect(values.get('admin_password')).toBe(JSON.stringify(webPasswordHash))
+  })
+
+  it('allows an explicit reset marker to recover web-installed credentials', async () => {
+    const webPasswordHash = await hashPassword('web-password')
+    const { db, values } = createFakeDb({
+      admin_username: 'web-admin',
+      admin_password: webPasswordHash,
+      admin_bootstrap_username: 'web-admin',
+      admin_bootstrap_password: webPasswordHash,
+      installation_schema_version: 1,
+    })
+
+    const result = await ensureAdminBootstrap(
+      createEnv(db, 'recovered-admin', 'recovered-password', 'recovery-1'),
+    )
+
+    expect(result.username).toBe('recovered-admin')
+    expect(result.resetApplied).toBe(true)
+    await expect(verifyPassword('recovered-password', result.passwordHash)).resolves.toBe(true)
+    expect(JSON.parse(values.get('admin_reset_marker') ?? 'null')).toBe('recovery-1')
+  })
+
   it('supports a one-time reset marker for existing databases without bootstrap markers', async () => {
     const currentPasswordHash = await hashPassword('old-password')
     const { db } = createFakeDb({

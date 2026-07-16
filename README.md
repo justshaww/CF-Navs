@@ -173,15 +173,14 @@ npx wrangler kv namespace create SESSION
 # 5. 生成本地 Wrangler 配置（保存真实资源 ID）
 npm run setup:wrangler
 
-# 6. 设置管理员密码
-npx wrangler secret put INIT_ADMIN_PASSWORD
+# 6. 设置一次性安装令牌
+npx wrangler secret put SETUP_TOKEN
 
-# 7. 初始化数据库并部署
-npm run db:init:remote
+# 7. 构建并部署
 npm run deploy
 ```
 
-部署成功后，访问 Wrangler 返回的 Workers URL。首次登录用户名 `INIT_ADMIN_USER`（默认 `admin`），密码为 `INIT_ADMIN_PASSWORD`。
+部署成功后，访问 Wrangler 返回的 Workers URL 并打开 `/install`，输入刚设置的 `SETUP_TOKEN`，再创建管理员用户名和密码。安装器会初始化数据库 schema 和管理员账号。确认登录成功后，可删除或轮换 `SETUP_TOKEN`。`npm run db:init:remote` 仅用于安装器无法初始化 schema 时的恢复，不是全新 CLI 部署的正常步骤。
 
 ### 方式二：Fork 后通过 Cloudflare 部署（推荐）
 
@@ -197,14 +196,17 @@ npm run deploy
 npx wrangler deploy
 ```
 
-4. 在环境变量/Secrets 步骤中设置：
+4. 在环境变量/Secrets 步骤中只需添加一个**加密 Secret**（不要保存为普通明文变量）：
 
 ```text
-INIT_ADMIN_PASSWORD = 你的管理员密码
+SETUP_TOKEN = 一段足够长且随机的安装令牌
 ```
 
-5. 首次部署成功后，在 Cloudflare 控制台找到绑定到 `DB` 的 D1 数据库，在 SQL Console 中执行一次 [schema.sql](schema.sql)。KV 命名空间无需额外初始化。
-6. 重新部署或重试最近一次部署，确认站点可以正常访问。首次登录用户名为 `INIT_ADMIN_USER`（默认 `admin`），密码为在环境变量/Secrets 步骤中设置的 `INIT_ADMIN_PASSWORD` 的值。
+5. 保存并部署。Cloudflare 的 Git 引导流程会根据 `wrangler.toml` 中不带 ID 的声明创建并绑定 `DB` D1 数据库与 `SESSION` KV 命名空间。
+6. 打开部署后的 Workers URL，并访问 `/install`。输入 `SETUP_TOKEN`，再设置管理员用户名和密码；安装器会初始化数据库 schema 和管理员账号。
+7. 安装完成后进入登录页。确认管理员可以登录后，可在 **Settings → Variables & Secrets** 删除 `SETUP_TOKEN`，或轮换为新的随机值；公开安装状态检查不依赖该 Secret，已完成的安装也会永久拒绝再次初始化。无需创建 Cloudflare API Token、配置 GitHub Actions，正常流程也无需手动执行 SQL。
+
+> 如果 `/install` 无法完成 schema 初始化，才使用 D1 SQL Console 手动执行 [schema.sql](schema.sql) 作为恢复手段；不要把手动 SQL 当作正常安装步骤。
 
 首次部署请从生产分支 `main` 触发。不要在资源尚未创建前使用预览分支自动部署；预览分支可能走 `wrangler versions upload` 流程。
 
@@ -215,7 +217,7 @@ INIT_ADMIN_PASSWORD = 你的管理员密码
 | D1 database | `DB` | `cf-navs-db` |
 | KV namespace | `SESSION` | 你的会话 KV 命名空间 |
 
-> ⚠️ 这个部署方式必须使用你 Fork 后的仓库。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`），并确保绑定名为 `DB` 和 `SESSION`。
+> ⚠️ 这个部署方式必须使用你 Fork 后的仓库。Cloudflare 的通用 Deploy Button 会新建 GitHub 仓库，不能部署到已有 Fork；已有 Fork 必须在 Dashboard 选择 **Import a repository**。控制台中 Worker 名称需与 `wrangler.toml` 的 `name` 一致（默认 `cf-navs`），并确保绑定名为 `DB` 和 `SESSION`。
 
 ---
 
@@ -245,11 +247,12 @@ npx wrangler tail       # 查看 Worker 日志
 
 ## 🔑 环境变量说明
 
-### Secrets（通过 `wrangler secret put` 设置）
+### Secrets（通过 Dashboard 加密 Secret 或 `wrangler secret put` 设置）
 
 | 变量名 | 说明 |
 |---|---|
-| `INIT_ADMIN_PASSWORD` | 管理员初始化密码。首次初始化后，只有当该值发生变化时才会在下一次登录时同步覆盖 D1；日常修改密码请使用后台「站点设置 → 账号安全」 |
+| `SETUP_TOKEN` | Cloudflare Git 和 Wrangler CLI 新部署必需的一次性安装令牌。部署后访问 `/install`，用它授权 schema 与管理员初始化；应使用足够长的随机值并保存为加密 Secret。确认安装成功后建议删除或轮换；公开安装状态检查不需要它，删除后不影响运行，保留也不会解除永久安装锁 |
+| `INIT_ADMIN_PASSWORD` | 仅用于旧数据库升级或凭据恢复的兼容 Secret。全新的 Cloudflare Git 和 Wrangler CLI 安装不要设置它，而是在 `/install` 中创建管理员密码 |
 
 ### 必需绑定
 
@@ -262,11 +265,11 @@ npx wrangler tail       # 查看 Worker 日志
 
 | 变量名 | 默认值 | 说明 |
 |---|---|---|
-| `INIT_ADMIN_USER` | `admin` | 管理员初始化用户名；值发生变化后会在下一次登录时同步覆盖 D1 |
+| `INIT_ADMIN_USER` | `admin` | 旧数据库升级或凭据恢复时使用的兼容管理员用户名；全新安装在 `/install` 中设置 |
 | `RESET_ADMIN_CREDENTIALS` | 空 | 旧数据库首次升级或需要强制重置时使用一次性标记，例如 `reset-2026-07-12`；每次强制重置请更换标记值 |
 | `SESSION_TTL` | `604800` | 会话有效期（秒），默认 7 天 |
 
-管理员凭据会同时保存在 D1 中。修改 `INIT_ADMIN_USER` 或 `INIT_ADMIN_PASSWORD` 后重新部署，下一次登录会使用新值更新管理员凭据；后台「账号安全」修改密码不会被旧的初始化变量覆盖。升级已有旧数据库时，如果数据库还没有初始化标记，请同时设置一个新的 `RESET_ADMIN_CREDENTIALS` 值并重新部署，成功登录后即可移除该变量。
+`INIT_ADMIN_USER`、`INIT_ADMIN_PASSWORD` 和 `RESET_ADMIN_CREDENTIALS` 仅保留给旧数据库升级与凭据恢复。全新的 Cloudflare Git 或 Wrangler CLI 部署都应使用 `SETUP_TOKEN` + `/install` 设置管理员，日常修改密码请使用后台「账号安全」。升级已有旧数据库时，如果数据库还没有初始化标记，可设置新的 `RESET_ADMIN_CREDENTIALS` 值并重新部署，成功登录后移除该变量。
 
 ---
 

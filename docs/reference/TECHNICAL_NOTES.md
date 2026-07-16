@@ -137,6 +137,15 @@ Worker 和前端共同承担缓存：
 
 部署新版后，如果浏览器仍使用旧逻辑，可以强制刷新一次页面，让新版 Service Worker 接管。
 
+## 安装与部署边界
+
+- `wrangler.toml` 保留不带真实 ID 的 `DB` D1 和 `SESSION` KV 声明，供 Cloudflare Git 引导流程自动创建并绑定资源；本地 CLI 的真实 ID 写入 Git 忽略的 `wrangler.local.toml`。
+- `schema.sql` 通过 Wrangler `Text` 模块规则打包，供 `/install` 首次安装时执行。
+- Cloudflare Git 和 Wrangler CLI 全新安装都只要求一个加密 `SETUP_TOKEN`。用户部署后访问 `/install`，`POST /api/install` 校验令牌后由安装器初始化 schema 并创建管理员；公开的 `GET /api/install/status` 不要求令牌。
+- 确认安装成功后建议删除或轮换 `SETUP_TOKEN`。已安装判定来自 D1 中的管理员凭据和完成标记，删除 Secret 不影响运行；即使保留，后续安装请求也会被永久拒绝。
+- `INIT_ADMIN_USER`、`INIT_ADMIN_PASSWORD` 与 `RESET_ADMIN_CREDENTIALS` 仅保留给旧数据库升级和凭据恢复，不是任何全新部署的正常入口。
+- 正常流程不要求 Cloudflare API Token、GitHub Actions 或手动 SQL；D1 SQL Console 执行 `schema.sql` 只用于安装器失败后的恢复。
+
 ## 登录与会话
 
 - 管理员密码使用 WebCrypto PBKDF2 哈希存储。

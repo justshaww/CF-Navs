@@ -6,22 +6,24 @@
 
 ### 方式一：Wrangler CLI
 
-适合本地命令行部署。需要创建 D1/KV、生成 `wrangler.local.toml`、设置 Secret、初始化数据库并运行 `npm run deploy`。
+适合本地命令行部署。需要创建 D1/KV、生成 `wrangler.local.toml`、设置加密 `SETUP_TOKEN`、运行 `npm run deploy`，再访问 `/install` 初始化 schema 和管理员。
 
 ### 方式二：Cloudflare 控制台导入 GitHub
 
 适合 Fork 项目后在线部署。
 
 1. 在 GitHub 上 Fork 仓库。
-2. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择 fork。
+2. 进入 **Workers & Pages → Create application → Import a repository**，关联 GitHub 并选择 fork。不要使用通用 Deploy Button：它会新建 GitHub 仓库，不能指定已有 Fork。
 3. 生产分支选择 `main`，Build command 填写 `npm run build`，Deploy command 填写 `npx wrangler deploy`。
-4. `wrangler.toml` 只声明 `DB` 和 `SESSION` 绑定，不包含真实资源 ID。首次部署时 Cloudflare 会自动创建并绑定 D1 与 KV 资源。
-5. 首次部署完成后，在 Cloudflare 控制台找到绑定到 `DB` 的 D1 数据库，在 SQL Console 执行一次 [schema.sql](../../schema.sql)。
-6. 在 Worker 的 **Settings → Bindings** 中确认 D1 绑定名为 `DB`、KV 绑定名为 `SESSION`。
-7. 在 Worker 的 **Settings → Variables & Secrets** 中添加 `INIT_ADMIN_USER`（可选，默认 `admin`）和 `INIT_ADMIN_PASSWORD`。
-8. 重新部署或重试最近一次部署。
+4. `wrangler.toml` 只声明 `DB` 和 `SESSION` 绑定，不包含真实资源 ID。Cloudflare Git 引导流程会自动创建并绑定 D1 与 KV 资源。
+5. 在 Variables and Secrets 步骤添加一个加密 Secret：`SETUP_TOKEN`。使用足够长的随机值，不要保存为普通明文变量。
+6. 首次部署完成后，打开站点的 `/install`，输入 `SETUP_TOKEN`，再设置管理员用户名和密码。安装器负责初始化 schema 和管理员账号。
+7. 在 Worker 的 **Settings → Bindings** 中确认 D1 绑定名为 `DB`、KV 绑定名为 `SESSION`。
+8. 确认管理员可以登录后，建议从 **Settings → Variables & Secrets** 删除 `SETUP_TOKEN`，或轮换为新的随机值。`GET /api/install/status` 是公开状态检查，不依赖该 Secret；删除后不影响运行，保留也不会解除永久安装锁。
 
-> 在线部署命令不要使用 `npm run deploy`：该命令会在 Wrangler 部署前执行远程 D1 初始化，适用于已经生成 `wrangler.local.toml` 的本地 CLI 部署。Git 自动部署请使用 Build command `npm run build` 和 Deploy command `npx wrangler deploy`，首次部署后再手动执行一次 `schema.sql`。
+> 正常在线安装不需要 Cloudflare API Token、GitHub Actions 或手动 SQL。只有 `/install` 报 schema 初始化错误时，才在 D1 SQL Console 执行一次 [schema.sql](../../schema.sql) 作为恢复步骤。
+
+> 在线部署命令不要使用 `npm run deploy`：该命令读取本地生成的 `wrangler.local.toml`，适用于 Wrangler CLI 部署。Git 自动部署请使用 Build command `npm run build` 和 Deploy command `npx wrangler deploy`，然后通过 `/install` 完成初始化。
 
 首次资源创建请从生产分支 `main` 触发。资源创建完成前，建议关闭预览分支自动部署；预览分支可能使用 `wrangler versions upload`，不适合作为首次资源初始化流程。
 
@@ -79,25 +81,16 @@ npm run setup:wrangler
 - [ ] 已生成 `wrangler.local.toml`
 - [ ] 确认 `wrangler.local.toml` 未被 Git 跟踪
 
-### 5. 设置管理员密码
+### 5. 设置一次性安装令牌
 
 ```bash
-npx wrangler secret put INIT_ADMIN_PASSWORD
+npx wrangler secret put SETUP_TOKEN
 ```
 
-- [ ] 已设置管理员密码（建议使用强密码）
-- [ ] 密码已安全保存（不要丢失）
+- [ ] 已设置足够长的随机安装令牌
+- [ ] 令牌已安全保存到完成 `/install`
 
-### 6. 初始化数据库
-
-```bash
-npm run db:init:remote
-```
-
-- [ ] 数据库表已创建
-- [ ] 无错误信息输出
-
-### 7. 构建前端
+### 6. 构建前端
 
 ```bash
 npm run build
@@ -137,12 +130,9 @@ Published cf-navs (x.xx sec)
 - [ ] 无 JavaScript 错误
 - [ ] 样式显示正常
 
-### 2. 测试登录
+### 2. 测试安装与登录
 
-1. 点击右上角 ⚙️ 图标
-2. 使用以下凭据登录：
-   - 用户名：`INIT_ADMIN_USER` 的值（默认 `admin`）
-   - 密码：你设置的 `INIT_ADMIN_PASSWORD`
+Cloudflare Git 和 Wrangler CLI 全新安装都先访问 `/install`，输入 `SETUP_TOKEN` 并创建管理员账号。确认安装和登录成功后，建议删除或轮换 `SETUP_TOKEN`；公开状态检查不需要它，已安装状态也会永久阻止再次初始化。`INIT_ADMIN_USER`、`INIT_ADMIN_PASSWORD` 和 `RESET_ADMIN_CREDENTIALS` 仅用于旧数据库升级或凭据恢复。安装完成后：
 
 - [ ] 登录成功
 - [ ] 登录成功后回到前台首页，再次点击管理入口能够进入管理界面
@@ -237,6 +227,9 @@ npx wrangler login
 - 确认资源已创建
 
 **错误：Database not found**
+
+`npm run db:init:remote` 仅用于 `/install` 无法应用 schema 时的恢复。确认 `wrangler.local.toml` 指向正确 D1 后再执行：
+
 ```bash
 npm run db:init:remote
 ```
@@ -245,7 +238,7 @@ npm run db:init:remote
 
 **密码错误**
 - 如果仍能登录后台：进入 **站点设置 → 账号安全**，用当前密码更新管理员密码。
-- 如果已经无法登录：修改 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD` 后重新部署，下一次登录会自动用新值覆盖 D1 中的管理员凭据。确认当前 Wrangler 指向正确的 Worker、D1 和账号后再执行：
+- 如果已经无法登录：以下 `INIT_ADMIN_*` 流程仅用于已完成初始化的旧数据库升级或凭据恢复，不适用于全新部署。修改 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASSWORD` 后重新部署，下一次登录会自动用新值覆盖 D1 中的管理员凭据。确认当前 Wrangler 指向正确的 Worker、D1 和账号后再执行：
 
 ```bash
 npx wrangler secret put INIT_ADMIN_PASSWORD
@@ -264,8 +257,8 @@ npx wrangler deploy
 
 **D1 连接失败**
 - 确认 D1 数据库已创建
-- 确认已执行 `npm run db:init:remote`
 - 检查 `wrangler.local.toml` 中的 `database_id`
+- 正常新安装由 `/install` 应用 schema；只有安装器初始化失败时才执行 `npm run db:init:remote` 恢复
 
 ### 页面无法加载
 
@@ -316,8 +309,8 @@ npx wrangler d1 execute cf-navs-db --command "SELECT * FROM settings"
 如果所有检查项都已完成，恭喜你成功部署了 CF-Navs！
 
 **首次登录提醒：**
-- 用户名：`INIT_ADMIN_USER` 的值（默认 `admin`）
-- 密码：你设置的 `INIT_ADMIN_PASSWORD`
+- Cloudflare Git 和 Wrangler CLI 新安装：访问 `/install`，使用 `SETUP_TOKEN` 授权后创建管理员用户名和密码。
+- `INIT_ADMIN_USER`、`INIT_ADMIN_PASSWORD` 和 `RESET_ADMIN_CREDENTIALS`：仅用于旧数据库升级或凭据恢复。
 
 **下一步建议：**
 1. 修改站点标题

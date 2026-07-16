@@ -12,8 +12,10 @@
   import ConfirmDialog from './components/ConfirmDialog.svelte'
   import Toast from './components/Toast.svelte'
   import Home from './views/Home.svelte'
+  import Install from './views/Install.svelte'
   import { api, getErrorMessage, isUnauthorizedError } from './lib/api'
   import { clearCachedAdminData } from './lib/adminDataCache'
+  import { clearCachedPublicData } from './lib/publicDataCache'
   import { toastStore } from './lib/toast'
   import type { BookmarkFormValue, CategoryFormValue } from './lib/adminTypes'
   import { toBookmarkForm, toBookmarkPayload, toCategoryForm, toCategoryPayload } from './lib/adminFormAdapters'
@@ -37,6 +39,18 @@
     type SettingsFormValue,
   } from './lib/appData'
   import { createLazyComponentLoader } from './lib/appLazyComponent'
+  import {
+    canUseInstalledFallback,
+    getInstallViewState,
+    hasInstalledHint,
+    installationCommittedAfterFailure,
+    isInstallPath,
+    normalizeInstallError,
+    replaceBrowserPath,
+    setInstalledHint,
+    toInstallScreenState,
+    type InstallScreenState,
+  } from './lib/appInstall'
   import { buildOrderedBookmarkIdsForCategory } from './lib/appLocalData'
   import { createBookmarkDraft, createCategoryDraft, findBookmarkForEdit } from './lib/appModalState'
   import { canSeeHomeView, createHomeGateState, shouldOpenLoginGate, type AppView } from './lib/appNavigation'
@@ -67,6 +81,7 @@
   type SettingsSubset = SettingsFormValue
 
   let booting = true
+  let installState: InstallScreenState = { type: 'checking' }
   let rootError = ''
   let currentView: AppView = 'home'
   let AdminComponent: typeof import('./views/Admin.svelte').default | null = null
@@ -137,6 +152,7 @@
     },
   })
 
+  $: installView = getInstallViewState(installState)
   $: config = $configStore.data
   $: publicData = $publicStore.data
   $: adminData = $adminStore.data
@@ -248,9 +264,102 @@
     }
   }
 
-  async function initializeApp(): Promise<void> {
+  function getInstallHintStorage(): Storage | null {
+    if (typeof window === 'undefined') return null
+
+    try {
+      return window.localStorage
+    } catch {
+      return null
+    }
+  }
+
+  function rememberInstalled(installed: boolean): void {
+    setInstalledHint(getInstallHintStorage(), installed)
+  }
+
+  async function enterInstalledApp(session: Awaited<ReturnType<typeof api.install.install>> | null): Promise<void> {
+    await Promise.all([clearCachedAdminData(), clearCachedPublicData()])
+    rememberInstalled(true)
+    authStore.setSession(session, session ? { username: session.username } : null)
+    replaceBrowserPath('/')
+    installState = { type: 'checking' }
+    await initializeApp(true)
+  }
+
+  async function checkInstallStatus(): Promise<boolean> {
+    installState = { type: 'checking' }
+    const installedHint = hasInstalledHint(getInstallHintStorage())
+
+    try {
+      const status = await api.install.status()
+      if (status.state !== 'installed') {
+        if (canUseInstalledFallback(status, installedHint)) {
+          if (typeof window !== 'undefined' && isInstallPath(window.location.pathname)) {
+            replaceBrowserPath('/')
+          }
+          return true
+        }
+
+        rememberInstalled(false)
+        replaceBrowserPath('/install')
+        installState = toInstallScreenState(status)
+        booting = false
+        return false
+      }
+
+      rememberInstalled(true)
+      if (typeof window !== 'undefined' && isInstallPath(window.location.pathname)) {
+        replaceBrowserPath('/')
+      }
+      return true
+    } catch (error) {
+      if (installedHint) {
+        if (typeof window !== 'undefined' && isInstallPath(window.location.pathname)) {
+          replaceBrowserPath('/')
+        }
+        return true
+      }
+
+      installState = { type: 'status_error', message: normalizeInstallError(error) }
+      booting = false
+      return false
+    }
+  }
+
+  async function handleInstall(value: { setupToken: string; username: string; password: string }): Promise<void> {
+    if (installState.type !== 'pending' || installState.status.state !== 'needs_install') return
+
+    const pendingStatus = installState.status
+    installState = { type: 'installing', status: pendingStatus }
+
+    try {
+      const session = await api.install.install(
+        { username: value.username, password: value.password },
+        value.setupToken,
+      )
+      await enterInstalledApp(session)
+    } catch (error) {
+      if (await installationCommittedAfterFailure(api.install.status)) {
+        await enterInstalledApp(null)
+        return
+      }
+
+      installState = {
+        type: 'pending',
+        status: pendingStatus,
+        error: normalizeInstallError(error),
+      }
+    }
+  }
+
+  async function initializeApp(installStatusKnown = false): Promise<void> {
     booting = true
     rootError = ''
+
+    if (!installStatusKnown && !await checkInstallStatus()) {
+      return
+    }
 
     try {
       await authStore.initialize()
@@ -673,7 +782,17 @@
   })
 </script>
 
-{#if booting}
+{#if installView}
+  <Install
+    mode={installView.mode}
+    missingBindings={installView.missingBindings}
+    schemaVersion={installView.schemaVersion}
+    installing={installView.installing}
+    error={installView.error}
+    onInstall={handleInstall}
+    onRetryStatus={initializeApp}
+  />
+{:else if booting}
   <div class="app-splash">
     <div class="app-splash-card app-splash-card--loading" role="status" aria-live="polite" aria-busy="true">
       <div class="app-splash-mark" aria-hidden="true">

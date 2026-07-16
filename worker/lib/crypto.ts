@@ -55,6 +55,15 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+export async function secretsEqual(a: string, b: string): Promise<boolean> {
+  const encoder = new TextEncoder()
+  const [aHash, bHash] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(a)),
+    crypto.subtle.digest('SHA-256', encoder.encode(b)),
+  ])
+  return timingSafeEqual(toHex(aHash), toHex(bHash))
+}
+
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const idx = stored.indexOf(':')
   if (idx < 0) return false

@@ -181,6 +181,21 @@ export interface LoginResp {
   username: string
 }
 
+// GET /api/install/status
+export type InstallBinding = 'DB' | 'SESSION'
+export type InstallStatusResp =
+  | { state: 'installed'; schema_version: number }
+  | { state: 'needs_install'; schema_version: number | null; setup_token_configured: true }
+  | { state: 'configuration_required'; reason: 'setup_token_missing'; schema_version: number | null }
+  | { state: 'bindings_missing'; missing: InstallBinding[] }
+  | { state: 'unavailable'; reason: 'database_unreachable' | 'session_store_unreachable' }
+
+// POST /api/install
+export interface InstallReq {
+  username: string
+  password: string
+}
+
 // POST /api/password
 export interface ChangePasswordReq {
   current_password: string

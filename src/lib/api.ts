@@ -12,6 +12,8 @@ import {
   type IconifySearchResp,
   type ImportReq,
   type ImportResp,
+  type InstallReq,
+  type InstallStatusResp,
   type LoginReq,
   type LoginResp,
   type PublicData,
@@ -310,13 +312,30 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return envelope.data
 }
 
-function jsonRequest<T>(path: string, method: string, body?: unknown, auth = false): Promise<T> {
+function jsonRequest<T>(
+  path: string,
+  method: string,
+  body?: unknown,
+  auth = false,
+  additionalHeaders?: HeadersInit,
+): Promise<T> {
+  const headers = new Headers(JSON_HEADERS)
+  if (additionalHeaders) {
+    new Headers(additionalHeaders).forEach((value, key) => headers.set(key, value))
+  }
+
   return request<T>(path, {
     method,
     auth,
-    headers: JSON_HEADERS,
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+}
+
+export const installApi = {
+  status: () => request<InstallStatusResp>('/install/status', { cache: 'no-store', headers: NO_CACHE_HEADERS }),
+  install: (payload: InstallReq, setupToken: string) =>
+    jsonRequest<LoginResp>('/install', 'POST', payload, false, { 'X-Setup-Token': setupToken }),
 }
 
 export const configApi = {
@@ -374,6 +393,7 @@ export const dataApi = {
 }
 
 export const api = {
+  install: installApi,
   config: configApi,
   public: publicApi,
   admin: adminApi,
