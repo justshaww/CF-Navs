@@ -75,17 +75,6 @@
   line-height: 1.3;
 }
 
-.settings-panel .settings-subsection h3::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.18em;
-  bottom: 0.18em;
-  width: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--sp-accent) 48%, transparent);
-}
-
 /* ---------- 网格与字段 ---------- */
 
 .settings-panel .form-grid,

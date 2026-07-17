@@ -102,6 +102,13 @@
     </div>
   </div>
 
+  <div class="form-footer form-footer-header">
+    <p class="helper-text">
+      {#if saving}正在保存设置，请稍候...{:else if !hasTitle}请先填写站点标题。{:else if !backgroundValid}请完善背景设置。{:else if !enginesValid}请完善搜索引擎配置。{:else if !contentLayoutValid}请完善内容区布局配置。{:else if isDirty}检测到未保存的更改。{:else}当前配置已是最新状态。{/if}
+    </p>
+    <button type="submit" class="floating-save-btn" form="settings-form" disabled={!canSave}>{#if saving}保存中...{:else}保存设置{/if}</button>
+  </div>
+
   {#if error}
     <div class="error-banner" role="alert">
       <strong>保存失败</strong>
@@ -115,7 +122,7 @@
       <p class="status-desc">请稍候，正在准备当前配置。</p>
     </div>
   {:else}
-    <form class="settings-form" on:submit|preventDefault={handleSubmit}>
+    <form id="settings-form" class="settings-form" on:submit|preventDefault={handleSubmit}>
       <aside class="settings-submenu" aria-label="设置功能区">
         {#each settingsSections as section (section.id)}
           <button type="button" class:active={activeSectionId === section.id} on:click={() => activeSectionId = section.id}>
@@ -142,56 +149,30 @@
         {/if}
       </div>
 
-      <div class="form-footer">
-        <p class="helper-text">
-          {#if saving}
-            正在保存设置，请稍候...
-          {:else if !hasTitle}
-            请先填写站点标题。
-          {:else if !backgroundValid}
-            请完善背景设置。
-          {:else if !enginesValid}
-            请完善搜索引擎配置。
-          {:else if !contentLayoutValid}
-            请完善内容区布局配置。
-          {:else if isDirty}
-            检测到未保存的更改。
-          {:else}
-            当前配置已是最新状态。
-          {/if}
-        </p>
-        <button type="submit" class="floating-save-btn" disabled={!canSave}>
-          {#if saving}
-            保存中...
-          {:else}
-            保存设置
-          {/if}
-        </button>
-      </div>
     </form>
   {/if}
 </section>
 
 <style>
   .settings-panel {
-    --sp-text: #0f172a;
-    --sp-heading: #0f172a;
-    --sp-strong: #1e293b;
-    --sp-label: #334155;
-    --sp-muted: #64748b;
-    --sp-accent: #71836f;
-    --sp-accent-strong: #52634f;
-    --sp-border: rgba(112, 126, 108, 0.22);
+    --sp-text: var(--admin-text, #0f172a);
+    --sp-heading: var(--admin-text, #0f172a);
+    --sp-strong: var(--admin-text, #1e293b);
+    --sp-label: var(--admin-muted, #334155);
+    --sp-muted: var(--admin-subtle, #64748b);
+    --sp-accent: var(--admin-accent, #71836f);
+    --sp-accent-strong: var(--admin-accent-strong, #52634f);
+    --sp-border: var(--admin-border, rgba(112, 126, 108, 0.22));
     --sp-panel-bg:
       radial-gradient(circle at 90% 0%, rgba(205, 220, 200, 0.24), transparent 30%),
       linear-gradient(180deg, rgba(253, 252, 249, 0.98), rgba(246, 245, 239, 0.96)),
-      #f7f6f0;
+      var(--admin-page-bg, #f7f6f0);
     --sp-panel-shadow:
       0 24px 54px rgba(75, 83, 70, 0.1),
       0 1px 0 rgba(255, 255, 255, 0.72) inset;
-    --sp-header-bg: rgba(253, 252, 249, 0.88);
-    --sp-header-border: rgba(112, 126, 108, 0.2);
-    --sp-group-bg: rgba(253, 252, 249, 0.88);
+    --sp-header-bg: var(--admin-sticky-bg, rgba(253, 252, 249, 0.88));
+    --sp-header-border: var(--admin-divider, rgba(112, 126, 108, 0.2));
+    --sp-group-bg: var(--admin-surface, rgba(253, 252, 249, 0.88));
     --sp-group-bg-strong: rgba(255, 255, 255, 0.66);
     --sp-group-border: rgba(112, 126, 108, 0.2);
     --sp-subsection-border: rgba(112, 126, 108, 0.16);
@@ -241,14 +222,14 @@
   }
 
   :global([data-theme='dark']) .settings-panel {
-    --sp-text: #e5eefb;
-    --sp-heading: #e5eefb;
-    --sp-strong: #cbd5e1;
-    --sp-label: #cbd5e1;
-    --sp-muted: #94a3b8;
-    --sp-accent: #a9c2a0;
-    --sp-accent-strong: #d2e2ca;
-    --sp-border: rgba(148, 163, 184, 0.22);
+    --sp-text: var(--admin-text, #e5eefb);
+    --sp-heading: var(--admin-text, #e5eefb);
+    --sp-strong: var(--admin-muted, #cbd5e1);
+    --sp-label: var(--admin-muted, #cbd5e1);
+    --sp-muted: var(--admin-subtle, #94a3b8);
+    --sp-accent: var(--admin-accent, #a9c2a0);
+    --sp-accent-strong: var(--admin-accent-strong, #d2e2ca);
+    --sp-border: var(--admin-border, rgba(148, 163, 184, 0.22));
     --sp-panel-bg:
       linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.7)),
       #0b1524;
@@ -419,13 +400,9 @@
   .settings-submenu strong { font-size: 13px; font-weight: 650; }
   .settings-submenu span { font-size: 11px; line-height: 1.4; }
 
-  .settings-section-content { grid-column: span 9; display: grid; gap: 18px; min-width: 0; }
+  .settings-section-content { grid-column: span 9; display: grid; gap: 18px; min-width: 0; max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 6px; scrollbar-gutter: stable; }
 
   .form-footer {
-    grid-column: 1 / -1;
-    position: sticky;
-    bottom: 14px;
-    z-index: 24;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -440,6 +417,8 @@
       0 1px 0 rgba(255, 255, 255, 0.76) inset;
     padding: 10px 12px;
   }
+
+  .form-footer-header { margin: 0 24px 4px; }
 
   .helper-text {
     font-size: 13px;
@@ -493,7 +472,7 @@
     }
 
     .settings-submenu { grid-column: 1 / -1; position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .settings-section-content { grid-column: 1 / -1; }
+    .settings-section-content { grid-column: 1 / -1; max-height: none; overflow: visible; padding-right: 0; }
   }
 
   @media (max-width: 720px) {
