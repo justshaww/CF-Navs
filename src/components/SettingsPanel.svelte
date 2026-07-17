@@ -99,12 +99,12 @@
       <p class="panel-eyebrow">设置</p>
       <h2>站点设置</h2>
       <p class="panel-desc">按功能区管理站点信息、外观、布局与账号。切换功能区不会丢失未保存内容，完成后点击底部「保存设置」。</p>
-      <div class="form-footer form-footer-header">
-        <p class="helper-text">
-          {#if saving}正在保存设置，请稍候...{:else if !hasTitle}请先填写站点标题。{:else if !backgroundValid}请完善背景设置。{:else if !enginesValid}请完善搜索引擎配置。{:else if !contentLayoutValid}请完善内容区布局配置。{:else if isDirty}检测到未保存的更改。{:else}当前配置已是最新状态。{/if}
-        </p>
-        <button type="submit" class="floating-save-btn" form="settings-form" disabled={!canSave}>{#if saving}保存中...{:else}保存设置{/if}</button>
-      </div>
+    </div>
+    <div class="header-actions">
+      <p class="helper-text">
+        {#if saving}正在保存...{:else if !hasTitle}请填写站点标题{:else if !backgroundValid}请完善背景{:else if !enginesValid}请完善搜索引擎{:else if !contentLayoutValid}请完善布局{:else if isDirty}有未保存更改{:else}配置已同步{/if}
+      </p>
+      <button type="submit" class="floating-save-btn" form="settings-form" disabled={!canSave}>{#if saving}保存中{:else}保存设置{/if}</button>
     </div>
   </div>
 
@@ -283,14 +283,14 @@
     top: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: minmax(260px, 0.9fr) minmax(420px, 1.4fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    gap: 28px;
+    gap: 18px;
     border-bottom: 1px solid var(--sp-header-border);
     background: var(--sp-header-bg);
     backdrop-filter: blur(16px);
     border-radius: 22px 22px 0 0;
-    padding: 20px 24px 18px;
+    padding: 12px 18px 10px;
   }
 
   .panel-header-copy {
@@ -326,7 +326,7 @@
   }
 
   .panel-desc {
-    margin-top: 8px;
+    margin-top: 4px;
     max-width: 54ch;
     font-size: 13px;
     text-wrap: pretty;
@@ -372,6 +372,8 @@
     padding: 22px 24px 28px;
   }
 
+  .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; align-self: center; }
+
   .settings-submenu {
     grid-column: span 3;
     align-self: start;
@@ -401,24 +403,6 @@
 
   .settings-section-content { grid-column: span 9; display: grid; gap: 18px; min-width: 0; max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 6px; scrollbar-gutter: stable; }
 
-  .form-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 0;
-    border: 1px solid var(--sp-footer-border);
-    border-radius: 16px;
-    background: var(--sp-footer-bg);
-    backdrop-filter: blur(16px);
-    box-shadow:
-      0 18px 38px rgba(15, 23, 42, 0.16),
-      0 1px 0 rgba(255, 255, 255, 0.76) inset;
-    padding: 10px 12px;
-  }
-
-  .form-footer-header { margin: 14px 0 0; }
-
   .helper-text {
     font-size: 13px;
     min-width: 0;
@@ -430,12 +414,12 @@
     background: #667a63;
     color: #ffffff;
     border-radius: 12px;
-    min-height: 42px;
-    padding: 0 22px;
-    font-size: 15px;
+    min-height: 36px;
+    padding: 0 15px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 10px 24px rgba(82, 99, 79, 0.26);
+    box-shadow: 0 6px 14px rgba(82, 99, 79, 0.2);
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease,
@@ -466,6 +450,8 @@
       gap: 16px;
     }
 
+    .header-actions { justify-content: flex-start; }
+
     .settings-form {
       padding: 18px;
     }
@@ -490,18 +476,17 @@
 
     .settings-submenu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-    .form-footer {
-      bottom: 10px;
+    .header-actions {
       align-items: stretch;
       flex-direction: column;
-      padding: 12px;
+      gap: 6px;
     }
 
     .helper-text {
       line-height: 1.45;
     }
 
-    .floating-save-btn {
+    .header-actions .floating-save-btn {
       width: 100%;
       min-height: 40px;
       padding: 0 18px;
