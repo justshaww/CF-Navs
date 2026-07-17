@@ -43,7 +43,7 @@
   <div class="settings-grid search-controls-grid">
     <label class="field field-select">
       <span>默认引擎</span>
-      <select bind:value={form.search_engine.current} disabled={form.search_engine.engines.length === 0}>
+      <select class="native-select" bind:value={form.search_engine.current} disabled={form.search_engine.engines.length === 0}>
         {#if form.search_engine.engines.length === 0}
           <option value="">无可用引擎</option>
         {:else}

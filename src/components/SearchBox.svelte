@@ -135,7 +135,7 @@
     <select
       id="search-engine"
       bind:value={selectedName}
-      class="search-select"
+      class="search-select native-select"
       disabled={engines.length === 0}
     >
       {#if engines.length === 0}
@@ -184,9 +184,14 @@
   .search-input,
   .search-select {
     padding: 0 0.8rem;
-    background: rgba(255, 255, 255, 0.82);
+    background-color: rgba(255, 255, 255, 0.82);
     color: inherit;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .search-select {
+    --select-hover-border: rgba(59, 130, 246, 0.45);
+    padding-right: 2.35rem;
   }
 
   .search-input:focus,
@@ -219,7 +224,7 @@
 
   :global(html[data-background-preset^='paper-']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
     border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
-    background: rgb(var(--card-bg-rgb));
+    background-color: rgb(var(--card-bg-rgb));
     backdrop-filter: none;
   }
 
@@ -229,7 +234,7 @@
 
   :global(html[data-theme='dark'][data-background-preset^='paper-']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
     border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
-    background: rgb(var(--card-bg-rgb));
+    background-color: rgb(var(--card-bg-rgb));
     color: #e5eee2;
   }
 
@@ -323,7 +328,7 @@
   :global([data-theme='dark']) .search-input,
   :global([data-theme='dark']) .search-select,
   :global([data-theme='dark']) .engine-icon-button {
-    background: rgba(15, 23, 42, 0.6);
+    background-color: rgba(15, 23, 42, 0.6);
     border-color: rgba(148, 163, 184, 0.28);
     color: #e5eefb;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
