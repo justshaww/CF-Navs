@@ -27,21 +27,19 @@
   export let onSubmit: ((payload: SettingsPanelValue) => AsyncVoid) | undefined = undefined
   export let onChangePassword: ((payload: ChangePasswordReq) => AsyncVoid) | undefined = undefined
 
-  const sectionAnchors = [
-    { id: 'settings-section-basic', label: '基础信息' },
-    { id: 'settings-section-appearance', label: '外观主题' },
-    { id: 'settings-section-layout', label: '布局与导航' },
-    { id: 'settings-section-hero', label: '标题与搜索' },
-    { id: 'settings-section-card', label: '卡片样式' },
-    { id: 'settings-section-search', label: '搜索引擎' },
-    { id: 'settings-section-footer', label: '页脚' },
-    { id: 'settings-section-account', label: '账号安全' },
+  const settingsSections = [
+    { id: 'basic', label: '基础与标题', hint: '站点名称、公开状态与首页搜索' },
+    { id: 'appearance', label: '外观与卡片', hint: '主题、背景、卡片样式' },
+    { id: 'layout', label: '布局与导航', hint: '内容宽度、边距与导航位置' },
+    { id: 'search', label: '搜索服务', hint: '搜索引擎与快捷入口' },
+    { id: 'footer', label: '页脚与扩展', hint: '页脚、自定义脚本与样式' },
+    { id: 'account', label: '账号安全', hint: '修改管理员密码' },
   ]
 
   let form: SettingsPanelValue = cloneSettingsForm(emptySettingsForm)
   let initialForm: SettingsPanelValue = cloneSettingsForm(emptySettingsForm)
   let formKey = ''
-  let activeAnchorId = ''
+  let activeSectionId = 'basic'
 
   $: nextKey = JSON.stringify({ value, loading })
   $: if (nextKey !== formKey) {
@@ -93,12 +91,6 @@
     await onSubmit?.(normalizedForm)
   }
 
-  function scrollToSection(anchorId: string): void {
-    activeAnchorId = anchorId
-    if (typeof document === 'undefined') return
-    document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
 </script>
 
 <section class="settings-panel" aria-busy={loading || saving}>
@@ -106,20 +98,8 @@
     <div class="panel-header-copy">
       <p class="panel-eyebrow">设置</p>
       <h2>站点设置</h2>
-      <p class="panel-desc">按分组管理站点信息、外观、布局与账号；修改后点击底部「保存设置」统一生效。</p>
+      <p class="panel-desc">按功能区管理站点信息、外观、布局与账号。切换功能区不会丢失未保存内容，完成后点击底部「保存设置」。</p>
     </div>
-    <nav class="section-nav" aria-label="设置分组导航">
-      {#each sectionAnchors as anchor (anchor.id)}
-        <button
-          type="button"
-          class="section-nav-chip"
-          class:active={activeAnchorId === anchor.id}
-          on:click={() => scrollToSection(anchor.id)}
-        >
-          {anchor.label}
-        </button>
-      {/each}
-    </nav>
   </div>
 
   {#if error}
@@ -136,21 +116,31 @@
     </div>
   {:else}
     <form class="settings-form" on:submit|preventDefault={handleSubmit}>
-      <BasicSettingsSection bind:form {saving} />
+      <aside class="settings-submenu" aria-label="设置功能区">
+        {#each settingsSections as section (section.id)}
+          <button type="button" class:active={activeSectionId === section.id} on:click={() => activeSectionId = section.id}>
+            <strong>{section.label}</strong><span>{section.hint}</span>
+          </button>
+        {/each}
+      </aside>
 
-      <BackgroundSettingsSection bind:form {saving} />
-
-      <NavigationSettingsSection bind:form {saving} />
-
-      <HeroSettingsSection bind:form {saving} />
-
-      <CardSettingsSection bind:form {saving} />
-
-      <SearchEngineSettingsSection bind:form {saving} {enginesValid} />
-
-      <FooterSettingsSection bind:form {saving} />
-
-      <PasswordChangePanel {saving} {onChangePassword} />
+      <div class="settings-section-content">
+        {#if activeSectionId === 'basic'}
+          <BasicSettingsSection bind:form {saving} />
+          <HeroSettingsSection bind:form {saving} />
+        {:else if activeSectionId === 'appearance'}
+          <BackgroundSettingsSection bind:form {saving} />
+          <CardSettingsSection bind:form {saving} />
+        {:else if activeSectionId === 'layout'}
+          <NavigationSettingsSection bind:form {saving} />
+        {:else if activeSectionId === 'search'}
+          <SearchEngineSettingsSection bind:form {saving} {enginesValid} />
+        {:else if activeSectionId === 'footer'}
+          <FooterSettingsSection bind:form {saving} />
+        {:else}
+          <PasswordChangePanel {saving} {onChangePassword} />
+        {/if}
+      </div>
 
       <div class="form-footer">
         <p class="helper-text">
@@ -362,40 +352,6 @@
     text-wrap: pretty;
   }
 
-  .section-nav {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 7px;
-  }
-
-  .section-nav-chip {
-    border: 1px solid var(--sp-toggle-border);
-    border-radius: 10px;
-    padding: 8px 10px;
-    background: var(--sp-toggle-bg);
-    color: var(--sp-label);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      border-color 0.16s ease,
-      background 0.16s ease,
-      color 0.16s ease;
-    white-space: nowrap;
-  }
-
-  .section-nav-chip:hover {
-    border-color: color-mix(in srgb, var(--sp-accent) 42%, var(--sp-toggle-border));
-    background: var(--sp-toggle-hover-bg);
-    color: var(--sp-accent-strong);
-  }
-
-  .section-nav-chip.active {
-    border-color: color-mix(in srgb, var(--sp-accent) 55%, transparent);
-    background: var(--sp-chip-bg);
-    color: var(--sp-chip-text);
-  }
-
   .error-banner,
   .status-card {
     border-radius: 18px;
@@ -435,6 +391,35 @@
     gap: 18px;
     padding: 22px 24px 28px;
   }
+
+  .settings-submenu {
+    grid-column: span 3;
+    align-self: start;
+    display: grid;
+    gap: 6px;
+    position: sticky;
+    top: 86px;
+  }
+
+  .settings-submenu button {
+    display: grid;
+    gap: 4px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: left;
+    background: transparent;
+    color: var(--sp-muted);
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+
+  .settings-submenu button:hover { background: var(--sp-toggle-bg); color: var(--sp-strong); transform: translateX(2px); }
+  .settings-submenu button.active { border-color: var(--sp-toggle-border); background: var(--sp-toggle-bg); color: var(--sp-accent-strong); box-shadow: 0 6px 16px rgba(75, 83, 70, 0.06); }
+  .settings-submenu strong { font-size: 13px; font-weight: 650; }
+  .settings-submenu span { font-size: 11px; line-height: 1.4; }
+
+  .settings-section-content { grid-column: span 9; display: grid; gap: 18px; min-width: 0; }
 
   .form-footer {
     grid-column: 1 / -1;
@@ -506,6 +491,9 @@
     .settings-form {
       padding: 18px;
     }
+
+    .settings-submenu { grid-column: 1 / -1; position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .settings-section-content { grid-column: 1 / -1; }
   }
 
   @media (max-width: 720px) {
@@ -518,20 +506,11 @@
       padding: 14px 16px 12px;
     }
 
-    .section-nav {
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      padding-bottom: 2px;
-      scrollbar-width: none;
-    }
-
-    .section-nav::-webkit-scrollbar {
-      display: none;
-    }
-
     .settings-form {
       padding: 16px;
     }
+
+    .settings-submenu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .form-footer {
       bottom: 10px;
