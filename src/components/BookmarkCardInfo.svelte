@@ -176,4 +176,18 @@
     opacity: 0.92;
   }
 
+  :global(html[data-background-preset='paper-sage']) .bookmark-card-info {
+    border-color: rgba(112, 126, 108, 0.22);
+    background: #fdfcf9;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 8px 22px rgba(75, 83, 70, 0.08);
+  }
+
+  :global(html[data-theme='dark'][data-background-preset='paper-sage']) .bookmark-card-info {
+    border-color: rgba(169, 194, 160, 0.2);
+    background: #2b332a;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  }
+
 </style>

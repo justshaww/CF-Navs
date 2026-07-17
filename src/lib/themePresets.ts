@@ -224,6 +224,17 @@ function createGradientPreset(
 }
 
 export const gradientPresets: ThemeGradientPreset[] = [
+  {
+    id: 'paper-sage',
+    label: '纸页鼠尾草',
+    description: '暖白纸张与鼠尾草绿的纯色主题，不使用渐变或毛玻璃。',
+    light: { type: 'color', value: '#f7f6f0', blur: 0, mask: 0, maskColor: '#ffffff' },
+    dark: { type: 'color', value: '#20261f', blur: 0, mask: 0, maskColor: '#000000' },
+    cardBackgroundColor: '#fdfcf9',
+    cardBackgroundOpacity: 1,
+    cardTextColor: '',
+    siteTitleColor: '',
+  },
   createGradientPreset('clear-teal', '清透蓝绿', '清爽的蓝绿冷调，玻璃卡片映出水色高光。', clearTealLightGradient, clearTealDarkGradient, { lightMask: 0.06, darkMask: 0.12, cardBackgroundOpacity: 0.42 }),
   createGradientPreset('mist-slate', '晨雾石青', '石青与浅绿的柔和薄雾，安静而不寡淡。', mistSlateLightGradient, mistSlateDarkGradient, { lightMask: 0.08, darkMask: 0.14, cardBackgroundOpacity: 0.42 }),
   createGradientPreset('coral-sky', '珊瑚晴空', '珊瑚、天空蓝和薄荷绿的轻快组合，明亮有活力。', coralSkyLightGradient, coralSkyDarkGradient, { lightMask: 0.06, darkMask: 0.14, cardBackgroundOpacity: 0.44 }),

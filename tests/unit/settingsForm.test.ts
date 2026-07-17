@@ -13,9 +13,9 @@ import {
 
 describe('settings form model', () => {
   it('keeps every built-in background preset available through the shared preset contract', () => {
-    expect(gradientPresets).toHaveLength(13)
+    expect(gradientPresets).toHaveLength(14)
     expect(gradientPresets.map((preset) => preset.id)).toEqual([
-      'clear-teal', 'mist-slate', 'coral-sky', 'sage-graphite', 'lumen-amber', 'ember-night',
+      'paper-sage', 'clear-teal', 'mist-slate', 'coral-sky', 'sage-graphite', 'lumen-amber', 'ember-night',
       'violet-dawn', 'ocean-depths', 'aurora-borealis', 'citrus-sunset', 'rose-orbit',
       'indigo-noir', 'terracotta-dune',
     ])

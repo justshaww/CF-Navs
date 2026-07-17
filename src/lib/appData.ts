@@ -223,7 +223,9 @@ export function buildHomeBackground(settings: PublicSettings | null, theme: 'lig
   }
   const backgroundFilter = blur > 0 ? `blur(${blur}px)` : 'none'
   const backgroundTransform = blur > 0 ? 'scale(1.06)' : 'none'
-  const cardColor = settings.card_background_color?.trim() || '#ffffff'
+  const cardColor = settings.background_preset_id === 'paper-sage' && theme === 'dark'
+    ? '#2b332a'
+    : settings.card_background_color?.trim() || '#ffffff'
   const cardOpacity = typeof settings.card_background_opacity === 'number'
     ? Math.min(1, Math.max(0, settings.card_background_opacity))
     : 0.9

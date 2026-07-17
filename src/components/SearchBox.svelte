@@ -217,6 +217,22 @@
     font: inherit;
   }
 
+  :global(html[data-background-preset='paper-sage']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
+    border-color: rgba(112, 126, 108, 0.24);
+    background: #fdfcf9;
+    backdrop-filter: none;
+  }
+
+  :global(html[data-background-preset='paper-sage']) .search-button {
+    background: #667a63;
+  }
+
+  :global(html[data-theme='dark'][data-background-preset='paper-sage']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
+    border-color: rgba(169, 194, 160, 0.2);
+    background: #2b332a;
+    color: #e5eee2;
+  }
+
   .engine-icon-button {
     width: 100%;
     height: 100%;
