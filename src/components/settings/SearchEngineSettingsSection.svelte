@@ -165,6 +165,7 @@
   }
 
   .engine-icon-control input {
+    grid-column: 1;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -188,6 +189,7 @@
   }
 
   .engine-icon-preview {
+    grid-column: 2;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -207,6 +209,7 @@
   }
 
   .favicon-button {
+    grid-column: 3;
     min-height: 36px;
     padding: 8px 11px;
   }

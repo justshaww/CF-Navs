@@ -73,5 +73,6 @@ describe('admin settings layout', () => {
     expect(search).toContain('engine.icon = icon')
     expect(search).toContain('Favicon.im')
     expect(search).toContain('搜索引擎图标预览')
+    expect(search).toContain('.favicon-button {\n    grid-column: 3;')
   })
 })
