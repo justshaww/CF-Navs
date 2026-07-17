@@ -16,6 +16,7 @@
   import NavigationSettingsSection from './settings/NavigationSettingsSection.svelte'
   import SearchEngineSettingsSection from './settings/SearchEngineSettingsSection.svelte'
   import PasswordChangePanel from './PasswordChangePanel.svelte'
+  import { gradientPresets } from '../lib/themePresets'
 
   type SettingsPanelValue = SettingsFormModel
   type AsyncVoid<T = void> = T | Promise<T>
@@ -49,6 +50,8 @@
   }
 
   $: normalizedForm = normalizeSettingsForm(form)
+  $: selectedThemePreset = gradientPresets.find((preset) => preset.id === normalizedForm.background_preset_id)
+  $: settingsThemeAccent = selectedThemePreset?.accentColor ?? 'var(--admin-accent, #2563eb)'
   $: normalizedInitialForm = normalizeSettingsForm(initialForm)
   $: isDirty = JSON.stringify(normalizedForm) !== JSON.stringify(normalizedInitialForm)
   $: hasTitle = normalizedForm.site_title.length > 0
@@ -93,7 +96,7 @@
 
 </script>
 
-<section class="settings-panel" aria-busy={loading || saving}>
+<section class="settings-panel" style={`--settings-theme-accent: ${settingsThemeAccent};`} aria-busy={loading || saving}>
   <div class="panel-header">
     <div class="panel-header-copy">
       <p class="panel-eyebrow">设置</p>
@@ -159,13 +162,10 @@
     --sp-strong: var(--admin-text, #1e293b);
     --sp-label: var(--admin-muted, #334155);
     --sp-muted: var(--admin-subtle, #64748b);
-    --sp-accent: var(--admin-accent, #71836f);
-    --sp-accent-strong: var(--admin-accent-strong, #52634f);
+    --sp-accent: var(--settings-theme-accent, var(--admin-accent, #2563eb));
+    --sp-accent-strong: var(--settings-theme-accent, var(--admin-accent-strong, #1d4ed8));
     --sp-border: var(--admin-border, rgba(112, 126, 108, 0.22));
-    --sp-panel-bg:
-      radial-gradient(circle at 90% 0%, rgba(205, 220, 200, 0.24), transparent 30%),
-      linear-gradient(180deg, rgba(253, 252, 249, 0.98), rgba(246, 245, 239, 0.96)),
-      var(--admin-page-bg, #f7f6f0);
+    --sp-panel-bg: var(--admin-surface, #ffffff);
     --sp-panel-shadow:
       0 24px 54px rgba(75, 83, 70, 0.1),
       0 1px 0 rgba(255, 255, 255, 0.72) inset;
@@ -211,13 +211,16 @@
     --sp-theme-card-border: rgba(226, 232, 240, 0.94);
     --sp-radio-border: rgba(226, 232, 240, 0.9);
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 0;
     position: relative;
+    height: calc(100dvh - 150px);
+    min-height: 560px;
     border: 1px solid var(--sp-border);
     border-radius: 22px;
     background: var(--sp-panel-bg);
     box-shadow: var(--sp-panel-shadow);
-    overflow: visible;
+    overflow: hidden;
   }
 
   :global([data-theme='dark']) .settings-panel {
@@ -370,6 +373,8 @@
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 18px;
     padding: 22px 24px 28px;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; align-self: center; }
@@ -401,7 +406,7 @@
   .settings-submenu strong { font-size: 13px; font-weight: 650; }
   .settings-submenu span { font-size: 11px; line-height: 1.4; }
 
-  .settings-section-content { grid-column: span 9; display: grid; gap: 18px; min-width: 0; max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 6px; scrollbar-gutter: stable; }
+  .settings-section-content { grid-column: span 9; display: grid; align-content: start; gap: 18px; min-width: 0; height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; scrollbar-gutter: stable; }
 
   .helper-text {
     font-size: 13px;
@@ -457,12 +462,16 @@
     }
 
     .settings-submenu { grid-column: 1 / -1; position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .settings-section-content { grid-column: 1 / -1; max-height: none; overflow: visible; padding-right: 0; }
+    .settings-panel { height: auto; min-height: 0; overflow: visible; }
+    .settings-section-content { grid-column: 1 / -1; height: auto; overflow: visible; padding-right: 0; }
   }
 
   @media (max-width: 720px) {
     .settings-panel {
       border-radius: 18px;
+      height: auto;
+      min-height: 0;
+      overflow: visible;
     }
 
     .panel-header {
