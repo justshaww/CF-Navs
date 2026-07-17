@@ -401,26 +401,26 @@
     --toc-slip: rgba(226, 232, 240, 0.82);
   }
 
-  :global(html[data-background-preset='paper-sage']) :is(.toc-mobile-btn, .toc-sidebar, .top-navigation) {
-    --toc-surface: #fdfcf9;
-    --toc-surface-strong: #ffffff;
-    --toc-item-bg: #f1f2ed;
-    --toc-item-hover-bg: #e5ebe2;
-    --toc-item-border: rgba(112, 126, 108, 0.2);
-    --toc-border: rgba(112, 126, 108, 0.24);
-    --toc-accent: #667a63;
+  :global(html[data-background-preset^='paper-']) :is(.toc-mobile-btn, .toc-sidebar, .top-navigation) {
+    --toc-surface: rgb(var(--card-bg-rgb));
+    --toc-surface-strong: rgb(var(--card-bg-rgb));
+    --toc-item-bg: color-mix(in srgb, var(--home-accent-color) 8%, rgb(var(--card-bg-rgb)));
+    --toc-item-hover-bg: color-mix(in srgb, var(--home-accent-color) 14%, rgb(var(--card-bg-rgb)));
+    --toc-item-border: color-mix(in srgb, var(--home-accent-color) 20%, transparent);
+    --toc-border: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
+    --toc-accent: var(--home-accent-color);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 
-  :global(html[data-theme='dark'][data-background-preset='paper-sage']) :is(.toc-mobile-btn, .toc-sidebar, .top-navigation) {
-    --toc-surface: #2b332a;
-    --toc-surface-strong: #343d32;
-    --toc-item-bg: #30382e;
-    --toc-item-hover-bg: #3b4638;
-    --toc-item-border: rgba(169, 194, 160, 0.16);
-    --toc-border: rgba(169, 194, 160, 0.2);
-    --toc-accent: #a9c2a0;
+  :global(html[data-theme='dark'][data-background-preset^='paper-']) :is(.toc-mobile-btn, .toc-sidebar, .top-navigation) {
+    --toc-surface: rgb(var(--card-bg-rgb));
+    --toc-surface-strong: rgb(var(--card-bg-rgb));
+    --toc-item-bg: color-mix(in srgb, var(--home-accent-color) 8%, rgb(var(--card-bg-rgb)));
+    --toc-item-hover-bg: color-mix(in srgb, var(--home-accent-color) 14%, rgb(var(--card-bg-rgb)));
+    --toc-item-border: color-mix(in srgb, var(--home-accent-color) 18%, transparent);
+    --toc-border: color-mix(in srgb, var(--home-accent-color) 22%, transparent);
+    --toc-accent: var(--home-accent-color);
   }
 
   .top-navigation {

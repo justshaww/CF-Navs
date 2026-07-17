@@ -217,19 +217,19 @@
     font: inherit;
   }
 
-  :global(html[data-background-preset='paper-sage']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
-    border-color: rgba(112, 126, 108, 0.24);
-    background: #fdfcf9;
+  :global(html[data-background-preset^='paper-']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
+    border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
+    background: rgb(var(--card-bg-rgb));
     backdrop-filter: none;
   }
 
-  :global(html[data-background-preset='paper-sage']) .search-button {
-    background: #667a63;
+  :global(html[data-background-preset^='paper-']) .search-button {
+    background: var(--home-accent-color);
   }
 
-  :global(html[data-theme='dark'][data-background-preset='paper-sage']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
-    border-color: rgba(169, 194, 160, 0.2);
-    background: #2b332a;
+  :global(html[data-theme='dark'][data-background-preset^='paper-']) :is(.search-input, .search-select, .engine-icon-button, .engine-menu) {
+    border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
+    background: rgb(var(--card-bg-rgb));
     color: #e5eee2;
   }
 

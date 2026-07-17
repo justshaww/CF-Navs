@@ -150,17 +150,17 @@
     border-color: rgba(125, 211, 252, 0.32);
   }
 
-  :global(html[data-background-preset='paper-sage']) .bookmark-card-icon {
-    border-color: rgba(112, 126, 108, 0.22);
-    background: #fdfcf9;
+  :global(html[data-background-preset^='paper-']) .bookmark-card-icon {
+    border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
+    background: rgb(var(--card-bg-rgb));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: 0 8px 22px rgba(75, 83, 70, 0.08);
   }
 
-  :global(html[data-theme='dark'][data-background-preset='paper-sage']) .bookmark-card-icon {
-    border-color: rgba(169, 194, 160, 0.2);
-    background: #2b332a;
+  :global(html[data-theme='dark'][data-background-preset^='paper-']) .bookmark-card-icon {
+    border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
+    background: rgb(var(--card-bg-rgb));
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   }
 
