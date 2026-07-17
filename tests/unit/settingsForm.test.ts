@@ -22,6 +22,14 @@ describe('settings form model', () => {
     ])
     expect(gradientPresets.find((preset) => preset.id === 'paper-sage')?.surface).toBe('flat')
     expect(gradientPresets.filter((preset) => preset.surface === 'glass')).toHaveLength(13)
+    expect(
+      gradientPresets
+        .filter((preset) => preset.surface === 'flat')
+        .map((preset) => preset.accentColor),
+    ).toEqual([
+      '#536b52', '#936b63', '#896a43', '#506f80', '#43523f',
+      '#a85f72', '#665a9e', '#425f8c', '#98651f',
+    ])
   })
 
   it('creates a complete editable form from partial settings', () => {
