@@ -346,6 +346,7 @@
   class="home-shell"
   class:top-navigation-layout={isTopNavigation}
   class:persistent-left-navigation={navigation.position === 'left' && navigation.always_expanded && persistentLeftExpanded}
+  class:anywhere-door-home={showAnywhereDoorPrompt}
   style={homeShellStyle}
 >
   <HomeFloatingActions
@@ -368,6 +369,10 @@
     topNavigation={isTopNavigation}
     bind:query={searchQuery}
   />
+
+  {#if showAnywhereDoorPrompt}
+    <div class="anywhere-door-art" aria-hidden="true"></div>
+  {/if}
 
   {#if showAnywhereDoorPrompt}
     <p class="anywhere-door-prompt">准备去哪儿呢？</p>
@@ -473,6 +478,18 @@
     opacity: var(--home-background-mask, 0.3);
   }
 
+  .anywhere-door-art {
+    position: fixed;
+    right: clamp(1.5rem, 3.5vw, 5rem);
+    bottom: clamp(1rem, 3vh, 2.5rem);
+    z-index: -1;
+    width: clamp(28rem, 36vw, 42.5rem);
+    aspect-ratio: 680 / 470;
+    background: url('/doraemon-door-foreground.png') center / cover no-repeat;
+    clip-path: polygon(12% 55%, 16% 25%, 28% 11%, 46% 11%, 56% 24%, 61% 42%, 74% 45%, 81% 38%, 87% 47%, 88% 62%, 95% 68%, 94% 86%, 84% 89%, 77% 86%, 66% 93%, 48% 94%, 40% 91%, 31% 92%, 22% 85%, 13% 79%);
+    pointer-events: none;
+  }
+
   .anywhere-door-prompt {
     position: fixed;
     top: clamp(12.5rem, 23vh, 16.5rem);
@@ -495,6 +512,16 @@
     letter-spacing: 0;
     line-height: 1.2;
     pointer-events: none;
+  }
+
+  @media (min-width: 1500px) {
+    .anywhere-door-home :global(.hero-search) {
+      transform: translateX(clamp(2.5rem, 3vw, 3.75rem));
+    }
+
+    .anywhere-door-prompt {
+      transform: translateX(clamp(2.5rem, 3vw, 3.75rem));
+    }
   }
 
   .anywhere-door-prompt::after {
@@ -591,11 +618,21 @@
     .anywhere-door-prompt {
       display: none;
     }
+
+    .anywhere-door-art {
+      display: none;
+    }
   }
 
   @media (min-width: 721px) and (max-width: 1180px) {
     .anywhere-door-prompt {
       display: none;
+    }
+
+    .anywhere-door-art {
+      right: 0.5rem;
+      width: 29rem;
+      opacity: 0.82;
     }
   }
 </style>

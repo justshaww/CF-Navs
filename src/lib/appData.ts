@@ -222,23 +222,14 @@ export function buildHomeBackground(settings: PublicSettings | null, theme: 'lig
   if (!settings) return ''
 
   const configuredBackground = settings.backgrounds?.[theme] ?? settings.background
-  const hostname = typeof window === 'undefined' ? '' : window.location.hostname
-  const useShawAnywhereDoor = isShawAnywhereDoorSite(settings.site_title, hostname)
-  const background = useShawAnywhereDoor
-    ? {
-        ...configuredBackground,
-        type: 'image' as const,
-        value: '/doraemon-door-bg-4k.webp',
-      }
-    : configuredBackground
+  const background = configuredBackground
   const blur = Math.min(40, Math.max(0, Number(background.blur) || 0))
   const mask = Math.min(1, Math.max(0, Number(background.mask) ?? 0.3))
   const maskColor = background.maskColor?.trim() || '#000000'
 
   let layer = background.value
   if (background.type === 'image' && background.value) {
-    const position = useShawAnywhereDoor ? '76% center' : 'center'
-    layer = `url("${background.value}") ${position} / cover no-repeat`
+    layer = `url("${background.value}") center / cover no-repeat`
   }
   const backgroundFilter = blur > 0 ? `blur(${blur}px)` : 'none'
   const backgroundTransform = blur > 0 ? 'scale(1.06)' : 'none'
