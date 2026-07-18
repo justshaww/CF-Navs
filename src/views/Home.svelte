@@ -475,28 +475,43 @@
 
   .anywhere-door-prompt {
     position: fixed;
-    top: 26.5vh;
-    right: clamp(5.5rem, 10vw, 15rem);
+    top: clamp(12.5rem, 23vh, 16.5rem);
+    right: clamp(23rem, 36vw, 43rem);
     z-index: 0;
     margin: 0;
-    color: #394452;
+    padding: 0.7rem 1.05rem;
+    border: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
+    border-radius: 1.1rem;
+    background:
+      linear-gradient(135deg, rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72)), rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.28))),
+      rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.4));
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(14px) saturate(125%);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+    color: #273449;
     font-family: STKaiti, KaiTi, 'Microsoft YaHei', 'PingFang SC', sans-serif;
-    font-size: clamp(1.45rem, 1.8vw, 2rem);
+    font-size: clamp(1.2rem, 1.45vw, 1.55rem);
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.2;
-    text-shadow:
-      0 2px 0 rgba(255, 255, 255, 0.96),
-      0 8px 22px rgba(15, 23, 42, 0.14);
-    transform: rotate(-2deg);
     pointer-events: none;
+  }
+
+  .anywhere-door-prompt::after {
+    content: '';
+    position: absolute;
+    right: -0.52rem;
+    bottom: 0.28rem;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-right: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
+    border-bottom: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
+    background: rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.4));
+    transform: rotate(-45deg);
   }
 
   :global([data-theme='dark']) .anywhere-door-prompt {
     color: #eef6ff;
-    text-shadow:
-      0 2px 0 rgba(15, 23, 42, 0.9),
-      0 8px 22px rgba(0, 0, 0, 0.34);
   }
 
   :global([data-theme='dark']) .home-shell {
@@ -573,6 +588,12 @@
       padding-top: 4.5rem;
     }
 
+    .anywhere-door-prompt {
+      display: none;
+    }
+  }
+
+  @media (min-width: 721px) and (max-width: 1180px) {
     .anywhere-door-prompt {
       display: none;
     }

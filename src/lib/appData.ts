@@ -226,11 +226,9 @@ export function buildHomeBackground(settings: PublicSettings | null, theme: 'lig
   const useShawAnywhereDoor = isShawAnywhereDoorSite(settings.site_title, hostname)
   const background = useShawAnywhereDoor
     ? {
+        ...configuredBackground,
         type: 'image' as const,
         value: '/doraemon-door-bg-4k.webp',
-        blur: 0,
-        mask: theme === 'dark' ? 0.3 : 0.02,
-        maskColor: theme === 'dark' ? '#111827' : '#ffffff',
       }
     : configuredBackground
   const blur = Math.min(40, Math.max(0, Number(background.blur) || 0))
