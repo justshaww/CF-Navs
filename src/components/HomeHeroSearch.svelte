@@ -107,7 +107,7 @@
     display: inline-block;
     position: relative;
     margin: 0.15rem 0 0;
-    padding: 0.52em 0.32em 0;
+    padding: 0 0.18em;
     justify-self: center;
     font-family:
       'Arial Black',
@@ -133,20 +133,6 @@
       0 2px 0 rgba(255, 255, 255, 0.92),
       3px 3px 0 rgba(255, 255, 255, 0.62),
       8px 10px 18px rgba(30, 41, 59, 0.16);
-  }
-
-  .site-title::before {
-    content: "";
-    position: absolute;
-    left: 0.08em;
-    right: 0.08em;
-    top: 0.08em;
-    height: 0.38em;
-    background: #ff3434;
-    clip-path: polygon(0 54%, 30% 0, 58% 52%, 100% 52%, 100% 82%, 56% 82%, 30% 30%, 0 84%);
-    transform: skewX(10deg);
-    transform-origin: center;
-    filter: drop-shadow(3px 4px 0 rgba(55, 49, 125, 0.13));
   }
 
   :global([data-theme='dark']) .site-title {
