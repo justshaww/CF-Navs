@@ -5,6 +5,7 @@ import {
   adminDataToPublicData,
   buildHomeBackground,
   getDataVersion,
+  isShawAnywhereDoorSite,
   mergeAdminData,
   mergePublicData,
   stripAdminDataVersion,
@@ -171,6 +172,27 @@ describe('app data adapters', () => {
     expect(cssVars).toContain('--card-bg-opacity: 0.75;')
     expect(cssVars).toContain('--card-title-color: #0f172a;')
     expect(cssVars).toContain('--card-description-color: #475569;')
+  })
+
+  it('uses the crisp Doraemon background for Shaw\'s anywhere door homepage', () => {
+    const shawSettings = toPublicSettings({
+      ...settings,
+      site_title: 'shaw的任意门',
+    })
+
+    const lightCssVars = buildHomeBackground(shawSettings, 'light')
+    expect(lightCssVars).toContain('--home-background: url("/doraemon-door-bg-4k.webp") 76% center / cover no-repeat;')
+    expect(lightCssVars).toContain('--home-background-blur: 0px;')
+    expect(lightCssVars).toContain('--home-background-mask: 0.02;')
+
+    const darkCssVars = buildHomeBackground(shawSettings, 'dark')
+    expect(darkCssVars).toContain('--home-background: url("/doraemon-door-bg-4k.webp") 76% center / cover no-repeat;')
+    expect(darkCssVars).toContain('--home-background-mask: 0.3;')
+  })
+
+  it('recognizes the production domain even while its stored title is stale', () => {
+    expect(isShawAnywhereDoorSite('CF-Navs（毛玻璃主题）', 'navs.servs.eu.cc')).toBe(true)
+    expect(isShawAnywhereDoorSite('Another navigation', 'example.com')).toBe(false)
   })
 
   it('uses eye-care preset card colors while preserving user opacity and text overrides', () => {

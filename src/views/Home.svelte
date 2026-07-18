@@ -6,6 +6,7 @@
   import HomeEmptyPanel from '../components/HomeEmptyPanel.svelte'
   import HomeFloatingActions from '../components/HomeFloatingActions.svelte'
   import HomeHeroSearch from '../components/HomeHeroSearch.svelte'
+  import { isShawAnywhereDoorSite } from '../lib/appData'
   import type { NavigationSetting, PublicBookmark, PublicCategory, PublicSettings, ThemeMode } from '../../shared/types'
   import {
     clampTitleFontSize,
@@ -98,6 +99,8 @@
   $: totalBookmarks = topLevelBookmarks.length
   $: visibleBookmarkCount = visibleBookmarks.length
   $: pageTitle = title || settings?.site_title || '导航首页'
+  $: currentHostname = typeof window === 'undefined' ? '' : window.location.hostname
+  $: showAnywhereDoorPrompt = isShawAnywhereDoorSite(pageTitle, currentHostname)
   $: siteTitleColor = settings?.site_title_color?.trim() || 'inherit'
   $: siteTitleFontSize = clampTitleFontSize(settings?.site_title_font_size)
   $: contentLayout = settings?.content_layout ?? {
@@ -366,6 +369,10 @@
     bind:query={searchQuery}
   />
 
+  {#if showAnywhereDoorPrompt}
+    <p class="anywhere-door-prompt">准备去哪儿呢？</p>
+  {/if}
+
   <Sidebar
     items={sections}
     {activeId}
@@ -466,6 +473,32 @@
     opacity: var(--home-background-mask, 0.3);
   }
 
+  .anywhere-door-prompt {
+    position: fixed;
+    top: 26.5vh;
+    right: clamp(5.5rem, 10vw, 15rem);
+    z-index: 0;
+    margin: 0;
+    color: #394452;
+    font-family: STKaiti, KaiTi, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    font-size: clamp(1.45rem, 1.8vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-shadow:
+      0 2px 0 rgba(255, 255, 255, 0.96),
+      0 8px 22px rgba(15, 23, 42, 0.14);
+    transform: rotate(-2deg);
+    pointer-events: none;
+  }
+
+  :global([data-theme='dark']) .anywhere-door-prompt {
+    color: #eef6ff;
+    text-shadow:
+      0 2px 0 rgba(15, 23, 42, 0.9),
+      0 8px 22px rgba(0, 0, 0, 0.34);
+  }
+
   :global([data-theme='dark']) .home-shell {
     --home-text-color: var(--card-text-color, #e5eefb);
     --home-muted-opacity: 0.76;
@@ -538,6 +571,10 @@
 
     .home-shell.top-navigation-layout {
       padding-top: 4.5rem;
+    }
+
+    .anywhere-door-prompt {
+      display: none;
     }
   }
 </style>
