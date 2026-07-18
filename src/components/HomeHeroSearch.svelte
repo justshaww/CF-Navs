@@ -14,6 +14,7 @@
   let now = new Date()
   let timer: ReturnType<typeof setInterval> | null = null
 
+  $: resolvedSiteTitleColor = siteTitleColor === 'inherit' ? '#37317d' : siteTitleColor
   $: hours = now.getHours()
   $: greeting = hours < 5
     ? '夜深了，shaw'
@@ -49,7 +50,7 @@
     <div class="hero-time">{timeText}</div>
     <div class="hero-date">{dateText}</div>
   </div>
-  <h1 class="site-title" style="--site-title-color: {siteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
+  <h1 class="site-title" style="--site-title-color: {resolvedSiteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
   {#if settings?.search_box_show ?? true}
     <div class="search-card">
       <SearchBox
@@ -104,42 +105,58 @@
 
   .site-title {
     display: inline-block;
+    position: relative;
     margin: 0.15rem 0 0;
+    padding: 0.52em 0.32em 0;
     justify-self: center;
     font-family:
-      YouYuan,
+      'Arial Black',
+      Impact,
+      SimHei,
       'Microsoft YaHei UI',
       'Microsoft YaHei',
       'PingFang SC',
       'Hiragino Sans GB',
       sans-serif;
-    font-weight: 900;
-    line-height: 1.1;
+    font-style: italic;
+    font-weight: 950;
+    line-height: 0.95;
     overflow-wrap: anywhere;
-    letter-spacing: 0.02em;
-    color: var(--site-title-color, #0f172a);
-    background: linear-gradient(115deg, #0697d7 0%, #11a8ea 38%, #ff6544 68%, #f59e0b 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: 0.45px rgba(255, 255, 255, 0.62);
+    letter-spacing: -0.04em;
+    color: var(--site-title-color, #37317d);
+    -webkit-text-fill-color: var(--site-title-color, #37317d);
+    -webkit-text-stroke: 0;
     paint-order: stroke fill;
-    transform: rotate(-0.7deg);
-    filter: drop-shadow(0 7px 0 rgba(255, 255, 255, 0.42));
+    transform: skewX(-10deg);
+    filter: drop-shadow(5px 5px 0 rgba(55, 49, 125, 0.12));
     text-shadow:
-      0 2px 0 rgba(255, 255, 255, 0.7),
-      0 8px 18px rgba(14, 165, 233, 0.2),
-      0 18px 38px rgba(15, 23, 42, 0.16);
+      0 2px 0 rgba(255, 255, 255, 0.92),
+      3px 3px 0 rgba(255, 255, 255, 0.62),
+      8px 10px 18px rgba(30, 41, 59, 0.16);
+  }
+
+  .site-title::before {
+    content: "";
+    position: absolute;
+    left: 0.08em;
+    right: 0.08em;
+    top: 0.08em;
+    height: 0.38em;
+    background: #ff3434;
+    clip-path: polygon(0 54%, 30% 0, 58% 52%, 100% 52%, 100% 82%, 56% 82%, 30% 30%, 0 84%);
+    transform: skewX(10deg);
+    transform-origin: center;
+    filter: drop-shadow(3px 4px 0 rgba(55, 49, 125, 0.13));
   }
 
   :global([data-theme='dark']) .site-title {
-    background: linear-gradient(115deg, #7dd3fc 0%, #38bdf8 42%, #fb7185 70%, #fbbf24 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
+    color: #d6d3ff;
+    -webkit-text-fill-color: #d6d3ff;
+    filter: drop-shadow(5px 5px 0 rgba(0, 0, 0, 0.2));
     text-shadow:
-      0 2px 0 rgba(15, 23, 42, 0.55),
-      0 10px 24px rgba(56, 189, 248, 0.24),
-      0 22px 46px rgba(0, 0, 0, 0.24);
+      0 2px 0 rgba(15, 23, 42, 0.8),
+      4px 5px 0 rgba(49, 46, 129, 0.55),
+      0 18px 38px rgba(0, 0, 0, 0.28);
   }
 
   .search-card {
