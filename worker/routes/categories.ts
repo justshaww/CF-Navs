@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErrCode, type BatchDeleteReq, type CategoryUpsertReq, type SortReq } from '../../shared/types'
-import { canAssignCategoryParent } from '../../shared/categoryTree'
 import {
   createCategory,
   deleteCategory,
@@ -35,10 +34,6 @@ function isOptionalString(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string'
 }
 
-function isOptionalParentId(value: unknown): value is number | null | undefined {
-  return value === undefined || value === null || (Number.isInteger(value) && (value as number) > 0)
-}
-
 function parseBatchIds(value: unknown): number[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > 500) return null
   const ids = [...new Set(value)]
@@ -65,20 +60,14 @@ categoriesRoutes.get('/', async (c) => {
 
 categoriesRoutes.post('/', async (c) => {
   const body = await readJson<CategoryUpsertReq>(c)
-  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) || !isOptionalParentId(body.parent_id)) {
+  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon)) {
     return badRequest(c, 'invalid category payload')
   }
 
   try {
-    const categories = await listCategories(c.env.DB)
-    const parentId = body.parent_id ?? null
-    if (parentId != null && !categories.some((category) => category.id === parentId)) {
-      return badRequest(c, 'parent category not found')
-    }
     const category = await createCategory(c.env.DB, {
       title: body.title.trim(),
       icon: body.icon ?? null,
-      parent_id: parentId,
     })
     await touchDataVersion(c.env.DB)
     invalidateRuntimeDataCache()
@@ -94,24 +83,14 @@ categoriesRoutes.put('/:id', async (c) => {
   if (id == null) return badRequest(c, 'invalid category id')
 
   const body = await readJson<CategoryUpsertReq>(c)
-  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) || !isOptionalParentId(body.parent_id)) {
+  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon)) {
     return badRequest(c, 'invalid category payload')
   }
 
   try {
-    const categories = await listCategories(c.env.DB)
-    const currentCategory = categories.find((category) => category.id === id)
-    if (!currentCategory) {
-      return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
-    }
-    const parentId = body.parent_id === undefined ? currentCategory.parent_id ?? null : body.parent_id
-    if (!canAssignCategoryParent(categories, id, parentId)) {
-      return badRequest(c, 'category cannot be moved under itself or its descendants')
-    }
     const category = await updateCategory(c.env.DB, id, {
       title: body.title.trim(),
       icon: body.icon ?? null,
-      parent_id: parentId,
     })
     if (!category) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
     await touchDataVersion(c.env.DB)

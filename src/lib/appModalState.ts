@@ -1,17 +1,20 @@
 import type { Bookmark, PublicBookmark } from '../../shared/types'
 import type { BookmarkFormValue, CategoryFormValue } from './adminTypes'
 
-export function createCategoryDraft(parentId: string | number | null = null): Partial<CategoryFormValue> {
+export function createCategoryDraft(): Partial<CategoryFormValue> {
   return {
     title: '',
     icon: '',
-    parent_id: parentId,
   }
 }
 
-export function createBookmarkDraft(categoryId: string | number | undefined): Partial<BookmarkFormValue> {
+export function createBookmarkDraft(
+  categoryId: string | number | undefined,
+  parentId: string | number | null = null,
+): Partial<BookmarkFormValue> {
   return {
     category_id: categoryId,
+    parent_id: parentId,
     title: '',
     url: '',
     icon: '',

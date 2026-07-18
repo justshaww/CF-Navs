@@ -5,6 +5,7 @@ import {
   buildOrderedBookmarkIdsForCategory,
   buildPublicDataAfterCategoryDelete,
   removeBookmarksByCategory,
+  removeBookmarkTree,
   removeById,
   updateBookmarkIconBlob,
   upsertBookmark,
@@ -54,7 +55,6 @@ const publicCategoryB: PublicCategory = {
   id: categoryB.id,
   title: categoryB.title,
   icon: categoryB.icon,
-  parent_id: null,
   sort: categoryB.sort,
 }
 
@@ -93,6 +93,12 @@ describe('appLocalData upsert/remove helpers', () => {
     expect(removeById([categoryA, categoryB], categoryA.id)).toEqual([categoryB])
     expect(removeBookmarksByCategory([bookmarkA, bookmarkB], categoryA.id)).toEqual([bookmarkB])
   })
+
+  it('removes a parent bookmark and all nested posts', () => {
+    const child = { ...bookmarkA, id: 12, parent_id: bookmarkA.id }
+    const grandchild = { ...bookmarkA, id: 13, parent_id: child.id }
+    expect(removeBookmarkTree([bookmarkA, bookmarkB, child, grandchild], [bookmarkA.id])).toEqual([bookmarkB])
+  })
 })
 
 describe('appLocalData bookmark icon updates', () => {
@@ -124,6 +130,15 @@ describe('appLocalData sort helpers', () => {
     ]
 
     expect(buildOrderedBookmarkIdsForCategory(bookmarks, 1, [11, 10])).toEqual([11, 20, 10, 21])
+  })
+
+  it('keeps child bookmark slots out of homepage sorting', () => {
+    const bookmarks = [
+      { id: 10, category_id: 1, parent_id: null, sort: 0 },
+      { id: 12, category_id: 1, parent_id: 10, sort: 1 },
+      { id: 11, category_id: 1, parent_id: null, sort: 2 },
+    ]
+    expect(buildOrderedBookmarkIdsForCategory(bookmarks, 1, [11, 10])).toEqual([11, 12, 10])
   })
 })
 

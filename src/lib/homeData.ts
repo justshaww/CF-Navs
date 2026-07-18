@@ -1,13 +1,12 @@
 import type { PublicBookmark, PublicCategory } from '../../shared/types'
-import { flattenCategoryTree, getCategoryPathMap } from '../../shared/categoryTree'
+import { getBookmarkChildrenMap, getTopLevelBookmarks } from '../../shared/bookmarkTree'
+
+export { getBookmarkChildrenMap, getTopLevelBookmarks } from '../../shared/bookmarkTree'
 
 export type HomeSection = {
   id: string
   title: string
   count: number
-  depth?: number
-  path?: string
-  hasChildren?: boolean
 }
 
 export function clampTitleFontSize(value: number | undefined): number {
@@ -48,6 +47,22 @@ export function bookmarkMatchesSearch(
   return (searchIndex.get(bookmark.id) ?? '').includes(keyword)
 }
 
+export function getMatchingTopLevelBookmarks(
+  items: PublicBookmark[],
+  keyword: string,
+  searchIndex: Map<number, string>,
+): PublicBookmark[] {
+  const children = getBookmarkChildrenMap(items)
+  const matches = (bookmark: PublicBookmark, visiting = new Set<number>()): boolean => {
+    if (bookmarkMatchesSearch(bookmark, keyword, searchIndex)) return true
+    if (visiting.has(bookmark.id)) return false
+    visiting.add(bookmark.id)
+    return (children.get(bookmark.id) ?? []).some((child) => matches(child, visiting))
+  }
+
+  return getTopLevelBookmarks(items).filter((bookmark) => matches(bookmark))
+}
+
 export function getVisibleCategoryIds(items: PublicBookmark[]): Set<number> {
   const ids = new Set<number>()
   for (const bookmark of items) {
@@ -72,13 +87,10 @@ export function getHomeSections(
   categories: PublicCategory[],
   categoryBookmarks: Map<number, PublicBookmark[]>,
 ): HomeSection[] {
-  return flattenCategoryTree(categories).map(({ category, depth, path, hasChildren }) => ({
+  return categories.map((category) => ({
     id: `category-${category.id}`,
     title: category.title,
     count: categoryBookmarks.get(category.id)?.length ?? 0,
-    depth,
-    path: path.join(' / '),
-    hasChildren,
   }))
 }
 
@@ -140,7 +152,7 @@ export function createHomeDataMemo() {
       if (items === sortedCategoriesSource) return sortedCategoriesMemo
 
       sortedCategoriesSource = items
-      sortedCategoriesMemo = flattenCategoryTree(items).map((entry) => entry.category)
+      sortedCategoriesMemo = [...items].sort((a, b) => a.sort - b.sort)
       return sortedCategoriesMemo
     },
 
@@ -156,7 +168,7 @@ export function createHomeDataMemo() {
       if (items === categoryTitleSource) return categoryTitleMemo
 
       categoryTitleSource = items
-      categoryTitleMemo = getCategoryPathMap(items)
+      categoryTitleMemo = new Map(items.map((category) => [category.id, category.title]))
       return categoryTitleMemo
     },
 

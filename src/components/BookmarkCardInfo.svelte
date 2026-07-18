@@ -17,6 +17,7 @@
   export let infoIconSize = 60
   export let infoIconStyle = ''
   export let hasCustomIconBackground = false
+  export let hasChildren = false
   export let onLinkClick: ((event: MouseEvent) => AsyncVoid) | undefined = undefined
   export let onContextMenu: ((event: MouseEvent) => AsyncVoid) | undefined = undefined
   export let onIconError: (() => AsyncVoid) | undefined = undefined
@@ -35,6 +36,7 @@
   class="bookmark-card bookmark-card-info"
   class:bookmark-tooltip-anchor={showDescription && descriptionMode === 'hover' && Boolean(bookmark.description)}
   class:sort-mode={sortMode}
+  class:has-children={hasChildren}
   href={bookmark.url}
   target={openInNewTab ? '_blank' : undefined}
   rel={openInNewTab ? 'noopener noreferrer' : undefined}
@@ -96,6 +98,8 @@
     border-radius: 1.2rem;
     overflow: visible;
   }
+
+  .bookmark-card-info.has-children { padding-right: 3.35rem; }
 
   .bookmark-card-info:hover {
     border-color: rgba(255, 255, 255, 0.75);

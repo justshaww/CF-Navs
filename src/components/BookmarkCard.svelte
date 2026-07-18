@@ -5,6 +5,7 @@
   import BookmarkCardInfo from './BookmarkCardInfo.svelte'
   import BookmarkContextMenu from './BookmarkContextMenu.svelte'
   import BookmarkLinkModal from './BookmarkLinkModal.svelte'
+  import BookmarkChildrenModal from './BookmarkChildrenModal.svelte'
   import { getIconCardTrackWidth } from '../lib/bookmarkCardLayout'
   import { buildIconStyle } from '../lib/bookmarkIconDisplay'
   import {
@@ -29,6 +30,7 @@
   type AsyncVoid<T = void> = T | Promise<T>
 
   export let bookmark: PublicBookmark
+  export let children: PublicBookmark[] = []
   export let style: CardStyle = 'info'
   export let iconSize: number = 100
   export let showDescription: boolean = true
@@ -51,6 +53,7 @@
   let stopIconVisibilityObserver: (() => void) | null = null
   let contextMenuOpen = false
   let modalOpen = false
+  let childrenModalOpen = false
   let iconStateKey = ''
   let windowListenersAttached = false
   let contextMenuInstanceId = Math.random().toString(36).slice(2)
@@ -109,7 +112,7 @@
       localCachePending = false
     }
   }
-  $: syncWindowListeners(contextMenuOpen || modalOpen)
+  $: syncWindowListeners(contextMenuOpen || modalOpen || childrenModalOpen)
 
   function resetLocalCachedIconUrl() {
     if (localCachedIconUrl) {
@@ -196,12 +199,22 @@
     modalOpen = false
   }
 
+  function openChildrenModal() {
+    if (sortMode || children.length === 0) return
+    childrenModalOpen = true
+  }
+
+  function closeChildrenModal() {
+    childrenModalOpen = false
+  }
+
   function handleWindowClick() {
     if (contextMenuOpen) closeContextMenu()
   }
 
   function handleDocumentKeydown(event: KeyboardEvent) {
     if (modalOpen && event.key === 'Escape') closeModal()
+    if (childrenModalOpen && event.key === 'Escape') closeChildrenModal()
     if (contextMenuOpen && event.key === 'Escape') closeContextMenu()
   }
 
@@ -279,6 +292,7 @@
       {infoIconSize}
       {infoIconStyle}
       {hasCustomIconBackground}
+      hasChildren={children.length > 0}
       onLinkClick={handleLinkClick}
       onContextMenu={handleContextMenu}
       onIconError={handleIconError}
@@ -303,6 +317,19 @@
     />
   {/if}
 
+  {#if children.length > 0 && !sortMode}
+    <button
+      type="button"
+      class="children-button"
+      class:is-icon={style !== 'info'}
+      aria-label={`查看 ${bookmark.title} 的 ${children.length} 个收藏帖子`}
+      title="查看收藏帖子"
+      on:click|stopPropagation={openChildrenModal}
+    >
+      <span aria-hidden="true">≡</span><strong>{children.length}</strong>
+    </button>
+  {/if}
+
   {#if contextMenuOpen}
     <BookmarkContextMenu onEdit={handleEditClick} />
   {/if}
@@ -310,13 +337,18 @@
   {#if modalOpen}
     <BookmarkLinkModal title={bookmark.title} url={bookmark.url} onClose={closeModal} />
   {/if}
+
+
+  {#if childrenModalOpen}
+    <BookmarkChildrenModal parent={bookmark} {children} onClose={closeChildrenModal} />
+  {/if}
 </div>
 
 <style>
   .bookmark-card-shell {
     position: relative;
     min-width: 0;
-    contain: layout style;
+    contain: style;
   }
 
   .bookmark-card-shell.is-info {
@@ -329,5 +361,32 @@
     align-items: center;
     flex: 0 0 auto;
   }
+
+  .children-button {
+    position: absolute;
+    z-index: 5;
+    top: 50%;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 34px;
+    height: 28px;
+    padding: 0 7px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 14px;
+    color: var(--card-title-color, #334155);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+    transform: translateY(-50%);
+    cursor: pointer;
+  }
+
+  .children-button span { font-size: 17px; line-height: 1; }
+  .children-button strong { font-size: 10px; }
+  .children-button:hover { border-color: var(--theme-accent-color, #3b82f6); }
+  .children-button.is-icon { top: -5px; right: -7px; transform: none; }
+  :global([data-theme='dark']) .children-button { background: rgba(15, 23, 42, 0.86); }
 
 </style>

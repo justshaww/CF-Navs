@@ -1,4 +1,5 @@
 import type { Bookmark, Category, ImportReq } from '../../shared/types'
+import { getBookmarkParentId, getBookmarkParentValidationError } from '../../shared/bookmarkTree'
 
 export type ImportValidationResult =
   | { ok: true; payload: ImportReq }
@@ -15,8 +16,7 @@ function isValidCategory(value: unknown): value is Category {
     (value.id as number) > 0 &&
     typeof value.title === 'string' &&
     value.title.trim().length > 0 &&
-    (value.icon === null || value.icon === undefined || typeof value.icon === 'string') &&
-    (value.parent_id === null || value.parent_id === undefined || (Number.isInteger(value.parent_id) && (value.parent_id as number) > 0))
+    (value.icon === null || value.icon === undefined || typeof value.icon === 'string')
   )
 }
 
@@ -27,6 +27,7 @@ function isValidBookmark(value: unknown): value is Bookmark {
     (value.id as number) > 0 &&
     Number.isInteger(value.category_id) &&
     (value.category_id as number) > 0 &&
+    (value.parent_id === null || value.parent_id === undefined || (Number.isInteger(value.parent_id) && (value.parent_id as number) > 0)) &&
     typeof value.title === 'string' &&
     value.title.trim().length > 0 &&
       typeof value.url === 'string' &&
@@ -58,29 +59,6 @@ export function validateImportPayload(body: unknown): ImportValidationResult {
     categoryIds.add(category.id)
   }
 
-  for (const category of body.categories) {
-    const parentId = category.parent_id ?? null
-    if (parentId != null && !categoryIds.has(parentId)) {
-      return { ok: false, message: `category ${category.id} references missing parent ${parentId}` }
-    }
-    if (parentId === category.id) {
-      return { ok: false, message: `category ${category.id} cannot be its own parent` }
-    }
-  }
-
-  const categoryById = new Map(body.categories.map((category) => [category.id, category]))
-  for (const category of body.categories) {
-    const visited = new Set<number>()
-    let current: Category | undefined = category
-    while (current?.parent_id != null) {
-      if (visited.has(current.id)) {
-        return { ok: false, message: `category cycle detected at ${current.id}` }
-      }
-      visited.add(current.id)
-      current = categoryById.get(current.parent_id)
-    }
-  }
-
   const bookmarkIds = new Set<number>()
   for (const bookmark of body.bookmarks) {
     if (bookmarkIds.has(bookmark.id)) {
@@ -91,6 +69,16 @@ export function validateImportPayload(body: unknown): ImportValidationResult {
     if (!categoryIds.has(bookmark.category_id)) {
       return { ok: false, message: `bookmark ${bookmark.id} references missing category ${bookmark.category_id}` }
     }
+  }
+
+  for (const bookmark of body.bookmarks) {
+    const parentError = getBookmarkParentValidationError(
+      body.bookmarks,
+      bookmark.id,
+      bookmark.category_id,
+      getBookmarkParentId(bookmark),
+    )
+    if (parentError) return { ok: false, message: `bookmark ${bookmark.id}: ${parentError}` }
   }
 
   if (body.settings !== undefined && !isPlainObject(body.settings)) {

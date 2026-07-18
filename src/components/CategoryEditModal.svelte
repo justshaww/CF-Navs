@@ -17,13 +17,11 @@
     type BookmarkIconifySearchState,
   } from '../lib/bookmarkIconifyController'
   import { iconifyIcon, iconifyNameFromUrl } from '../lib/icons'
-  import { flattenCategoryTree, getCategoryDescendantIds } from '../../shared/categoryTree'
   import IconifySelector from './IconifySelector.svelte'
 
   const emptyForm: CategoryFormValue = {
     title: '',
     icon: '',
-    parent_id: null,
   }
 
   export let open = false
@@ -31,7 +29,6 @@
   export let error = ''
   export let mode: 'create' | 'edit' = 'create'
   export let value: Partial<CategoryFormValue> | null = null
-  export let categories: Array<{ id: string | number; title: string; parent_id?: string | number | null; sort: number }> = []
   export let onSubmit: ((payload: CategoryFormValue) => void | Promise<void>) | undefined = undefined
   export let onCancel: (() => void) | undefined = undefined
   export let imageHostUrl = ''
@@ -54,7 +51,6 @@
       ...(value ?? {}),
       title: value?.title ?? '',
       icon: value?.icon ?? '',
-      parent_id: value?.parent_id ?? null,
     }
     const iconifySelection = initializeBookmarkIconifySelection({
       mode,
@@ -69,16 +65,6 @@
   }
 
   $: iconifyInput = deriveBookmarkIconifyInput(iconifyName)
-  $: normalizedCategories = categories.map((category) => ({
-    ...category,
-    id: Number(category.id),
-    parent_id: category.parent_id == null ? null : Number(category.parent_id),
-  }))
-  $: excludedParentIds = value?.id == null
-    ? new Set<number>()
-    : getCategoryDescendantIds(normalizedCategories, Number(value.id)).add(Number(value.id))
-  $: parentOptions = flattenCategoryTree(normalizedCategories)
-    .filter(({ category }) => !excludedParentIds.has(category.id))
   $: normalizedIconifyName = iconifyInput.normalizedIconifyName
   $: iconifyPreviewUrl = iconifyInput.iconifyPreviewUrl
   $: iconifySelected = isBookmarkIconifySelected({
@@ -221,16 +207,6 @@
         </label>
 
         <label>
-          <span>上级分类</span>
-          <select bind:value={form.parent_id} disabled={loading}>
-            <option value={null}>无（顶级分类）</option>
-            {#each parentOptions as option (option.category.id)}
-              <option value={option.category.id}>{`${'　'.repeat(option.depth)}${option.depth > 0 ? '↳ ' : ''}${option.category.title}`}</option>
-            {/each}
-          </select>
-        </label>
-
-        <label>
           <span>图标</span>
           <div class="icon-row">
             <input bind:value={form.icon} type="text" placeholder="例如：🧰 或 icon-tools" on:input={syncManualIconInput} />
@@ -342,8 +318,7 @@
     font-size: 14px;
   }
 
-  input,
-  select {
+  input {
     width: 100%;
     box-sizing: border-box;
     border: 1px solid #cbd5e1;
@@ -354,8 +329,7 @@
     background: #ffffff;
   }
 
-  input:focus,
-  select:focus {
+  input:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);

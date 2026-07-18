@@ -7,14 +7,15 @@
   import HomeFloatingActions from '../components/HomeFloatingActions.svelte'
   import HomeHeroSearch from '../components/HomeHeroSearch.svelte'
   import type { NavigationSetting, PublicBookmark, PublicCategory, PublicSettings, ThemeMode } from '../../shared/types'
-  import { includeCategoryAncestors } from '../../shared/categoryTree'
   import {
-    bookmarkMatchesSearch,
     clampTitleFontSize,
     createHomeDataMemo,
     getHomeSections,
     getHomeSectionsKey,
     getHomeScrollTarget,
+    getBookmarkChildrenMap,
+    getMatchingTopLevelBookmarks,
+    getTopLevelBookmarks,
     getNearestIntersectingSectionId,
     getVisibleCategoryIds,
     groupBookmarksByCategory,
@@ -68,6 +69,8 @@
 
   $: sortedCategories = homeData.getSortedCategories(categories)
   $: sortedBookmarks = homeData.getSortedBookmarks(bookmarks)
+  $: topLevelBookmarks = getTopLevelBookmarks(sortedBookmarks)
+  $: bookmarkChildren = getBookmarkChildrenMap(sortedBookmarks)
   $: if (searchQuery !== deferredSearchQuery) {
     scheduleSearchFilterUpdate(searchQuery)
   }
@@ -76,18 +79,15 @@
   $: categoryTitleById = homeData.getCategoryTitleMap(sortedCategories)
   $: searchTextByBookmarkId = homeData.getSearchIndex(sortedBookmarks, sortedCategories, categoryTitleById)
   $: visibleBookmarks = hasSearchQuery
-    ? sortedBookmarks.filter((bookmark) => bookmarkMatchesSearch(bookmark, normalizedSearchQuery, searchTextByBookmarkId))
-    : sortedBookmarks
-  $: visibleCategoryIds = hasSearchQuery
-    ? includeCategoryAncestors(sortedCategories, getVisibleCategoryIds(visibleBookmarks))
-    : null
+    ? getMatchingTopLevelBookmarks(sortedBookmarks, normalizedSearchQuery, searchTextByBookmarkId)
+    : topLevelBookmarks
+  $: visibleCategoryIds = hasSearchQuery ? getVisibleCategoryIds(visibleBookmarks) : null
   $: visibleCategories = hasSearchQuery
     ? sortedCategories.filter((category) => visibleCategoryIds?.has(category.id))
     : sortedCategories
 
   $: categoryBookmarks = groupBookmarksByCategory(visibleBookmarks)
   $: sections = getHomeSections(visibleCategories, categoryBookmarks)
-  $: sectionByCategoryId = new Map(sections.map((section) => [Number(section.id.replace('category-', '')), section]))
   $: nextSectionsKey = getHomeSectionsKey(sections)
   $: if (nextSectionsKey !== sectionsKey) {
     sectionsKey = nextSectionsKey
@@ -95,7 +95,7 @@
     void refreshSectionElementsAfterRender()
   }
 
-  $: totalBookmarks = sortedBookmarks.length
+  $: totalBookmarks = topLevelBookmarks.length
   $: visibleBookmarkCount = visibleBookmarks.length
   $: pageTitle = title || settings?.site_title || '导航首页'
   $: siteTitleColor = settings?.site_title_color?.trim() || 'inherit'
@@ -391,9 +391,7 @@
               <CategorySection
                 category={category}
                 bookmarks={categoryBookmarks.get(category.id) ?? []}
-                depth={sectionByCategoryId.get(category.id)?.depth ?? 0}
-                path={sectionByCategoryId.get(category.id)?.path ?? category.title}
-                hasChildren={sectionByCategoryId.get(category.id)?.hasChildren ?? false}
+                {bookmarkChildren}
                 canAddBookmark={isAuthenticated}
                 cardWidth={settings?.card_size?.width ?? 80}
                 cardHeight={settings?.card_size?.height ?? 60}

@@ -9,14 +9,13 @@ export type AdminCategorySummary = {
   id: string | number
   title: string
   icon?: string
-  parent_id?: string | number | null
-  sort: number
   bookmarkCount?: number
 }
 
 export type AdminBookmarkSummary = {
   id: string | number
   category_id: string | number
+  parent_id?: string | number | null
   title: string
   url: string
   icon?: string
@@ -47,8 +46,6 @@ export function toAdminCategories(categories: Category[], bookmarks: Bookmark[])
     id: category.id,
     title: category.title,
     icon: category.icon ?? '',
-    parent_id: category.parent_id ?? null,
-    sort: category.sort,
     bookmarkCount: bookmarkCountByCategory.get(category.id) ?? 0,
   }))
 }
@@ -57,6 +54,7 @@ export function toAdminBookmarks(bookmarks: Bookmark[]): AdminBookmarkSummary[] 
   return bookmarks.map((bookmark) => ({
     id: bookmark.id,
     category_id: bookmark.category_id,
+    parent_id: bookmark.parent_id ?? null,
     title: bookmark.title,
     url: bookmark.url,
     icon: bookmark.icon ?? '',
@@ -74,6 +72,7 @@ export function toPublicBookmark(bookmark: Bookmark): PublicBookmark {
   return {
     id: bookmark.id,
     category_id: bookmark.category_id,
+    parent_id: bookmark.parent_id ?? null,
     title: bookmark.title,
     url: bookmark.url,
     icon: bookmark.icon,

@@ -6,19 +6,38 @@
     title: string
   }
 
+  type BookmarkParentOption = {
+    id: string | number
+    category_id: string | number
+    title: string
+  }
+
   export let categoryId: string | number | undefined = undefined
+  export let parentId: string | number | null | undefined = null
   export let title = ''
   export let url = ''
   export let openMethod: BookmarkFormValue['open_method'] = 'new_tab'
   export let description = ''
   export let descriptionMode: BookmarkFormValue['description_mode'] = 'inherit'
   export let categories: BookmarkCategoryOption[] = []
+  export let parentBookmarks: BookmarkParentOption[] = []
   export let loading = false
+  export let onParentChange: ((parentId: string | number | null | undefined) => void) | undefined = undefined
 </script>
 
 <label class="field-compact">
+  <span>收录到书签</span>
+  <select class="native-select" bind:value={parentId} disabled={loading} on:change={() => onParentChange?.(parentId)}>
+    <option value={null}>不收录（显示为普通书签）</option>
+    {#each parentBookmarks as bookmark}
+      <option value={bookmark.id}>{bookmark.title}</option>
+    {/each}
+  </select>
+</label>
+
+<label class="field-compact">
   <span>所属分类</span>
-  <select class="native-select" bind:value={categoryId} disabled={loading || categories.length === 0} required>
+  <select class="native-select" bind:value={categoryId} disabled={loading || categories.length === 0 || parentId != null} required>
     {#if categories.length === 0}
       <option value="">暂无分类可选</option>
     {:else}

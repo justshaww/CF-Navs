@@ -8,7 +8,6 @@ export function normalizeImportCategory(c: Category, now: number): Category {
     id: c.id,
     title: c.title,
     icon: c.icon ?? null,
-    parent_id: c.parent_id ?? null,
     sort: Number.isFinite(c.sort) ? c.sort : 0,
     created_at: c.created_at || now,
   }
@@ -19,6 +18,7 @@ export function normalizeImportBookmark(b: Bookmark, now: number): Bookmark {
   return {
     id: b.id,
     category_id: b.category_id,
+    parent_id: b.parent_id ?? null,
     title: b.title,
     url: b.url,
     icon: b.icon ?? null,

@@ -32,17 +32,19 @@ export function createConfirmDialogState(input: ConfirmDialogInput): ConfirmDial
 export function createDeleteCategoryConfirmation(categoryTitle: string): ConfirmDialogInput {
   return {
     title: '删除分类',
-    message: '删除后该分类、全部子分类及其中的书签都会从首页和后台列表中移除，此操作不可撤销。',
+    message: '删除后该分类及其下所有书签都会从首页和后台列表中移除，此操作不可撤销。',
     itemTitle: categoryTitle,
     confirmLabel: '确认删除',
     variant: 'danger',
   }
 }
 
-export function createDeleteBookmarkConfirmation(bookmarkTitle: string): ConfirmDialogInput {
+export function createDeleteBookmarkConfirmation(bookmarkTitle: string, childCount = 0): ConfirmDialogInput {
   return {
     title: '删除书签',
-    message: '删除后该书签会从首页和后台列表中移除，此操作不可撤销。',
+    message: childCount > 0
+      ? `该书签收录了 ${childCount} 个帖子，删除时会一并移除，此操作不可撤销。`
+      : '删除后该书签会从首页和后台列表中移除，此操作不可撤销。',
     itemTitle: bookmarkTitle,
     confirmLabel: '确认删除',
     variant: 'danger',
@@ -54,7 +56,7 @@ export function createBatchDeleteConfirmation(kind: 'category' | 'bookmark', cou
     title: `批量删除${kind === 'category' ? '分类' : '书签'}`,
     message: kind === 'category'
       ? `将删除 ${count} 个分类及其下 ${bookmarkCount} 个书签，此操作不可撤销。`
-      : `将删除 ${count} 个书签，此操作不可撤销。`,
+      : `将删除 ${count} 个书签以及它们收录的帖子，此操作不可撤销。`,
     confirmLabel: '确认删除',
     variant: 'danger',
   }

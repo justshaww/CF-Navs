@@ -29,7 +29,7 @@
   export let bookmarks: AdminBookmark[] = []
   export let bookmarksLoading = false
   export let deletingBookmarkId: string | number | null = null
-  export let onOpenCreateBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
+  export let onOpenCreateBookmark: ((categoryId?: string | number, parentId?: string | number | null) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: AdminBookmark) => AsyncVoid) | undefined = undefined
   export let onDeleteBookmark: ((bookmark: AdminBookmark) => AsyncVoid) | undefined = undefined
   export let onBatchDeleteBookmarks: ((ids: number[]) => AsyncVoid) | undefined = undefined
@@ -59,6 +59,11 @@
 
   const getCategoryTitle = (categoryId: string | number) =>
     getAdminCategoryTitle(categories, categoryId)
+
+  const getParentBookmark = (bookmark: AdminBookmark) =>
+    bookmark.parent_id == null
+      ? null
+      : bookmarks.find((item) => Number(item.id) === Number(bookmark.parent_id)) ?? null
 
   function enterSort() {
     sortField = null
@@ -185,7 +190,7 @@
               <col style="width: 50%;" />
               <col style="width: 12%;" />
               <col style="width: 8%;" />
-              {#if !sortMode}<col style="width: 122px;" />{/if}
+              {#if !sortMode}<col style="width: 204px;" />{/if}
             </colgroup>
             <thead>
               <tr>
@@ -194,7 +199,7 @@
                 {#each sortColumns as column}
                   <th aria-sort={sortField === column.field ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : 'none'}><button type="button" class="sort-header-button" aria-label={sortButtonLabel(column.field, column.label)} on:click={() => toggleField(column.field)} disabled={sortMode}>{column.label}<svg viewBox="0 0 16 16" aria-hidden="true"><path d={sortField === column.field && sortDirection === 'asc' ? 'M8 3 4 7h3v6h2V7h3L8 3Z' : sortField === column.field && sortDirection === 'desc' ? 'm8 13 4-4H9V3H7v6H4l4 4Z' : 'm5 2-3 3h2v6h2V5h2L5 2Zm6 12 3-3h-2V5h-2v6H8l3 3Z'} /></svg></button></th>
                 {/each}
-                {#if !sortMode}<th style="width: 122px;">操作</th>{/if}
+                {#if !sortMode}<th style="width: 204px;">操作</th>{/if}
               </tr>
             </thead>
             <tbody
@@ -239,6 +244,9 @@
                       </span>
                       <div>
                         <strong>{bookmark.title}</strong>
+                        {#if getParentBookmark(bookmark)}
+                          <p class="admin-bookmark-parent">收录于 {getParentBookmark(bookmark)?.title}</p>
+                        {/if}
                         {#if bookmark.description}
                           <p>{bookmark.description}</p>
                         {/if}
@@ -255,6 +263,17 @@
                   {#if !sortMode}
                     <td>
                       <div class="admin-inline-actions compact">
+                        {#if bookmark.parent_id == null}
+                          <button
+                            type="button"
+                            class="admin-ghost-button compact"
+                            title="在此书签中添加关注帖子"
+                            on:click={() => onOpenCreateBookmark?.(bookmark.category_id, bookmark.id)}
+                            disabled={!isAuthenticated}
+                          >
+                            + 帖子
+                          </button>
+                        {/if}
                         <button type="button" class="admin-ghost-button compact" on:click={() => onEditBookmark?.(bookmark)} disabled={!isAuthenticated}>
                           编辑
                         </button>
@@ -435,6 +454,12 @@
   .admin-bookmark-cell p {
     color: var(--admin-subtle);
     line-height: 1.5;
+  }
+
+  .admin-bookmark-cell .admin-bookmark-parent {
+    margin: 2px 0 0;
+    color: var(--admin-accent);
+    font-size: 11px;
   }
 
   .admin-cat-cell,

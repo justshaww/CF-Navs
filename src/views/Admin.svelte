@@ -78,14 +78,14 @@
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onSwitchToHome: (() => AsyncVoid) | undefined = undefined
 
-  export let onOpenCreateCategory: ((parentId?: string | number) => AsyncVoid) | undefined = undefined
+  export let onOpenCreateCategory: (() => AsyncVoid) | undefined = undefined
   export let onEditCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onDeleteCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onBatchDeleteCategories: ((ids: number[]) => AsyncVoid) | undefined = undefined
   export let onCloseCategoryModal: (() => AsyncVoid) | undefined = undefined
   export let onSubmitCategory: ((payload: CategoryFormValue) => AsyncVoid) | undefined = undefined
 
-  export let onOpenCreateBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
+  export let onOpenCreateBookmark: ((categoryId?: string | number, parentId?: string | number | null) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: AdminBookmark) => AsyncVoid) | undefined = undefined
   export let onDeleteBookmark: ((bookmark: AdminBookmark) => AsyncVoid) | undefined = undefined
   export let onBatchDeleteBookmarks: ((ids: number[]) => AsyncVoid) | undefined = undefined
@@ -178,7 +178,6 @@
     error={categoryError}
     mode={categoryModalMode}
     value={activeCategory}
-    {categories}
     onSubmit={onSubmitCategory}
     onCancel={onCloseCategoryModal}
     imageHostUrl={imageHostUrl}

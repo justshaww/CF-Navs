@@ -13,7 +13,6 @@ describe('normalizeImportCategory', () => {
       id: 1,
       title: 'Tools',
       icon: '/icon.svg',
-      parent_id: null,
       sort: 3,
       created_at: 100,
     })
@@ -61,6 +60,7 @@ describe('normalizeImportBookmark', () => {
   const base: Bookmark = {
     id: 1,
     category_id: 10,
+    parent_id: null,
     title: 'GitHub',
     url: 'https://github.com',
     icon: 'https://favicon.im/github.com',
@@ -112,6 +112,7 @@ describe('normalizeImportBookmark', () => {
     expect(output.icon_source).toBeNull()
     expect(output.icon_background_color).toBeNull()
     expect(output.icon_blob).toBeNull()
+    expect(output.parent_id).toBeNull()
   })
 
   it('defaults NaN sort to 0', () => {

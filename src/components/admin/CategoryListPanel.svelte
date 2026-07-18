@@ -6,16 +6,16 @@
     createAdminSortDraft,
     getAdminCategoryBookmarkCount,
     getAdminListTotalPages,
+    filterAdminCategories,
     getAdminSortIds,
+    reorderAdminSortDraft,
   } from '../../lib/adminListState'
   import { createIconVersion } from '../../lib/bookmarkIconDisplay'
-  import { flattenCategoryTree } from '../../../shared/categoryTree'
   import { sortableList, type SortHandler } from '../../lib/sortableList'
   import './adminListPanels.css'
 
   type AsyncVoid<T = void> = T | Promise<T>
   type AdminCategory = AdminCategorySummary
-  type DisplayAdminCategory = AdminCategory & { treeDepth: number; treePath: string; hasChildren: boolean }
   type AdminBookmark = AdminBookmarkSummary
 
   export let isAuthenticated = false
@@ -24,7 +24,7 @@
   export let bookmarks: AdminBookmark[] = []
   export let categoriesLoading = false
   export let deletingCategoryId: string | number | null = null
-  export let onOpenCreateCategory: ((parentId?: string | number) => AsyncVoid) | undefined = undefined
+  export let onOpenCreateCategory: (() => AsyncVoid) | undefined = undefined
   export let onEditCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onDeleteCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onBatchDeleteCategories: ((ids: number[]) => AsyncVoid) | undefined = undefined
@@ -32,30 +32,13 @@
   export let onSortCategories: SortHandler | undefined = undefined
 
   let sortMode = false
-  let localCategories: DisplayAdminCategory[] = []
+  let localCategories: AdminCategory[] = []
   let savingSort = false
   let page = 1
   let selectedIds = new Set<number>()
   let search = ''
 
-  function toDisplayTree(items: AdminCategory[]): DisplayAdminCategory[] {
-    return flattenCategoryTree(items.map((category) => ({
-      ...category,
-      id: Number(category.id),
-      parent_id: category.parent_id == null ? null : Number(category.parent_id),
-    }))).map(({ category, depth, path, hasChildren }) => ({
-      ...category,
-      treeDepth: depth,
-      treePath: path.join(' / '),
-      hasChildren,
-    }))
-  }
-
-  $: treeCategories = toDisplayTree(categories)
-  $: normalizedSearch = search.trim().toLowerCase()
-  $: filteredCategories = normalizedSearch
-    ? treeCategories.filter((category) => category.treePath.toLowerCase().includes(normalizedSearch))
-    : treeCategories
+  $: filteredCategories = filterAdminCategories(categories, search)
   $: totalPages = getAdminListTotalPages(filteredCategories.length)
   $: page = clampAdminListPage(page, totalPages)
   $: categoryPage = createAdminListPage(filteredCategories, page)
@@ -66,7 +49,7 @@
   $: pageSelectedCount = pageIds.filter((id) => selectedIds.has(id)).length
 
   function enterSort() {
-    localCategories = createAdminSortDraft(treeCategories)
+    localCategories = createAdminSortDraft(categories)
     search = ''
     page = 1
     sortMode = true
@@ -97,11 +80,7 @@
   }
 
   function handleReorder(orderedIds: Array<string | number>) {
-    const sortById = new Map(orderedIds.map((id, index) => [Number(id), index]))
-    localCategories = toDisplayTree(localCategories.map((category) => ({
-      ...category,
-      sort: sortById.get(Number(category.id)) ?? category.sort,
-    })))
+    localCategories = reorderAdminSortDraft(localCategories, orderedIds)
   }
 
   async function saveSort() {
@@ -215,20 +194,14 @@
                   {category.icon || '📁'}
                 {/if}
               </span>
-              <div class="admin-compact-info" style={`--tree-depth: ${Math.min(category.treeDepth, 5)}`}>
-                <div class="admin-category-title">
-                  <h3>{category.title}</h3>
-                  {#if category.treeDepth > 0}<small>{category.treePath}</small>{/if}
-                </div>
+              <div class="admin-compact-info">
+                <h3>{category.title}</h3>
                 <span class="admin-count-badge">{getAdminCategoryBookmarkCount(category, bookmarks)} 个书签</span>
               </div>
               {#if !sortMode}
                 <div class="admin-inline-actions">
                   <button type="button" class="admin-sm-button" on:click={() => onEditCategory?.(category)} disabled={!isAuthenticated}>
                     编辑
-                  </button>
-                  <button type="button" class="admin-sm-button" on:click={() => onOpenCreateCategory?.(category.id)} disabled={!isAuthenticated}>
-                    加子分类
                   </button>
                   <button type="button" class="admin-sm-button" on:click={() => onOpenCreateBookmark?.(category.id)} disabled={!isAuthenticated}>
                     加书签
@@ -252,7 +225,7 @@
     {#if categories.length > 0}
       <div class="admin-panel-footer">
         {#if sortMode}
-          <div class="admin-sort-hint">拖动调整同级分类的顺序，父子关系不会改变。</div>
+          <div class="admin-sort-hint">拖动卡片调整顺序，完成后点击「保存排序」。</div>
         {:else}
           <div class="admin-pagination">
             <span>第 {categoryPage.start}-{categoryPage.end} 条 / 共 {categoryPage.total} 条</span>
@@ -270,7 +243,7 @@
 
 {#if sortMode}
   <div class="admin-sort-bar" role="toolbar" aria-label="排序操作">
-    <span class="admin-sort-hint-inline">正在调整同级分类顺序，父子关系不会改变。</span>
+    <span class="admin-sort-hint-inline">正在排序分类，拖动调整顺序后保存。</span>
     <button type="button" class="admin-ghost-button" on:click={cancelSort} disabled={savingSort}>取消</button>
     <button type="button" class="admin-primary-button" on:click={saveSort} disabled={savingSort}>
       {#if savingSort}保存中...{:else}保存排序{/if}
@@ -351,26 +324,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-
-  .admin-compact-info::before {
-    content: '';
-    width: calc(var(--tree-depth, 0) * 16px);
-    flex: 0 0 calc(var(--tree-depth, 0) * 16px);
-  }
-
-  .admin-category-title {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  .admin-category-title small {
-    overflow: hidden;
-    color: var(--admin-muted);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .admin-compact-info h3 {

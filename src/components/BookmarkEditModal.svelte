@@ -45,12 +45,19 @@
     title: string
   }
 
+  type BookmarkParentOption = {
+    id: string | number
+    category_id: string | number
+    title: string
+  }
+
   export let open = false
   export let loading = false
   export let error = ''
   export let mode: 'create' | 'edit' = 'create'
   export let value: Partial<BookmarkFormValue> | null = null
   export let categories: BookmarkCategoryOption[] = []
+  export let parentBookmarks: BookmarkParentOption[] = []
   export let onSubmit: ((payload: BookmarkFormValue) => void | Promise<void>) | undefined = undefined
   export let onCancel: (() => void) | undefined = undefined
   export let onDelete: ((bookmark: { id: string | number; title: string }) => void | Promise<void>) | undefined = undefined
@@ -73,7 +80,13 @@
   let candidates: IconCandidate[] = []
   let candidateError = ''
 
-  $: nextKey = JSON.stringify({ open, mode, value, categoryIds: categories.map((item) => item.id) })
+  $: nextKey = JSON.stringify({
+    open,
+    mode,
+    value,
+    categoryIds: categories.map((item) => item.id),
+    parentBookmarkIds: parentBookmarks.map((item) => item.id),
+  })
   $: setPageScrollLocked(open)
   $: if (nextKey !== formKey) {
     formKey = nextKey
@@ -141,6 +154,11 @@
       clearTimeout(iconifySearchTimer)
       iconifySearchTimer = null
     }
+  }
+
+  function handleParentChange(parentId: string | number | null | undefined) {
+    const selectedParent = parentBookmarks.find((bookmark) => Number(bookmark.id) === Number(parentId))
+    if (selectedParent) form.category_id = selectedParent.category_id
   }
 
   function scheduleIconifyCandidateSearch(enabled: boolean, value: string) {
@@ -296,12 +314,15 @@
       <form class="modal-form" on:submit|preventDefault={handleSubmit}>
         <BookmarkBaseFields
           bind:categoryId={form.category_id}
+          bind:parentId={form.parent_id}
           bind:title={form.title}
           bind:url={form.url}
           bind:openMethod={form.open_method}
           bind:description={form.description}
           bind:descriptionMode={form.description_mode}
           {categories}
+          {parentBookmarks}
+          onParentChange={handleParentChange}
           {loading}
         />
 

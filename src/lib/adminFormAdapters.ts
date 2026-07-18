@@ -12,13 +12,13 @@ export function toCategoryPayload(form: CategoryFormValue): CategoryUpsertReq {
   return {
     title: form.title.trim(),
     icon: form.icon.trim() || null,
-    parent_id: form.parent_id == null || form.parent_id === '' ? null : Number(form.parent_id),
   }
 }
 
 export function toBookmarkPayload(form: BookmarkFormValue): BookmarkUpsertReq {
   return {
     category_id: Number(form.category_id),
+    parent_id: form.parent_id == null || form.parent_id === '' ? null : Number(form.parent_id),
     title: form.title.trim(),
     url: form.url.trim(),
     icon: form.icon.trim() || null,
@@ -35,7 +35,6 @@ export function toCategoryForm(category: Category): CategoryFormValue {
     id: category.id,
     title: category.title,
     icon: category.icon ?? '',
-    parent_id: category.parent_id ?? null,
   }
 }
 
@@ -43,6 +42,7 @@ export function toBookmarkForm(bookmark: Bookmark | PublicBookmark): BookmarkFor
   return {
     id: bookmark.id,
     category_id: bookmark.category_id,
+    parent_id: bookmark.parent_id ?? null,
     title: bookmark.title,
     url: bookmark.url,
     icon: bookmark.icon ?? '',

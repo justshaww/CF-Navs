@@ -337,7 +337,6 @@ describe('dataService local mutations', () => {
       id: nextCategory.id,
       title: nextCategory.title,
       icon: nextCategory.icon,
-      parent_id: null,
       sort: nextCategory.sort,
     })
     expect(publicCategory).not.toHaveProperty('created_at')

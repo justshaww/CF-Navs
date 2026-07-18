@@ -151,7 +151,6 @@ function prepareSunPanelImport(parsed: unknown): PreparedImport {
       id: categoryId,
       title: readString(rawCategory.title, `Category ${categoryId}`).trim() || `Category ${categoryId}`,
       icon: null,
-      parent_id: null,
       sort: readNumber(rawCategory.sort, categoryIndex),
       created_at: now,
     })
@@ -239,7 +238,7 @@ export function prepareBrowserBookmarkHtml(text: string): PreparedImport {
   let skipped = 0
   let retainedIcons = 0
 
-  const categoryByPath = new Map<string, Category>()
+  const categoryByTitle = new Map<string, Category>()
   const nextSort = new Map<number, number>()
   function decode(value: string): string {
     return value.replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
@@ -248,33 +247,18 @@ export function prepareBrowserBookmarkHtml(text: string): PreparedImport {
     const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))
     return decode(match?.[1] ?? match?.[2] ?? match?.[3] ?? '')
   }
-  function categoryForPath(path: string[]): Category {
-    const normalizedPath = path.map((part) => part.trim()).filter(Boolean)
-    if (normalizedPath.length === 0) normalizedPath.push('浏览器书签')
-    let parentId: number | null = null
-    let current: Category | null = null
-    const parts: string[] = []
-    for (const title of normalizedPath) {
-      parts.push(title)
-      const key = parts.join('\u0000')
-      const existing = categoryByPath.get(key)
-      if (existing) {
-        current = existing
-        parentId = existing.id
-        continue
-      }
-      current = { id: nextCategoryId++, title, icon: null, parent_id: parentId, sort: categories.length, created_at: now }
-      categories.push(current)
-      categoryByPath.set(key, current)
-      nextSort.set(current.id, 0)
-      parentId = current.id
-    }
-    return current!
+  function categoryFor(title: string): Category {
+    const normalized = title.trim() || '浏览器书签'
+    const existing = categoryByTitle.get(normalized)
+    if (existing) return existing
+    const category: Category = { id: nextCategoryId++, title: normalized, icon: null, sort: categories.length, created_at: now }
+    categories.push(category); categoryByTitle.set(normalized, category); nextSort.set(category.id, 0)
+    return category
   }
-  function parseLink(tag: string, title: string, categoryPath: string[]) {
+  function parseLink(tag: string, title: string, categoryTitle: string) {
     const url = attribute(tag, 'HREF').trim()
     if (!validBookmarkUrl(url)) { skipped += 1; return }
-    const categoryId = categoryForPath(categoryPath).id
+    const categoryId = categoryFor(categoryTitle).id
     const icon = (attribute(tag, 'ICON') || attribute(tag, 'ICON_URI')).trim() || null
     const safeIcon = icon && (/^https?:\/\//i.test(icon) || (/^data:image\//i.test(icon) && icon.length <= 256 * 1024)) ? icon : null
     if (safeIcon) retainedIcons += 1
@@ -327,7 +311,7 @@ export function prepareBrowserBookmarkHtml(text: string): PreparedImport {
       const categoryPath = dlStack[dlStack.length - 1]?.categoryPath ?? []
       // 浏览器导出通常会用第一层 H3（如“收藏夹栏”）包住整个目录树；
       // 该层只是导出容器，不作为业务分类，后续层级整体上移一级。
-      parseLink(linkTag, linkText, categoryPath.slice(1))
+      parseLink(linkTag, linkText, categoryPath.slice(1).join(' / ') || '浏览器书签')
       continue
     }
     if (/^<DD\b/i.test(token)) { captureDescription = true; descriptionText = ''; continue }

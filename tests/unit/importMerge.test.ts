@@ -17,26 +17,17 @@ describe('merge import data', () => {
     expect(result.payload.settings).toBeUndefined()
   })
 
-  it('matches nested categories by full path instead of title alone', () => {
-    const result = mergeImportData({
-      categories: [
-        { id: 1, title: 'A', icon: null, parent_id: null, sort: 0, created_at: 1 },
-        { id: 2, title: 'Tools', icon: null, parent_id: 1, sort: 0, created_at: 1 },
-        { id: 3, title: 'B', icon: null, parent_id: null, sort: 1, created_at: 1 },
+  it('remaps imported bookmark parent ids', () => {
+    const result = mergeImportData({ categories: [], bookmarks: [], settings: null }, {
+      categories: [{ id: 1, title: 'Forums', icon: null, sort: 0, created_at: 1 }],
+      bookmarks: [
+        { id: 10, category_id: 1, parent_id: null, title: 'NodeSeek', url: 'https://nodeseek.com', icon: null, icon_source: null, icon_background_color: null, icon_blob: null, description: null, open_method: 1, sort: 0, created_at: 1 },
+        { id: 11, category_id: 1, parent_id: 10, title: 'Post', url: 'https://nodeseek.com/post-1', icon: null, icon_source: null, icon_background_color: null, icon_blob: null, description: null, open_method: 1, sort: 0, created_at: 1 },
       ],
-      bookmarks: [],
-      settings: null,
-    }, {
-      categories: [
-        { id: 10, title: 'B', icon: null, parent_id: null, sort: 0, created_at: 1 },
-        { id: 11, title: 'Tools', icon: null, parent_id: 10, sort: 0, created_at: 1 },
-      ],
-      bookmarks: [],
     })
 
-    expect(result.reusedCategories).toBe(1)
-    expect(result.createdCategories).toBe(1)
-    const importedTools = result.payload.categories.find((category) => category.parent_id === 3 && category.title === 'Tools')
-    expect(importedTools).toBeTruthy()
+    const parent = result.payload.bookmarks.find((bookmark) => bookmark.title === 'NodeSeek')!
+    const child = result.payload.bookmarks.find((bookmark) => bookmark.title === 'Post')!
+    expect(child.parent_id).toBe(parent.id)
   })
 })

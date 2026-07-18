@@ -16,6 +16,7 @@ import { cacheBookmarkIconBlob } from '../lib/bookmarkIconCache'
 import { fail, ok } from '../lib/response'
 import { invalidateRuntimeDataCache } from '../lib/runtimeCache'
 import type { HonoEnv } from '../types'
+import { getBookmarkDescendantIds, getBookmarkParentId, getBookmarkParentValidationError } from '../../shared/bookmarkTree'
 
 type AppContext = Context<HonoEnv>
 const ICON_CACHE_REFRESH_TIMEOUT_MS = 1500
@@ -35,6 +36,10 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isOptionalString(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string'
+}
+
+function isOptionalParentId(value: unknown): value is number | null | undefined {
+  return value === undefined || value === null || (Number.isInteger(value) && Number(value) > 0)
 }
 
 function parseBatchIds(value: unknown): number[] | null {
@@ -72,6 +77,7 @@ bookmarksRoutes.post('/', async (c) => {
     !isOptionalString(body.icon) ||
     !isOptionalString(body.icon_background_color) ||
     !isOptionalString(body.description) ||
+    !isOptionalParentId(body.parent_id) ||
     (body.description_mode !== undefined && body.description_mode !== null && !['always', 'hover', 'hidden'].includes(body.description_mode)) ||
     (body.icon_source !== undefined && body.icon_source !== null && !['direct','favicon_im','logo_surf','google','iconify','custom'].includes(body.icon_source)) ||
     (body.open_method !== undefined && body.open_method !== 1 && body.open_method !== 2 && body.open_method !== 3)
@@ -80,8 +86,18 @@ bookmarksRoutes.post('/', async (c) => {
   }
 
   try {
+    const parentId = body.parent_id ?? null
+    const parentError = getBookmarkParentValidationError(
+      await listBookmarks(c.env.DB),
+      null,
+      body.category_id,
+      parentId,
+    )
+    if (parentError) return badRequest(c, parentError)
+
     const bookmark = await createBookmark(c.env.DB, {
       category_id: body.category_id,
+      parent_id: parentId,
       title: body.title.trim(),
       url: body.url.trim(),
       icon: body.icon ?? null,
@@ -116,6 +132,7 @@ bookmarksRoutes.put('/:id', async (c) => {
     !isOptionalString(body.icon) ||
     !isOptionalString(body.icon_background_color) ||
     !isOptionalString(body.description) ||
+    !isOptionalParentId(body.parent_id) ||
     (body.description_mode !== undefined && body.description_mode !== null && !['always', 'hover', 'hidden'].includes(body.description_mode)) ||
     (body.icon_source !== undefined && body.icon_source !== null && !['direct','favicon_im','logo_surf','google','iconify','custom'].includes(body.icon_source)) ||
     (body.open_method !== undefined && body.open_method !== 1 && body.open_method !== 2 && body.open_method !== 3)
@@ -124,8 +141,23 @@ bookmarksRoutes.put('/:id', async (c) => {
   }
 
   try {
+    const bookmarks = await listBookmarks(c.env.DB)
+    const current = bookmarks.find((bookmark) => bookmark.id === id)
+    if (!current) return c.json(fail(ErrCode.NOT_FOUND, 'bookmark not found'))
+    const hasParentId = Object.prototype.hasOwnProperty.call(body, 'parent_id')
+    const parentId = hasParentId ? body.parent_id ?? null : getBookmarkParentId(current)
+    const parentError = getBookmarkParentValidationError(bookmarks, id, body.category_id, parentId)
+    if (parentError) return badRequest(c, parentError)
+    if (
+      current.category_id !== body.category_id &&
+      getBookmarkDescendantIds(bookmarks, [id]).size > 0
+    ) {
+      return badRequest(c, 'move child bookmarks before changing the parent category')
+    }
+
     const bookmark = await updateBookmark(c.env.DB, id, {
       category_id: body.category_id,
+      ...(hasParentId ? { parent_id: parentId } : {}),
       title: body.title.trim(),
       url: body.url.trim(),
       icon: body.icon ?? null,

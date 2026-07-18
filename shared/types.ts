@@ -7,7 +7,6 @@ export interface Category {
   id: number
   title: string
   icon: string | null
-  parent_id?: number | null
   sort: number
   created_at: number
 }
@@ -15,6 +14,7 @@ export interface Category {
 export interface Bookmark {
   id: number
   category_id: number
+  parent_id?: number | null
   title: string
   url: string
   icon: string | null
@@ -276,12 +276,12 @@ export interface SiteConfig {
 export interface CategoryUpsertReq {
   title: string
   icon?: string | null
-  parent_id?: number | null
 }
 
 // POST/PUT 书签
 export interface BookmarkUpsertReq {
   category_id: number
+  parent_id?: number | null
   title: string
   url: string
   icon?: string | null

@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS categories (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   title       TEXT NOT NULL,
   icon        TEXT,                       -- 图标 URL（可填 cftc 直链）
-  parent_id   INTEGER REFERENCES categories(id) ON DELETE CASCADE,
   sort        INTEGER NOT NULL DEFAULT 0,
   created_at  INTEGER NOT NULL
 );
@@ -14,6 +13,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS bookmarks (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id  INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  parent_id    INTEGER REFERENCES bookmarks(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,
   url          TEXT NOT NULL,             -- 站点地址
   icon         TEXT,                      -- 图标 URL（cftc 直链 / 自动获取结果）
@@ -35,10 +35,10 @@ CREATE TABLE IF NOT EXISTS error_report_rate_limits (
 
 CREATE INDEX IF NOT EXISTS idx_bookmarks_category ON bookmarks(category_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_sort ON bookmarks(category_id, sort);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_parent_sort ON bookmarks(parent_id, sort, id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_global ON bookmarks(sort, id);
 CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort);
 CREATE INDEX IF NOT EXISTS idx_categories_sort_id ON categories(sort, id);
-CREATE INDEX IF NOT EXISTS idx_categories_parent_sort ON categories(parent_id, sort, id);
 
 -- 全局设置（key-value，避免频繁改表结构）
 CREATE TABLE IF NOT EXISTS settings (

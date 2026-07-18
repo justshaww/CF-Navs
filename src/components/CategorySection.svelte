@@ -11,9 +11,7 @@
 
   export let category: PublicCategory
   export let bookmarks: PublicBookmark[] = []
-  export let depth = 0
-  export let path = ''
-  export let hasChildren = false
+  export let bookmarkChildren: Map<number, PublicBookmark[]> = new Map()
   export let canAddBookmark = false
   export let canSort = false
   export let cardWidth = 200 // 改为 200，Sun-Panel 标准
@@ -75,8 +73,6 @@
   $: mobileGridMinWidth = cardStyle === 'info' ? 150 : iconGridTrackWidth
   $: gridGap = cardStyle === 'info' ? '18px' : '22px 24px'
   $: mobileGridGap = cardStyle === 'info' ? '1rem' : '14px 16px'
-  $: parentPath = path.split(' / ').slice(0, -1).join(' / ')
-  $: categoryDepthStyle = `--category-depth: ${Math.min(depth, 4)}`
   $: if (categoryIconKey !== categoryIconStateKey) {
     categoryIconStateKey = categoryIconKey
     categoryIconFailed = false
@@ -100,7 +96,7 @@
   }
 </script>
 
-<section class="category-section" class:is-child-category={depth > 0} id={sectionId} style={categoryDepthStyle}>
+<section class="category-section" id={sectionId}>
   <header class="section-header">
     <div class="section-title-wrap">
       {#if hasCategoryImageIcon}
@@ -132,10 +128,7 @@
             {/if}
           {/if}
         </div>
-        <p>
-          {#if parentPath}<span class="category-path">{parentPath}</span><span aria-hidden="true"> · </span>{/if}
-          {bookmarks.length > 0 ? `共 ${bookmarks.length} 个站点` : hasChildren ? '包含子分类' : '暂无站点'}
-        </p>
+        <p>共 {bookmarks.length} 个站点</p>
       </div>
     </div>
   </header>
@@ -155,6 +148,7 @@
         <div class="bookmark-grid-item" data-sortable-item data-sort-id={bookmark.id}>
           <BookmarkCard
             {bookmark}
+            children={bookmarkChildren.get(bookmark.id) ?? []}
             style={cardStyle}
             iconSize={cardIconSize}
             showDescription={resolveBookmarkDescriptionMode(bookmark, cardDescriptionMode) !== 'hidden'}
@@ -172,7 +166,7 @@
     {#if sortMode}
       <p class="sort-hint">拖动卡片调整顺序，完成后点击「保存排序」。</p>
     {/if}
-  {:else if !hasChildren}
+  {:else}
     <div class="empty-card">这个分类下暂时还没有可展示的书签。</div>
   {/if}
 </section>
@@ -183,12 +177,6 @@
     flex-direction: column;
     gap: 1rem;
     scroll-margin-top: 1.5rem;
-  }
-
-  .category-section.is-child-category .section-header {
-    margin-left: calc(var(--category-depth) * 1.1rem);
-    padding-left: 0.85rem;
-    border-left: 3px solid color-mix(in srgb, var(--home-accent-color) 42%, transparent);
   }
 
   .section-header {
@@ -229,10 +217,6 @@
   .section-title-wrap h2,
   .section-title-wrap p {
     margin: 0;
-  }
-
-  .category-path {
-    font-weight: 500;
   }
 
   .section-heading-row {

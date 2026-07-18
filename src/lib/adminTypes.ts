@@ -4,12 +4,12 @@ export type CategoryFormValue = {
   id?: string | number
   title: string
   icon: string
-  parent_id?: string | number | null
 }
 
 export type BookmarkFormValue = {
   id?: string | number
   category_id?: string | number
+  parent_id?: string | number | null
   title: string
   url: string
   icon: string

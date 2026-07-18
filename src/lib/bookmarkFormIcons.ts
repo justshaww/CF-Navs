@@ -11,6 +11,7 @@ import {
 } from './icons'
 
 export const emptyBookmarkForm: BookmarkFormValue = {
+  parent_id: null,
   title: '',
   url: '',
   icon: '',
@@ -29,6 +30,7 @@ export function createBookmarkFormValue(
     ...emptyBookmarkForm,
     ...(value ?? {}),
     category_id: value?.category_id ?? fallbackCategoryId,
+    parent_id: value?.parent_id ?? null,
     title: value?.title ?? '',
     url: value?.url ?? '',
     icon: value?.icon ?? '',

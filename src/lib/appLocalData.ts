@@ -1,6 +1,6 @@
 import type { Bookmark, Category, PublicBookmark, PublicCategory } from '../../shared/types'
 import { toPublicBookmark } from './appData'
-import { getCategoryDescendantIds } from '../../shared/categoryTree'
+import { getBookmarkDescendantIds } from '../../shared/bookmarkTree'
 
 type SortableRow = {
   id: number
@@ -20,6 +20,15 @@ export function removeById<T extends { id: number }>(items: T[], id: number): T[
 
 export function removeBookmarksByCategory<T extends { category_id: number }>(bookmarks: T[], categoryId: number): T[] {
   return bookmarks.filter((bookmark) => bookmark.category_id !== categoryId)
+}
+
+export function removeBookmarkTree<T extends { id: number; category_id: number; parent_id?: number | null }>(
+  bookmarks: T[],
+  rootIds: number[],
+): T[] {
+  const removedIds = getBookmarkDescendantIds(bookmarks, rootIds)
+  rootIds.forEach((id) => removedIds.add(id))
+  return bookmarks.filter((bookmark) => !removedIds.has(bookmark.id))
 }
 
 export function updateBookmarkIconBlob<T extends { id: number; icon_blob: string | null }>(
@@ -48,19 +57,14 @@ export function upsertPublicBookmark(bookmarks: PublicBookmark[], bookmark: Book
   return upsertById(bookmarks, toPublicBookmark(bookmark))
 }
 
-export function buildPublicDataAfterCategoryDelete<
-  C extends PublicCategory,
-  B extends PublicBookmark,
->(
-  categories: C[],
-  bookmarks: B[],
+export function buildPublicDataAfterCategoryDelete(
+  categories: PublicCategory[],
+  bookmarks: PublicBookmark[],
   categoryId: number,
-): { categories: C[]; bookmarks: B[] } {
-  const deletedCategoryIds = getCategoryDescendantIds(categories, categoryId)
-  deletedCategoryIds.add(categoryId)
+): { categories: PublicCategory[]; bookmarks: PublicBookmark[] } {
   return {
-    categories: categories.filter((category) => !deletedCategoryIds.has(category.id)),
-    bookmarks: bookmarks.filter((bookmark) => !deletedCategoryIds.has(bookmark.category_id)),
+    categories: removeById(categories, categoryId),
+    bookmarks: removeBookmarksByCategory(bookmarks, categoryId),
   }
 }
 
@@ -75,7 +79,7 @@ export function buildOrderedBookmarkIdsForCategory<T extends SortableRow & { cat
   return [...bookmarks]
     .sort((a, b) => a.sort - b.sort || a.id - b.id)
     .map((bookmark) => {
-      if (bookmark.category_id === categoryId) {
+      if (bookmark.category_id === categoryId && (bookmark as T & { parent_id?: number | null }).parent_id == null) {
         const replacement = newOrderQueue[queueIndex] ?? bookmark.id
         queueIndex += 1
         return replacement
@@ -97,7 +101,6 @@ export function upsertPublicCategory(categories: PublicCategory[], category: Cat
     id: category.id,
     title: category.title,
     icon: category.icon,
-    parent_id: category.parent_id ?? null,
     sort: category.sort,
   })
 }

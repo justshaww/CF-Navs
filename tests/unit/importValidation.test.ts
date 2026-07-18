@@ -65,26 +65,6 @@ describe('import payload validation', () => {
     })).toEqual({ ok: false, message: 'bookmark 10 references missing category 99' })
   })
 
-  it('rejects missing parents, self-parenting, and category cycles', () => {
-    expect(validateImportPayload({
-      ...validPayload,
-      categories: [{ ...validPayload.categories[0], parent_id: 99 }],
-    })).toEqual({ ok: false, message: 'category 1 references missing parent 99' })
-
-    expect(validateImportPayload({
-      ...validPayload,
-      categories: [{ ...validPayload.categories[0], parent_id: 1 }],
-    })).toEqual({ ok: false, message: 'category 1 cannot be its own parent' })
-
-    expect(validateImportPayload({
-      ...validPayload,
-      categories: [
-        { ...validPayload.categories[0], parent_id: 2 },
-        { id: 2, title: 'Child', icon: null, sort: 0, parent_id: 1 },
-      ],
-    })).toEqual({ ok: false, message: 'category cycle detected at 1' })
-  })
-
   it('rejects null, array, or scalar settings when settings is present', () => {
     expect(validateImportPayload({ ...validPayload, settings: null })).toEqual({
       ok: false,
@@ -93,6 +73,33 @@ describe('import payload validation', () => {
     expect(validateImportPayload({ ...validPayload, settings: [] })).toEqual({
       ok: false,
       message: 'invalid settings',
+    })
+  })
+
+  it('validates bookmark parent references and hierarchy', () => {
+    const parent = { ...validPayload.bookmarks[0], parent_id: null }
+    const child = { ...validPayload.bookmarks[0], id: 11, title: 'Post', parent_id: 10 }
+    expect(validateImportPayload({ ...validPayload, bookmarks: [parent, child] }).ok).toBe(true)
+
+    expect(validateImportPayload({ ...validPayload, bookmarks: [{ ...parent, parent_id: 99 }] })).toEqual({
+      ok: false,
+      message: 'bookmark 10: parent bookmark not found',
+    })
+
+    expect(validateImportPayload({
+      categories: [...validPayload.categories, { id: 2, title: 'Other', icon: null, sort: 1 }],
+      bookmarks: [parent, { ...child, category_id: 2 }],
+    })).toEqual({
+      ok: false,
+      message: 'bookmark 11: parent bookmark must be in the same category',
+    })
+
+    expect(validateImportPayload({
+      ...validPayload,
+      bookmarks: [{ ...parent, parent_id: 11 }, { ...child, parent_id: 10 }],
+    })).toEqual({
+      ok: false,
+      message: 'bookmark 10: bookmark hierarchy cannot contain a cycle',
     })
   })
 })

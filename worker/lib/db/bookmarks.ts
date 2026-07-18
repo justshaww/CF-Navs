@@ -34,19 +34,25 @@ export async function getBookmarkIconData(db: D1Database, id: number): Promise<B
 export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Promise<Bookmark | null> {
   const now = Date.now()
   const open_method: 1 | 2 | 3 = req.open_method === 2 ? 2 : req.open_method === 3 ? 3 : 1
+  const parentId = req.parent_id ?? null
   return await withSchemaRetry(db, async () => (
     await db
       .prepare(
         `INSERT INTO bookmarks (
-           category_id, title, url, icon, icon_source, icon_background_color,
+           category_id, parent_id, title, url, icon, icon_source, icon_background_color,
            description, description_mode, open_method, sort, created_at
          )
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+           COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ? AND parent_id IS ?), -1) + 1, ?
          WHERE EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, created_at`,
+           AND (? IS NULL OR EXISTS (
+             SELECT 1 FROM bookmarks parent WHERE parent.id = ? AND parent.category_id = ?
+           ))
+         RETURNING id, category_id, parent_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, created_at`,
       )
       .bind(
         req.category_id,
+        parentId,
         req.title,
         req.url,
         req.icon ?? null,
@@ -56,7 +62,11 @@ export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Pr
         req.description_mode ?? null,
         open_method,
         req.category_id,
+        parentId,
         now,
+        req.category_id,
+        parentId,
+        parentId,
         req.category_id,
       )
       .first<Bookmark>()
@@ -73,11 +83,14 @@ export async function updateBookmark(
   const openMethod: 1 | 2 | 3 | null =
     req.open_method === 2 ? 2 : req.open_method === 3 ? 3 : req.open_method === 1 ? 1 : null
   const hasDescriptionMode = Object.prototype.hasOwnProperty.call(req, 'description_mode')
+  const hasParentId = Object.prototype.hasOwnProperty.call(req, 'parent_id')
+  const parentId = req.parent_id ?? null
   return await withSchemaRetry(db, async () => (
     await db
       .prepare(
         `UPDATE bookmarks
          SET category_id = ?,
+             parent_id = CASE WHEN ? = 0 THEN parent_id ELSE ? END,
              title = ?,
              url = ?,
              icon_blob = CASE
@@ -93,10 +106,15 @@ export async function updateBookmark(
              description_mode = CASE WHEN ? = 0 THEN description_mode ELSE ? END,
              open_method = COALESCE(?, open_method)
          WHERE id = ? AND EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, created_at`,
+           AND (? = 0 OR ? IS NULL OR EXISTS (
+             SELECT 1 FROM bookmarks parent WHERE parent.id = ? AND parent.category_id = ?
+           ))
+         RETURNING id, category_id, parent_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, created_at`,
       )
       .bind(
         req.category_id,
+        hasParentId ? 1 : 0,
+        parentId,
         req.title,
         req.url,
         nextIcon,
@@ -112,20 +130,45 @@ export async function updateBookmark(
         openMethod,
         id,
         req.category_id,
+        hasParentId ? 1 : 0,
+        parentId,
+        parentId,
+        req.category_id,
       )
       .first<Bookmark>()
   ))
 }
 
 export async function deleteBookmark(db: D1Database, id: number): Promise<boolean> {
-  const res = await db.prepare('DELETE FROM bookmarks WHERE id = ?').bind(id).run()
-  return (res.meta.changes ?? 0) > 0
+  return await withSchemaRetry(db, async () => {
+    const res = await db.prepare(
+      `WITH RECURSIVE descendants(id) AS (
+         SELECT id FROM bookmarks WHERE id = ?
+         UNION ALL
+         SELECT bookmark.id FROM bookmarks bookmark
+         JOIN descendants parent ON bookmark.parent_id = parent.id
+       )
+       DELETE FROM bookmarks WHERE id IN (SELECT id FROM descendants)`,
+    ).bind(id).run()
+    return (res.meta.changes ?? 0) > 0
+  })
 }
 
 export async function batchDeleteBookmarks(db: D1Database, ids: number[]): Promise<number> {
   if (ids.length === 0) return 0
-  const results = await db.batch(ids.map((id) => db.prepare('DELETE FROM bookmarks WHERE id = ?').bind(id)))
-  return results.reduce((sum, result) => sum + (result.meta.changes ?? 0), 0)
+  const placeholders = ids.map(() => '?').join(', ')
+  return await withSchemaRetry(db, async () => {
+    const result = await db.prepare(
+      `WITH RECURSIVE descendants(id) AS (
+         SELECT id FROM bookmarks WHERE id IN (${placeholders})
+         UNION
+         SELECT bookmark.id FROM bookmarks bookmark
+         JOIN descendants parent ON bookmark.parent_id = parent.id
+       )
+       DELETE FROM bookmarks WHERE id IN (SELECT id FROM descendants)`,
+    ).bind(...ids).run()
+    return result.meta.changes ?? 0
+  })
 }
 
 export async function sortBookmarks(db: D1Database, ids: number[]): Promise<void> {

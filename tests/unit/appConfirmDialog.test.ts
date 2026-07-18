@@ -24,7 +24,7 @@ describe('app confirmation dialog helpers', () => {
   it('builds category deletion confirmations', () => {
     expect(createConfirmDialogState(createDeleteCategoryConfirmation('工具'))).toEqual({
       title: '删除分类',
-      message: '删除后该分类、全部子分类及其中的书签都会从首页和后台列表中移除，此操作不可撤销。',
+      message: '删除后该分类及其下所有书签都会从首页和后台列表中移除，此操作不可撤销。',
       itemTitle: '工具',
       confirmLabel: '确认删除',
       cancelLabel: '取消',
@@ -41,6 +41,10 @@ describe('app confirmation dialog helpers', () => {
       cancelLabel: '取消',
       variant: 'danger',
     })
+
+    expect(createConfirmDialogState(createDeleteBookmarkConfirmation('NodeSeek', 3)).message).toBe(
+      '该书签收录了 3 个帖子，删除时会一并移除，此操作不可撤销。',
+    )
   })
 
   it('builds import overwrite confirmations', () => {
