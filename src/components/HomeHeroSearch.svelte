@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte'
   import type { PublicSettings } from '../../shared/types'
   import SearchBox from './SearchBox.svelte'
 
@@ -8,9 +9,46 @@
   export let settings: PublicSettings | null = null
   export let query = ''
   export let topNavigation = false
+
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  let now = new Date()
+  let timer: ReturnType<typeof setInterval> | null = null
+
+  $: hours = now.getHours()
+  $: greeting = hours < 5
+    ? '夜深了，shaw'
+    : hours < 12
+      ? '上午好，shaw'
+      : hours < 18
+        ? '下午好，shaw'
+        : '晚上好，shaw'
+  $: timeText = now.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  $: dateText = `${now.getMonth() + 1}月${now.getDate()}日 ${weekdays[now.getDay()]}`
+
+  onMount(() => {
+    timer = setInterval(() => {
+      now = new Date()
+    }, 1000)
+  })
+
+  onDestroy(() => {
+    if (timer) {
+      clearInterval(timer)
+      timer = null
+    }
+  })
 </script>
 
 <section class="hero-search" class:top-navigation={topNavigation} aria-label="站点搜索">
+  <div class="hero-clock" aria-live="polite">
+    <div class="hero-greeting">{greeting}</div>
+    <div class="hero-time">{timeText}</div>
+    <div class="hero-date">{dateText}</div>
+  </div>
   <h1 class="site-title" style="color: {siteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
   {#if settings?.search_box_show ?? true}
     <div class="search-card">
@@ -26,9 +64,9 @@
 <style>
   .hero-search {
     display: grid;
-    gap: 0.85rem;
+    gap: 0.95rem;
     max-width: 680px;
-    margin: calc(3rem + var(--content-margin-top, 0%)) auto 1.25rem;
+    margin: calc(2.35rem + var(--content-margin-top, 0%)) auto 1.35rem;
     text-align: center;
   }
 
@@ -36,33 +74,73 @@
     margin-top: calc(3.5rem + var(--content-margin-top, 0%));
   }
 
+  .hero-clock {
+    display: grid;
+    gap: 0.15rem;
+    justify-items: center;
+    color: var(--home-text-color, #0f172a);
+    text-shadow: 0 8px 30px rgba(15, 23, 42, 0.18);
+  }
+
+  .hero-greeting {
+    font-size: 0.98rem;
+    font-weight: 600;
+    opacity: 0.74;
+  }
+
+  .hero-time {
+    font-size: clamp(3.8rem, 9vw, 6.4rem);
+    font-weight: 750;
+    line-height: 0.95;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero-date {
+    font-size: 1rem;
+    font-weight: 650;
+    opacity: 0.7;
+  }
+
   .site-title {
-    margin: 0;
-    font-weight: 700;
+    margin: 0.15rem 0 0;
+    font-weight: 800;
     line-height: 1.1;
     overflow-wrap: anywhere;
-    text-shadow: 0 2px 12px rgba(15, 23, 42, 0.22);
+    letter-spacing: 0;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.45),
+      0 12px 32px rgba(15, 23, 42, 0.24);
   }
 
   .search-card {
     max-width: 680px;
     margin: 0;
     padding: 0.75rem 1rem;
-    border-radius: 1.5rem;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(255, 255, 255, 0.68);
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.56);
+    box-shadow:
+      0 18px 45px rgba(15, 23, 42, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
   }
 
   :global([data-theme='dark']) .search-card {
-    border-color: transparent;
-    background: transparent;
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.34);
   }
 
   @media (max-width: 720px) {
     .hero-search {
       gap: 0.75rem;
-      margin-top: 3.5rem;
+      margin-top: 2.75rem;
       padding: 0 0.25rem;
+    }
+
+    .hero-time {
+      font-size: clamp(3rem, 18vw, 4.6rem);
     }
 
     .hero-search.top-navigation {
