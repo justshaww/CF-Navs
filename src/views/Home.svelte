@@ -371,11 +371,10 @@
   />
 
   {#if showAnywhereDoorPrompt}
-    <div class="anywhere-door-art" aria-hidden="true"></div>
-  {/if}
-
-  {#if showAnywhereDoorPrompt}
-    <p class="anywhere-door-prompt">准备去哪儿呢？</p>
+    <div class="anywhere-door-scene" aria-hidden="true">
+      <p class="anywhere-door-prompt">准备去哪儿呢？</p>
+      <img class="anywhere-door-art" src="/doraemon-thinking.png" alt="" />
+    </div>
   {/if}
 
   <Sidebar
@@ -478,23 +477,27 @@
     opacity: var(--home-background-mask, 0.3);
   }
 
-  .anywhere-door-art {
+  .anywhere-door-scene {
     position: fixed;
-    right: clamp(1.5rem, 3.5vw, 5rem);
-    bottom: clamp(1rem, 3vh, 2.5rem);
-    z-index: -1;
-    width: clamp(28rem, 36vw, 42.5rem);
-    aspect-ratio: 680 / 470;
-    background: url('/doraemon-door-foreground.png') center / cover no-repeat;
-    clip-path: polygon(12% 55%, 16% 25%, 28% 11%, 46% 11%, 56% 24%, 61% 42%, 74% 45%, 81% 38%, 87% 47%, 88% 62%, 95% 68%, 94% 86%, 84% 89%, 77% 86%, 66% 93%, 48% 94%, 40% 91%, 31% 92%, 22% 85%, 13% 79%);
+    right: clamp(2rem, 4vw, 5rem);
+    bottom: clamp(1rem, 2.5vh, 2rem);
+    z-index: 0;
+    width: clamp(31rem, 34vw, 39rem);
     pointer-events: none;
   }
 
+  .anywhere-door-art {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 18px 24px rgba(15, 23, 42, 0.12));
+  }
+
   .anywhere-door-prompt {
-    position: fixed;
-    top: clamp(12.5rem, 23vh, 16.5rem);
-    right: clamp(23rem, 36vw, 43rem);
-    z-index: 0;
+    position: absolute;
+    top: -4.75rem;
+    left: clamp(9rem, 10vw, 11rem);
+    z-index: 1;
     margin: 0;
     padding: 0.7rem 1.05rem;
     border: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
@@ -518,23 +521,19 @@
     .anywhere-door-home :global(.hero-search) {
       transform: translateX(clamp(2.5rem, 3vw, 3.75rem));
     }
-
-    .anywhere-door-prompt {
-      transform: translateX(clamp(2.5rem, 3vw, 3.75rem));
-    }
   }
 
   .anywhere-door-prompt::after {
     content: '';
     position: absolute;
-    right: -0.52rem;
-    bottom: 0.28rem;
+    left: 3.25rem;
+    bottom: -0.48rem;
     width: 0.9rem;
     height: 0.9rem;
     border-right: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
     border-bottom: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
     background: rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.4));
-    transform: rotate(-45deg);
+    transform: rotate(45deg);
   }
 
   :global([data-theme='dark']) .anywhere-door-prompt {
@@ -615,24 +614,14 @@
       padding-top: 4.5rem;
     }
 
-    .anywhere-door-prompt {
-      display: none;
-    }
-
-    .anywhere-door-art {
+    .anywhere-door-scene {
       display: none;
     }
   }
 
   @media (min-width: 721px) and (max-width: 1180px) {
-    .anywhere-door-prompt {
+    .anywhere-door-scene {
       display: none;
-    }
-
-    .anywhere-door-art {
-      right: 0.5rem;
-      width: 29rem;
-      opacity: 0.82;
     }
   }
 </style>
