@@ -15,6 +15,7 @@
   let timer: ReturnType<typeof setInterval> | null = null
 
   $: resolvedSiteTitleColor = siteTitleColor === 'inherit' ? '#37317d' : siteTitleColor
+  $: resolvedSiteTitleFontSize = Math.max(38, siteTitleFontSize)
   $: hours = now.getHours()
   $: greeting = hours < 5
     ? '夜深了，shaw'
@@ -50,7 +51,7 @@
     <div class="hero-time">{timeText}</div>
     <div class="hero-date">{dateText}</div>
   </div>
-  <h1 class="site-title" style="--site-title-color: {resolvedSiteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
+  <h1 class="site-title" style="--site-title-color: {resolvedSiteTitleColor}; font-size: {resolvedSiteTitleFontSize}px;">{pageTitle}</h1>
   {#if settings?.search_box_show ?? true}
     <div class="search-card">
       <SearchBox
@@ -119,30 +120,28 @@
       'Hiragino Sans GB',
       sans-serif;
     font-style: italic;
-    font-weight: 950;
-    line-height: 0.95;
+    font-weight: 900;
+    line-height: 1;
     overflow-wrap: anywhere;
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
     color: var(--site-title-color, #37317d);
     -webkit-text-fill-color: var(--site-title-color, #37317d);
     -webkit-text-stroke: 0;
     paint-order: stroke fill;
-    transform: skewX(-10deg);
-    filter: drop-shadow(5px 5px 0 rgba(55, 49, 125, 0.12));
+    transform: skewX(-8deg);
+    filter: none;
     text-shadow:
-      0 2px 0 rgba(255, 255, 255, 0.92),
-      3px 3px 0 rgba(255, 255, 255, 0.62),
-      8px 10px 18px rgba(30, 41, 59, 0.16);
+      0 2px 0 rgba(255, 255, 255, 0.96),
+      3px 4px 0 rgba(55, 49, 125, 0.14);
   }
 
   :global([data-theme='dark']) .site-title {
     color: #d6d3ff;
     -webkit-text-fill-color: #d6d3ff;
-    filter: drop-shadow(5px 5px 0 rgba(0, 0, 0, 0.2));
+    filter: none;
     text-shadow:
-      0 2px 0 rgba(15, 23, 42, 0.8),
-      4px 5px 0 rgba(49, 46, 129, 0.55),
-      0 18px 38px rgba(0, 0, 0, 0.28);
+      0 2px 0 rgba(15, 23, 42, 0.86),
+      3px 4px 0 rgba(49, 46, 129, 0.5);
   }
 
   .search-card {
