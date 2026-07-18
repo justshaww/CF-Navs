@@ -39,7 +39,13 @@ function findD1Id(databases) {
 }
 
 function findKvId(namespaces) {
-  const match = namespaces.find((item) => item?.title === 'SESSION' || item?.binding === 'SESSION' || item?.name === 'SESSION')
+  const match = namespaces.find(
+    (item) =>
+      item?.title === 'SESSION' ||
+      item?.title === 'cf-navs-session' ||
+      item?.binding === 'SESSION' ||
+      item?.name === 'SESSION',
+  )
   return match?.id ?? ''
 }
 

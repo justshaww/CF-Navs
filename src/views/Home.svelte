@@ -481,7 +481,7 @@
     position: fixed;
     right: clamp(2rem, 4vw, 5rem);
     bottom: clamp(1rem, 2.5vh, 2rem);
-    z-index: 0;
+    z-index: 2;
     width: clamp(31rem, 34vw, 39rem);
     pointer-events: none;
   }
