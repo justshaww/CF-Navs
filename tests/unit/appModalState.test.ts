@@ -42,7 +42,9 @@ describe('app modal state helpers', () => {
     expect(createCategoryDraft()).toEqual({
       title: '',
       icon: '',
+      parent_id: null,
     })
+    expect(createCategoryDraft(3).parent_id).toBe(3)
   })
 
   it('creates bookmark drafts with the selected fallback category', () => {

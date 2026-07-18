@@ -32,6 +32,11 @@ export async function ensureSchema(db: D1Database, force = false): Promise<void>
 
   const colNames = new Set((cols ?? []).map((c) => c.name))
 
+  const { results: categoryCols } = await db
+    .prepare("PRAGMA table_info(categories)")
+    .all<{ name: string }>()
+  const categoryColNames = new Set((categoryCols ?? []).map((c) => c.name))
+
   const stmts: D1PreparedStatement[] = []
   if (!colNames.has("icon_source")) {
     stmts.push(db.prepare("ALTER TABLE bookmarks ADD COLUMN icon_source TEXT"))
@@ -45,8 +50,12 @@ export async function ensureSchema(db: D1Database, force = false): Promise<void>
   if (!colNames.has("description_mode")) {
     stmts.push(db.prepare("ALTER TABLE bookmarks ADD COLUMN description_mode TEXT"))
   }
+  if (!categoryColNames.has("parent_id")) {
+    stmts.push(db.prepare("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE"))
+  }
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_global ON bookmarks(sort, id)"))
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_categories_sort_id ON categories(sort, id)"))
+  stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_categories_parent_sort ON categories(parent_id, sort, id)"))
 
   if (stmts.length > 0) await db.batch(stmts)
 }

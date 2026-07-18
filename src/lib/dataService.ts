@@ -25,7 +25,6 @@ import {
   applySortOrder,
   buildPublicDataAfterCategoryDelete,
   removeById,
-  removeBookmarksByCategory,
   updateBookmarkIconBlob,
   upsertBookmark,
   upsertCategory,
@@ -230,8 +229,10 @@ export async function applyLocalCategoryUpsert(category: Category): Promise<void
 export async function applyLocalCategoryDelete(categoryId: number): Promise<void> {
   await applyLocalDataMutation({
     updateAdmin: () => {
-      updateAdminCategoriesLocally((categories) => removeById(categories, categoryId))
-      updateAdminBookmarksLocally((bookmarks) => removeBookmarksByCategory(bookmarks, categoryId))
+      const currentCategories = get(adminStore).data.categories
+      const next = buildPublicDataAfterCategoryDelete(currentCategories, get(adminStore).data.bookmarks, categoryId)
+      updateAdminCategoriesLocally(() => next.categories)
+      updateAdminBookmarksLocally(() => next.bookmarks)
     },
     updatePublic: (data) => ({
       ...data,

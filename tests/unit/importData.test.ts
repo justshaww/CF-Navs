@@ -115,4 +115,24 @@ describe('prepareImportPayload', () => {
     expect(() => parseImportJsonText('{bad json')).toThrow('文件不是有效的 JSON')
     expect(() => prepareImportText('{bad json', 'cf-navs')).toThrow('文件不是有效的 JSON')
   })
+
+  it('preserves browser bookmark folder nesting as category parents', () => {
+    const prepared = prepareImportText(`<!DOCTYPE NETSCAPE-Bookmark-file-1>
+      <DL><p><DT><H3>Bookmarks bar</H3><DL><p>
+        <DT><H3>AI</H3><DL><p>
+          <DT><H3>Docs</H3><DL><p>
+            <DT><A HREF="https://example.com">Example</A>
+          </DL><p>
+        </DL><p>
+      </DL><p></DL>`, 'browser-html')
+
+    expect(prepared.payload.categories.map((category) => ({
+      title: category.title,
+      parent_id: category.parent_id,
+    }))).toEqual([
+      { title: 'AI', parent_id: null },
+      { title: 'Docs', parent_id: 1 },
+    ])
+    expect(prepared.payload.bookmarks[0].category_id).toBe(2)
+  })
 })

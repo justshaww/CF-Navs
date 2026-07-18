@@ -7,6 +7,7 @@ export interface Category {
   id: number
   title: string
   icon: string | null
+  parent_id?: number | null
   sort: number
   created_at: number
 }
@@ -275,6 +276,7 @@ export interface SiteConfig {
 export interface CategoryUpsertReq {
   title: string
   icon?: string | null
+  parent_id?: number | null
 }
 
 // POST/PUT 书签

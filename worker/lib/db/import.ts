@@ -4,6 +4,7 @@ import { type Bookmark, type Category, type Settings } from '../../../shared/typ
 import { ensureSchema } from './schema'
 import { settingsPatchStatement } from './settings'
 import { chunkImportRows, normalizeImportCategory, normalizeImportBookmark } from './importHelpers'
+import { flattenCategoryTree } from '../../../shared/categoryTree'
 
 export async function importData(
   db: D1Database,
@@ -20,9 +21,10 @@ export async function importData(
   stmts.push(db.prepare('DELETE FROM categories'))
 
   for (const c of data.categories) importedCategories.push(normalizeImportCategory(c, now))
-  for (const chunk of chunkImportRows(importedCategories, 20)) {
-    stmts.push(db.prepare(`INSERT INTO categories (id, title, icon, sort, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?)').join(', ')}`)
-      .bind(...chunk.flatMap((category) => [category.id, category.title, category.icon, category.sort, category.created_at])))
+  const categoriesInInsertOrder = flattenCategoryTree(importedCategories).map((entry) => entry.category)
+  for (const chunk of chunkImportRows(categoriesInInsertOrder, 16)) {
+    stmts.push(db.prepare(`INSERT INTO categories (id, title, icon, parent_id, sort, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`)
+      .bind(...chunk.flatMap((category) => [category.id, category.title, category.icon, category.parent_id ?? null, category.sort, category.created_at])))
   }
 
   for (const b of data.bookmarks) importedBookmarks.push(normalizeImportBookmark(b, now))

@@ -32,7 +32,7 @@ export function createConfirmDialogState(input: ConfirmDialogInput): ConfirmDial
 export function createDeleteCategoryConfirmation(categoryTitle: string): ConfirmDialogInput {
   return {
     title: '删除分类',
-    message: '删除后该分类及其下所有书签都会从首页和后台列表中移除，此操作不可撤销。',
+    message: '删除后该分类、全部子分类及其中的书签都会从首页和后台列表中移除，此操作不可撤销。',
     itemTitle: categoryTitle,
     confirmLabel: '确认删除',
     variant: 'danger',

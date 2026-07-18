@@ -39,6 +39,14 @@ const categoryB: PublicCategory = {
   sort: 1,
 }
 
+const categoryChild: PublicCategory = {
+  id: 3,
+  title: 'Child',
+  icon: null,
+  parent_id: 1,
+  sort: 0,
+}
+
 const bookmarkA: PublicBookmark = {
   id: 10,
   category_id: 1,
@@ -97,6 +105,12 @@ describe('refactored helper modules', () => {
       categories: [categoryB],
       bookmarks: [bookmarkB],
     })
+
+    expect(buildPublicDataAfterCategoryDelete(
+      [categoryA, categoryB, categoryChild],
+      [bookmarkA, { ...bookmarkB, category_id: 3 }],
+      1,
+    )).toEqual({ categories: [categoryB], bookmarks: [] })
   })
 
   it('derives global sort order from category-local bookmark sorting', () => {
@@ -128,8 +142,8 @@ describe('refactored helper modules', () => {
     expect(bookmarkMatchesSearch(bookmarkA, normalizeSearchQuery('tools'), searchIndex)).toBe(true)
     expect(getVisibleCategoryIds([bookmarkB])).toEqual(new Set([2]))
     expect(getHomeSections(sortedCategories, grouped)).toEqual([
-      { id: 'category-2', title: 'Docs', count: 1 },
-      { id: 'category-1', title: 'Tools', count: 1 },
+      { id: 'category-2', title: 'Docs', count: 1, depth: 0, path: 'Docs', hasChildren: false },
+      { id: 'category-1', title: 'Tools', count: 1, depth: 0, path: 'Tools', hasChildren: false },
     ])
   })
 
@@ -137,6 +151,7 @@ describe('refactored helper modules', () => {
     expect(toCategoryPayload({ title: '  Tools  ', icon: '  tool  ' })).toEqual({
       title: 'Tools',
       icon: 'tool',
+      parent_id: null,
     })
 
     expect(toBookmarkPayload({

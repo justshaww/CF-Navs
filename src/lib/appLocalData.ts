@@ -1,5 +1,6 @@
 import type { Bookmark, Category, PublicBookmark, PublicCategory } from '../../shared/types'
 import { toPublicBookmark } from './appData'
+import { getCategoryDescendantIds } from '../../shared/categoryTree'
 
 type SortableRow = {
   id: number
@@ -47,14 +48,19 @@ export function upsertPublicBookmark(bookmarks: PublicBookmark[], bookmark: Book
   return upsertById(bookmarks, toPublicBookmark(bookmark))
 }
 
-export function buildPublicDataAfterCategoryDelete(
-  categories: PublicCategory[],
-  bookmarks: PublicBookmark[],
+export function buildPublicDataAfterCategoryDelete<
+  C extends PublicCategory,
+  B extends PublicBookmark,
+>(
+  categories: C[],
+  bookmarks: B[],
   categoryId: number,
-): { categories: PublicCategory[]; bookmarks: PublicBookmark[] } {
+): { categories: C[]; bookmarks: B[] } {
+  const deletedCategoryIds = getCategoryDescendantIds(categories, categoryId)
+  deletedCategoryIds.add(categoryId)
   return {
-    categories: removeById(categories, categoryId),
-    bookmarks: removeBookmarksByCategory(bookmarks, categoryId),
+    categories: categories.filter((category) => !deletedCategoryIds.has(category.id)),
+    bookmarks: bookmarks.filter((bookmark) => !deletedCategoryIds.has(bookmark.category_id)),
   }
 }
 
@@ -91,6 +97,7 @@ export function upsertPublicCategory(categories: PublicCategory[], category: Cat
     id: category.id,
     title: category.title,
     icon: category.icon,
+    parent_id: category.parent_id ?? null,
     sort: category.sort,
   })
 }

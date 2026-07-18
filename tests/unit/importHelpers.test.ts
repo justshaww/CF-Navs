@@ -13,6 +13,7 @@ describe('normalizeImportCategory', () => {
       id: 1,
       title: 'Tools',
       icon: '/icon.svg',
+      parent_id: null,
       sort: 3,
       created_at: 100,
     })

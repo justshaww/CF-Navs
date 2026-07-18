@@ -65,6 +65,26 @@ describe('import payload validation', () => {
     })).toEqual({ ok: false, message: 'bookmark 10 references missing category 99' })
   })
 
+  it('rejects missing parents, self-parenting, and category cycles', () => {
+    expect(validateImportPayload({
+      ...validPayload,
+      categories: [{ ...validPayload.categories[0], parent_id: 99 }],
+    })).toEqual({ ok: false, message: 'category 1 references missing parent 99' })
+
+    expect(validateImportPayload({
+      ...validPayload,
+      categories: [{ ...validPayload.categories[0], parent_id: 1 }],
+    })).toEqual({ ok: false, message: 'category 1 cannot be its own parent' })
+
+    expect(validateImportPayload({
+      ...validPayload,
+      categories: [
+        { ...validPayload.categories[0], parent_id: 2 },
+        { id: 2, title: 'Child', icon: null, sort: 0, parent_id: 1 },
+      ],
+    })).toEqual({ ok: false, message: 'category cycle detected at 1' })
+  })
+
   it('rejects null, array, or scalar settings when settings is present', () => {
     expect(validateImportPayload({ ...validPayload, settings: null })).toEqual({
       ok: false,

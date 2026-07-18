@@ -1,9 +1,13 @@
 import type { PublicBookmark, PublicCategory } from '../../shared/types'
+import { flattenCategoryTree, getCategoryPathMap } from '../../shared/categoryTree'
 
 export type HomeSection = {
   id: string
   title: string
   count: number
+  depth?: number
+  path?: string
+  hasChildren?: boolean
 }
 
 export function clampTitleFontSize(value: number | undefined): number {
@@ -68,10 +72,13 @@ export function getHomeSections(
   categories: PublicCategory[],
   categoryBookmarks: Map<number, PublicBookmark[]>,
 ): HomeSection[] {
-  return categories.map((category) => ({
+  return flattenCategoryTree(categories).map(({ category, depth, path, hasChildren }) => ({
     id: `category-${category.id}`,
     title: category.title,
     count: categoryBookmarks.get(category.id)?.length ?? 0,
+    depth,
+    path: path.join(' / '),
+    hasChildren,
   }))
 }
 
@@ -133,7 +140,7 @@ export function createHomeDataMemo() {
       if (items === sortedCategoriesSource) return sortedCategoriesMemo
 
       sortedCategoriesSource = items
-      sortedCategoriesMemo = [...items].sort((a, b) => a.sort - b.sort)
+      sortedCategoriesMemo = flattenCategoryTree(items).map((entry) => entry.category)
       return sortedCategoriesMemo
     },
 
@@ -149,7 +156,7 @@ export function createHomeDataMemo() {
       if (items === categoryTitleSource) return categoryTitleMemo
 
       categoryTitleSource = items
-      categoryTitleMemo = new Map(items.map((category) => [category.id, category.title]))
+      categoryTitleMemo = getCategoryPathMap(items)
       return categoryTitleMemo
     },
 

@@ -15,7 +15,8 @@ function isValidCategory(value: unknown): value is Category {
     (value.id as number) > 0 &&
     typeof value.title === 'string' &&
     value.title.trim().length > 0 &&
-    (value.icon === null || value.icon === undefined || typeof value.icon === 'string')
+    (value.icon === null || value.icon === undefined || typeof value.icon === 'string') &&
+    (value.parent_id === null || value.parent_id === undefined || (Number.isInteger(value.parent_id) && (value.parent_id as number) > 0))
   )
 }
 
@@ -55,6 +56,29 @@ export function validateImportPayload(body: unknown): ImportValidationResult {
       return { ok: false, message: `duplicate category id: ${category.id}` }
     }
     categoryIds.add(category.id)
+  }
+
+  for (const category of body.categories) {
+    const parentId = category.parent_id ?? null
+    if (parentId != null && !categoryIds.has(parentId)) {
+      return { ok: false, message: `category ${category.id} references missing parent ${parentId}` }
+    }
+    if (parentId === category.id) {
+      return { ok: false, message: `category ${category.id} cannot be its own parent` }
+    }
+  }
+
+  const categoryById = new Map(body.categories.map((category) => [category.id, category]))
+  for (const category of body.categories) {
+    const visited = new Set<number>()
+    let current: Category | undefined = category
+    while (current?.parent_id != null) {
+      if (visited.has(current.id)) {
+        return { ok: false, message: `category cycle detected at ${current.id}` }
+      }
+      visited.add(current.id)
+      current = categoryById.get(current.parent_id)
+    }
   }
 
   const bookmarkIds = new Set<number>()

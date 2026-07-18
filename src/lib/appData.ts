@@ -9,6 +9,8 @@ export type AdminCategorySummary = {
   id: string | number
   title: string
   icon?: string
+  parent_id?: string | number | null
+  sort: number
   bookmarkCount?: number
 }
 
@@ -45,6 +47,8 @@ export function toAdminCategories(categories: Category[], bookmarks: Bookmark[])
     id: category.id,
     title: category.title,
     icon: category.icon ?? '',
+    parent_id: category.parent_id ?? null,
+    sort: category.sort,
     bookmarkCount: bookmarkCountByCategory.get(category.id) ?? 0,
   }))
 }

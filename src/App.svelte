@@ -9,6 +9,7 @@
     type ChangePasswordReq,
     type ThemeMode,
   } from '../shared/types'
+  import { getCategoryDescendantIds, getCategoryPathMap } from '../shared/categoryTree'
   import ConfirmDialog from './components/ConfirmDialog.svelte'
   import Toast from './components/Toast.svelte'
   import Home from './views/Home.svelte'
@@ -166,6 +167,7 @@
   $: homeTitle = publicData?.settings.site_title ?? config?.site_title ?? 'CF-Navs'
 
   $: adminCategories = toAdminCategories(adminData.categories, adminData.bookmarks)
+  $: adminCategoryPathById = getCategoryPathMap(adminData.categories)
   $: adminBookmarks = toAdminBookmarks(adminData.bookmarks)
   $: settingsValue = toSettingsForm(adminData.settings)
 
@@ -537,7 +539,7 @@
     }
   }
 
-  async function handleOpenCreateCategory(): Promise<void> {
+  async function handleOpenCreateCategory(parentId?: string | number): Promise<void> {
     if (!isLoggedIn()) {
       await handleOpenLogin()
       return
@@ -549,7 +551,7 @@
     }
     await ensureAdminComponent()
     categoryModalMode = 'create'
-    activeCategory = createCategoryDraft()
+    activeCategory = createCategoryDraft(parentId ?? null)
     categoryModalOpen = true
     currentView = 'admin'
   }
@@ -722,8 +724,12 @@
 
   async function handleBatchDeleteCategories(ids: number[]): Promise<void> {
     if (ids.length === 0) return
-    const bookmarkCount = adminData.bookmarks.filter((bookmark) => ids.includes(bookmark.category_id)).length
-    if (!await requestConfirmation(createBatchDeleteConfirmation('category', ids.length, bookmarkCount))) return
+    const deletedIds = new Set(ids)
+    for (const id of ids) {
+      for (const descendantId of getCategoryDescendantIds(adminData.categories, id)) deletedIds.add(descendantId)
+    }
+    const bookmarkCount = adminData.bookmarks.filter((bookmark) => deletedIds.has(bookmark.category_id)).length
+    if (!await requestConfirmation(createBatchDeleteConfirmation('category', deletedIds.size, bookmarkCount))) return
     try {
       const result = await api.categories.batchDelete(ids)
       if (result.deleted > 0 || result.deleted_bookmarks > 0) await refreshAdminDataAfterMutation()
@@ -998,7 +1004,10 @@
         error={bookmarkError}
         mode={bookmarkModalMode}
         value={activeBookmark}
-        categories={adminCategories.map((category) => ({ id: category.id, title: category.title }))}
+        categories={adminCategories.map((category) => ({
+          id: category.id,
+          title: adminCategoryPathById.get(Number(category.id)) ?? category.title,
+        }))}
         onSubmit={handleSubmitBookmark}
         onCancel={handleCloseBookmarkModal}
         onDelete={handleDeleteBookmark}

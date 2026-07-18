@@ -54,6 +54,7 @@ const publicCategoryB: PublicCategory = {
   id: categoryB.id,
   title: categoryB.title,
   icon: categoryB.icon,
+  parent_id: null,
   sort: categoryB.sort,
 }
 

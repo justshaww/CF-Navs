@@ -32,7 +32,7 @@
   export let backupMessage = ''
   export let importSource: ImportSource = 'cf-navs'
 
-  export let onOpenCreateCategory: (() => AsyncVoid) | undefined = undefined
+  export let onOpenCreateCategory: ((parentId?: string | number) => AsyncVoid) | undefined = undefined
   export let onEditCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onDeleteCategory: ((category: AdminCategory) => AsyncVoid) | undefined = undefined
   export let onBatchDeleteCategories: ((ids: number[]) => AsyncVoid) | undefined = undefined

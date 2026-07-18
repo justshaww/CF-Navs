@@ -7,7 +7,7 @@
     writeLeftNavigationCollapsed,
   } from '../lib/navigationLayout'
 
-  export let items: Array<{ id: string | number; title: string; count?: number }> = []
+  export let items: Array<{ id: string | number; title: string; count?: number; depth?: number; path?: string }> = []
   export let activeId: string | number | null = null
   export let navigation: NavigationSetting = { position: 'left', always_expanded: false }
   export let onNavigate: ((id: string | number) => void) | undefined = undefined
@@ -293,7 +293,7 @@
           aria-current={activeId === item.id ? 'location' : undefined}
           on:click={() => handleItemClick(item.id)}
         >
-          <span>{item.title}</span>
+          <span>{item.depth ? item.path ?? item.title : item.title}</span>
           {#if item.count != null}<small>{item.count}</small>{/if}
         </button>
       {/each}
@@ -359,6 +359,8 @@
           type="button"
           class="toc-item"
           class:active={activeId === item.id}
+          class:is-child-item={(item.depth ?? 0) > 0}
+          style={`--item-depth: ${Math.min(item.depth ?? 0, 4)}`}
           aria-current={activeId === item.id ? 'location' : undefined}
           on:click={() => handleItemClick(item.id)}
         >
@@ -684,6 +686,11 @@
     text-overflow: ellipsis;
     font-size: 14px;
     transition: opacity 0.2s ease;
+  }
+
+  .toc-item.is-child-item .toc-title {
+    padding-left: calc(var(--item-depth) * 10px);
+    font-size: 13px;
   }
 
   .toc-sidebar.expanded .toc-title {

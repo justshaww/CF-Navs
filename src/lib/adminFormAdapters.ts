@@ -12,6 +12,7 @@ export function toCategoryPayload(form: CategoryFormValue): CategoryUpsertReq {
   return {
     title: form.title.trim(),
     icon: form.icon.trim() || null,
+    parent_id: form.parent_id == null || form.parent_id === '' ? null : Number(form.parent_id),
   }
 }
 
@@ -34,6 +35,7 @@ export function toCategoryForm(category: Category): CategoryFormValue {
     id: category.id,
     title: category.title,
     icon: category.icon ?? '',
+    parent_id: category.parent_id ?? null,
   }
 }
 

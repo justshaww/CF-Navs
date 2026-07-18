@@ -16,4 +16,27 @@ describe('merge import data', () => {
     expect(result.payload.bookmarks[0].category_id).toBe(4)
     expect(result.payload.settings).toBeUndefined()
   })
+
+  it('matches nested categories by full path instead of title alone', () => {
+    const result = mergeImportData({
+      categories: [
+        { id: 1, title: 'A', icon: null, parent_id: null, sort: 0, created_at: 1 },
+        { id: 2, title: 'Tools', icon: null, parent_id: 1, sort: 0, created_at: 1 },
+        { id: 3, title: 'B', icon: null, parent_id: null, sort: 1, created_at: 1 },
+      ],
+      bookmarks: [],
+      settings: null,
+    }, {
+      categories: [
+        { id: 10, title: 'B', icon: null, parent_id: null, sort: 0, created_at: 1 },
+        { id: 11, title: 'Tools', icon: null, parent_id: 10, sort: 0, created_at: 1 },
+      ],
+      bookmarks: [],
+    })
+
+    expect(result.reusedCategories).toBe(1)
+    expect(result.createdCategories).toBe(1)
+    const importedTools = result.payload.categories.find((category) => category.parent_id === 3 && category.title === 'Tools')
+    expect(importedTools).toBeTruthy()
+  })
 })
