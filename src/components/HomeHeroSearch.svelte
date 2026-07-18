@@ -49,7 +49,7 @@
     <div class="hero-time">{timeText}</div>
     <div class="hero-date">{dateText}</div>
   </div>
-  <h1 class="site-title" style="color: {siteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
+  <h1 class="site-title" style="--site-title-color: {siteTitleColor}; font-size: {siteTitleFontSize}px;">{pageTitle}</h1>
   {#if settings?.search_box_show ?? true}
     <div class="search-card">
       <SearchBox
@@ -103,14 +103,43 @@
   }
 
   .site-title {
+    display: inline-block;
     margin: 0.15rem 0 0;
-    font-weight: 800;
+    justify-self: center;
+    font-family:
+      YouYuan,
+      'Microsoft YaHei UI',
+      'Microsoft YaHei',
+      'PingFang SC',
+      'Hiragino Sans GB',
+      sans-serif;
+    font-weight: 900;
     line-height: 1.1;
     overflow-wrap: anywhere;
-    letter-spacing: 0;
+    letter-spacing: 0.02em;
+    color: var(--site-title-color, #0f172a);
+    background: linear-gradient(115deg, #0697d7 0%, #11a8ea 38%, #ff6544 68%, #f59e0b 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 0.45px rgba(255, 255, 255, 0.62);
+    paint-order: stroke fill;
+    transform: rotate(-0.7deg);
+    filter: drop-shadow(0 7px 0 rgba(255, 255, 255, 0.42));
     text-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.45),
-      0 12px 32px rgba(15, 23, 42, 0.24);
+      0 2px 0 rgba(255, 255, 255, 0.7),
+      0 8px 18px rgba(14, 165, 233, 0.2),
+      0 18px 38px rgba(15, 23, 42, 0.16);
+  }
+
+  :global([data-theme='dark']) .site-title {
+    background: linear-gradient(115deg, #7dd3fc 0%, #38bdf8 42%, #fb7185 70%, #fbbf24 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    text-shadow:
+      0 2px 0 rgba(15, 23, 42, 0.55),
+      0 10px 24px rgba(56, 189, 248, 0.24),
+      0 22px 46px rgba(0, 0, 0, 0.24);
   }
 
   .search-card {
