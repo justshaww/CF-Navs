@@ -373,7 +373,11 @@
   {#if showAnywhereDoorPrompt}
     <div class="anywhere-door-scene" aria-hidden="true">
       <p class="anywhere-door-prompt">准备去哪儿呢？</p>
-      <img class="anywhere-door-art" src="/doraemon-thinking.png" alt="" />
+      <img
+        class="anywhere-door-art"
+        src={activeTheme === 'dark' ? '/doraemon-thinking-dark.png' : '/doraemon-thinking.png'}
+        alt=""
+      />
     </div>
   {/if}
 
@@ -544,10 +548,8 @@
   }
 
   :global([data-theme='dark']) .anywhere-door-art {
-    opacity: 0.72;
-    filter: brightness(0.82) saturate(0.65) contrast(0.32) drop-shadow(0 14px 24px rgba(0, 0, 0, 0.08));
-    -webkit-mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
-    mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
+    opacity: 0.9;
+    filter: none;
   }
 
   :global([data-theme='dark']) .home-shell {

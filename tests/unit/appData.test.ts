@@ -174,19 +174,19 @@ describe('app data adapters', () => {
     expect(cssVars).toContain('--card-description-color: #475569;')
   })
 
-  it('uses the crisp Doraemon background for Shaw\'s anywhere door homepage', () => {
+  it('preserves configured backgrounds for Shaw\'s anywhere door homepage', () => {
     const shawSettings = toPublicSettings({
       ...settings,
       site_title: 'shaw的任意门',
     })
 
     const lightCssVars = buildHomeBackground(shawSettings, 'light')
-    expect(lightCssVars).toContain('--home-background: url("/doraemon-door-bg-4k.webp") 76% center / cover no-repeat;')
-    expect(lightCssVars).toContain('--home-background-blur: 0px;')
-    expect(lightCssVars).toContain('--home-background-mask: 0.02;')
+    expect(lightCssVars).toContain('--home-background: url("https://example.com/bg.png") center / cover no-repeat;')
+    expect(lightCssVars).toContain('--home-background-blur: 8px;')
+    expect(lightCssVars).toContain('--home-background-mask: 0.25;')
 
     const darkCssVars = buildHomeBackground(shawSettings, 'dark')
-    expect(darkCssVars).toContain('--home-background: url("/doraemon-door-bg-4k.webp") 76% center / cover no-repeat;')
+    expect(darkCssVars).toContain('--home-background: #0f172a;')
     expect(darkCssVars).toContain('--home-background-mask: 0.3;')
   })
 
