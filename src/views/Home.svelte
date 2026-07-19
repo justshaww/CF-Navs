@@ -543,6 +543,13 @@
     color: #eef6ff;
   }
 
+  :global([data-theme='dark']) .anywhere-door-art {
+    opacity: 0.64;
+    filter: brightness(0.74) saturate(0.72) contrast(0.76) drop-shadow(0 16px 28px rgba(0, 0, 0, 0.14));
+    -webkit-mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
+    mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
+  }
+
   :global([data-theme='dark']) .home-shell {
     --home-text-color: var(--card-text-color, #e5eefb);
     --home-muted-opacity: 0.76;
