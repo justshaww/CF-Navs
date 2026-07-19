@@ -16,7 +16,8 @@
     <a href="#界面预览">界面预览</a> ·
     <a href="#快速部署">快速部署</a> ·
     <a href="#本地开发">本地开发</a> ·
-    <a href="docs/README.md">项目文档</a>
+    <a href="docs/README.md">项目文档</a> ·
+    <a href="MAINTENANCE.md">shaw的任意门维护记录</a>
   </p>
 
   <a href="https://github.com/lbjxr/CF-Navs/fork">
