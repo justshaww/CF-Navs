@@ -67,7 +67,6 @@
   let deferredSearchQuery = ''
   let trackedNavigationOffset = 0
   let persistentLeftExpanded = true
-  let isAnywhereDoorPromptLowered = false
 
   $: sortedCategories = homeData.getSortedCategories(categories)
   $: sortedBookmarks = homeData.getSortedBookmarks(bookmarks)
@@ -262,8 +261,6 @@
   onMount(() => {
     isMounted = true
     refreshSectionElements()
-    updateAnywhereDoorPromptPosition()
-    window.addEventListener('scroll', updateAnywhereDoorPromptPosition, { passive: true })
   })
 
   onDestroy(() => {
@@ -274,14 +271,7 @@
       searchFilterTimer = null
     }
     clearNavigationTimers()
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('scroll', updateAnywhereDoorPromptPosition)
-    }
   })
-
-  function updateAnywhereDoorPromptPosition() {
-    isAnywhereDoorPromptLowered = window.scrollY >= 280
-  }
 
   function waitForNextFrame(): Promise<void> {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -381,7 +371,7 @@
   />
 
   {#if showAnywhereDoorPrompt}
-    <div class="anywhere-door-scene" class:prompt-lowered={isAnywhereDoorPromptLowered} aria-hidden="true">
+    <div class="anywhere-door-scene" aria-hidden="true">
       <p class="anywhere-door-prompt">准备去哪儿呢？</p>
       <img class="anywhere-door-art" src="/doraemon-thinking.png" alt="" />
     </div>
@@ -508,8 +498,8 @@
 
   .anywhere-door-prompt {
     position: absolute;
-    top: -6.4rem;
-    left: clamp(6.5rem, 8vw, 8.5rem);
+    top: -2.35rem;
+    left: clamp(11.5rem, 12vw, 13.75rem);
     z-index: 2;
     margin: 0;
     padding: 0.7rem 1.05rem;
@@ -528,12 +518,6 @@
     letter-spacing: 0;
     line-height: 1.2;
     pointer-events: none;
-    transition: top 180ms ease, left 180ms ease;
-  }
-
-  .anywhere-door-scene.prompt-lowered .anywhere-door-prompt {
-    top: -2.35rem;
-    left: clamp(11.5rem, 12vw, 13.75rem);
   }
 
   @media (min-width: 1500px) {
