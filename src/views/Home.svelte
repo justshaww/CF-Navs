@@ -544,8 +544,8 @@
   }
 
   :global([data-theme='dark']) .anywhere-door-art {
-    opacity: 0.64;
-    filter: brightness(0.74) saturate(0.72) contrast(0.76) drop-shadow(0 16px 28px rgba(0, 0, 0, 0.14));
+    opacity: 0.72;
+    filter: brightness(0.82) saturate(0.65) contrast(0.32) drop-shadow(0 14px 24px rgba(0, 0, 0, 0.08));
     -webkit-mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
     mask-image: radial-gradient(ellipse 86% 84% at 49% 42%, #000 38%, rgba(0, 0, 0, 0.52) 68%, rgba(0, 0, 0, 0.06) 100%);
   }
