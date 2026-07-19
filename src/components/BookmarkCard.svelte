@@ -6,6 +6,7 @@
   import BookmarkContextMenu from './BookmarkContextMenu.svelte'
   import BookmarkLinkModal from './BookmarkLinkModal.svelte'
   import BookmarkChildrenModal from './BookmarkChildrenModal.svelte'
+  import BookmarkDetailsSheet from './BookmarkDetailsSheet.svelte'
   import { getIconCardTrackWidth } from '../lib/bookmarkCardLayout'
   import { buildIconStyle } from '../lib/bookmarkIconDisplay'
   import {
@@ -54,6 +55,9 @@
   let contextMenuOpen = false
   let modalOpen = false
   let childrenModalOpen = false
+  let descriptionDetailsOpen = false
+  let descriptionOverflow = false
+  let descriptionStateKey = ''
   let iconStateKey = ''
   let windowListenersAttached = false
   let contextMenuInstanceId = Math.random().toString(36).slice(2)
@@ -98,9 +102,15 @@
   $: tooltipText = bookmark.description ? `${bookmark.title}\n${bookmark.description}` : bookmark.title
   $: cardShellStyle =
     style === 'info'
-      ? `min-width: ${width}px; ${height > 0 ? `height: ${height}px;` : ''}`
+      ? `min-width: ${width}px; --bookmark-card-height: ${infoCardHeight}px;`
       : `width: ${compactShellWidth}px;`
-  $: cardLinkStyle = height > 0 ? `height: ${height}px;` : ''
+  $: cardLinkStyle = `--bookmark-card-height: ${infoCardHeight}px;`
+  $: nextDescriptionStateKey = `${bookmark.id}:${bookmark.description ?? ''}:${descriptionMode}`
+  $: if (nextDescriptionStateKey !== descriptionStateKey) {
+    descriptionStateKey = nextDescriptionStateKey
+    descriptionOverflow = false
+    descriptionDetailsOpen = false
+  }
   $: if (nextIconStateKey !== iconStateKey) {
     iconStateKey = nextIconStateKey
     cachedIconFailed = false
@@ -112,7 +122,7 @@
       localCachePending = false
     }
   }
-  $: syncWindowListeners(contextMenuOpen || modalOpen || childrenModalOpen)
+  $: syncWindowListeners(contextMenuOpen || modalOpen || childrenModalOpen || descriptionDetailsOpen)
 
   function resetLocalCachedIconUrl() {
     if (localCachedIconUrl) {
@@ -208,6 +218,20 @@
     childrenModalOpen = false
   }
 
+  function handleDescriptionOverflowChange(overflowing: boolean) {
+    descriptionOverflow = overflowing
+    if (!overflowing) descriptionDetailsOpen = false
+  }
+
+  function openDescriptionDetails() {
+    if (sortMode || !descriptionOverflow || !bookmark.description) return
+    descriptionDetailsOpen = true
+  }
+
+  function closeDescriptionDetails() {
+    descriptionDetailsOpen = false
+  }
+
   function handleWindowClick() {
     if (contextMenuOpen) closeContextMenu()
   }
@@ -215,6 +239,7 @@
   function handleDocumentKeydown(event: KeyboardEvent) {
     if (modalOpen && event.key === 'Escape') closeModal()
     if (childrenModalOpen && event.key === 'Escape') closeChildrenModal()
+    if (descriptionDetailsOpen && event.key === 'Escape') closeDescriptionDetails()
     if (contextMenuOpen && event.key === 'Escape') closeContextMenu()
   }
 
@@ -293,10 +318,12 @@
       {infoIconStyle}
       {hasCustomIconBackground}
       hasChildren={children.length > 0}
+      hasMobileDetails={descriptionOverflow && !sortMode}
       onLinkClick={handleLinkClick}
       onContextMenu={handleContextMenu}
       onIconError={handleIconError}
       onIconLoad={handleIconLoad}
+      onDescriptionOverflowChange={handleDescriptionOverflowChange}
     />
   {:else}
     <BookmarkCardCompact
@@ -330,6 +357,17 @@
     </button>
   {/if}
 
+  {#if style === 'info' && descriptionOverflow && bookmark.description && !sortMode}
+    <button
+      type="button"
+      class="description-details-button"
+      class:has-children={children.length > 0}
+      aria-label={`查看 ${bookmark.title} 的完整描述`}
+      title="查看完整描述"
+      on:click|stopPropagation={openDescriptionDetails}
+    ><span aria-hidden="true">i</span></button>
+  {/if}
+
   {#if contextMenuOpen}
     <BookmarkContextMenu onEdit={handleEditClick} />
   {/if}
@@ -341,6 +379,10 @@
 
   {#if childrenModalOpen}
     <BookmarkChildrenModal parent={bookmark} {children} onClose={closeChildrenModal} />
+  {/if}
+
+  {#if descriptionDetailsOpen}
+    <BookmarkDetailsSheet {bookmark} onClose={closeDescriptionDetails} />
   {/if}
 </div>
 
@@ -388,5 +430,47 @@
   .children-button:hover { border-color: var(--theme-accent-color, #3b82f6); }
   .children-button.is-icon { top: -5px; right: -7px; transform: none; }
   :global([data-theme='dark']) .children-button { background: rgba(15, 23, 42, 0.86); }
+
+  .description-details-button {
+    position: absolute;
+    z-index: 6;
+    right: 0.45rem;
+    bottom: 0.45rem;
+    display: none;
+    width: 1.8rem;
+    height: 1.8rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    border-radius: 50%;
+    color: var(--card-title-color, #334155);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+    cursor: pointer;
+  }
+
+  .description-details-button span {
+    font-family: Georgia, serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .description-details-button.has-children {
+    right: 3.15rem;
+  }
+
+  :global([data-theme='dark']) .description-details-button {
+    border-color: rgba(148, 163, 184, 0.28);
+    color: #e5eefb;
+    background: rgba(15, 23, 42, 0.9);
+  }
+
+  @media (hover: none), (max-width: 720px) {
+    .description-details-button {
+      display: inline-flex;
+    }
+  }
 
 </style>

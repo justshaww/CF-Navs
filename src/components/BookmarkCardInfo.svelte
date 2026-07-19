@@ -18,10 +18,12 @@
   export let infoIconStyle = ''
   export let hasCustomIconBackground = false
   export let hasChildren = false
+  export let hasMobileDetails = false
   export let onLinkClick: ((event: MouseEvent) => AsyncVoid) | undefined = undefined
   export let onContextMenu: ((event: MouseEvent) => AsyncVoid) | undefined = undefined
   export let onIconError: (() => AsyncVoid) | undefined = undefined
   export let onIconLoad: (() => AsyncVoid) | undefined = undefined
+  export let onDescriptionOverflowChange: ((overflowing: boolean) => AsyncVoid) | undefined = undefined
 
   function handleLinkClick(event: MouseEvent) {
     void onLinkClick?.(event)
@@ -30,20 +32,51 @@
   function handleContextMenu(event: MouseEvent) {
     void onContextMenu?.(event)
   }
+
+  function observeDescription(node: HTMLElement) {
+    let frame = 0
+    let previous: boolean | null = null
+
+    const measure = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const overflowing = node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1
+        if (overflowing === previous) return
+        previous = overflowing
+        void onDescriptionOverflowChange?.(overflowing)
+      })
+    }
+
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure)
+    resizeObserver?.observe(node)
+    mutationObserver?.observe(node, { childList: true, characterData: true, subtree: true })
+    window.addEventListener('resize', measure)
+    measure()
+
+    return {
+      destroy() {
+        cancelAnimationFrame(frame)
+        resizeObserver?.disconnect()
+        mutationObserver?.disconnect()
+        window.removeEventListener('resize', measure)
+      },
+    }
+  }
 </script>
 
 <a
   class="bookmark-card bookmark-card-info"
-  class:bookmark-tooltip-anchor={showDescription && descriptionMode === 'hover' && Boolean(bookmark.description)}
+  class:bookmark-tooltip-anchor={showDescription && descriptionMode !== 'hidden' && Boolean(bookmark.description)}
   class:sort-mode={sortMode}
   class:has-children={hasChildren}
+  class:has-mobile-details={hasMobileDetails}
   href={bookmark.url}
   target={openInNewTab ? '_blank' : undefined}
   rel={openInNewTab ? 'noopener noreferrer' : undefined}
   style={cardLinkStyle}
-  title={showDescription && descriptionMode === 'hover' ? tooltipText : undefined}
-  aria-label={showDescription && descriptionMode === 'hover' ? tooltipText : undefined}
-  data-tooltip={showDescription && descriptionMode === 'hover' ? tooltipText : ''}
+  aria-label={showDescription && descriptionMode !== 'hidden' ? tooltipText : bookmark.title}
+  data-tooltip={showDescription && descriptionMode !== 'hidden' ? tooltipText : ''}
   on:click={handleLinkClick}
   on:contextmenu={handleContextMenu}
 >
@@ -61,8 +94,12 @@
 
   <div class="bookmark-text">
     <h3 class="bookmark-title">{bookmark.title}</h3>
-      {#if showDescription && descriptionMode === 'always' && bookmark.description}
-      <p class="bookmark-description">{bookmark.description}</p>
+    {#if showDescription && descriptionMode !== 'hidden' && bookmark.description}
+      <p
+        class="bookmark-description"
+        class:mobile-only-description={descriptionMode === 'hover'}
+        use:observeDescription
+      >{bookmark.description}</p>
     {/if}
   </div>
 </a>
@@ -93,7 +130,7 @@
     align-items: center;
     gap: 0.82rem;
     width: 100%;
-    height: 70px;
+    height: var(--bookmark-card-height, 70px);
     padding: 0 0.95rem 0 0.55rem;
     border-radius: 1.2rem;
     overflow: visible;
@@ -144,6 +181,10 @@
     transition: opacity 0.16s ease, transform 0.16s ease;
   }
 
+  .bookmark-card-info .bookmark-description.mobile-only-description {
+    display: none;
+  }
+
   .bookmark-card-info.sort-mode {
     cursor: move;
     transform: none !important;
@@ -190,6 +231,36 @@
     border-color: color-mix(in srgb, var(--home-accent-color) 24%, transparent);
     background: rgb(var(--card-bg-rgb) / var(--card-bg-opacity, 0.9));
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  @media (hover: none), (max-width: 720px) {
+    .bookmark-card-info {
+      height: auto;
+      min-height: max(92px, var(--bookmark-card-height, 70px));
+      padding-top: 0.65rem;
+      padding-bottom: 0.65rem;
+    }
+
+    .bookmark-card-info.has-mobile-details {
+      padding-right: 2.9rem;
+    }
+
+    .bookmark-card-info.has-children.has-mobile-details {
+      padding-right: 5.75rem;
+    }
+
+    .bookmark-card-info .bookmark-description,
+    .bookmark-card-info .bookmark-description.mobile-only-description {
+      display: -webkit-box;
+      white-space: normal;
+      text-overflow: clip;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      line-height: 1.35;
+      min-height: 0;
+    }
   }
 
 </style>

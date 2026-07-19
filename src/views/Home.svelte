@@ -481,8 +481,8 @@
     position: fixed;
     right: clamp(2rem, 4vw, 5rem);
     bottom: clamp(1rem, 2.5vh, 2rem);
-    z-index: 2;
-    width: clamp(31rem, 34vw, 39rem);
+    z-index: 1;
+    width: clamp(28rem, 32vw, 36rem);
     pointer-events: none;
   }
 
@@ -490,14 +490,17 @@
     display: block;
     width: 100%;
     height: auto;
+    opacity: 0.9;
     filter: drop-shadow(0 18px 24px rgba(15, 23, 42, 0.12));
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 24%, rgba(0, 0, 0, 0.48) 52%, rgba(0, 0, 0, 0.22) 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 24%, rgba(0, 0, 0, 0.48) 52%, rgba(0, 0, 0, 0.22) 100%);
   }
 
   .anywhere-door-prompt {
     position: absolute;
-    top: -4.75rem;
-    left: clamp(9rem, 10vw, 11rem);
-    z-index: 1;
+    top: -6.4rem;
+    left: clamp(6.5rem, 8vw, 8.5rem);
+    z-index: 2;
     margin: 0;
     padding: 0.7rem 1.05rem;
     border: 1px solid rgb(var(--card-bg-rgb, 255 255 255) / calc(var(--card-bg-opacity, 0.9) * 0.72));
@@ -570,6 +573,7 @@
 
   .content-layout {
     position: relative;
+    z-index: 2;
     max-width: var(--content-max-width, 1200px);
     margin: 0 auto;
   }
